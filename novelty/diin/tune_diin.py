@@ -69,7 +69,7 @@ def objective(trial):
 
     neptune_logger = NeptuneLogger(
         api_key=NEPTUNE_API,
-        project_name="aditya140/Novelty",
+        project_name="aparkhi/Novelty",
         experiment_name="Hyperparameter Tuning",  # Optional,
         tags=[
             "Hyperparams",

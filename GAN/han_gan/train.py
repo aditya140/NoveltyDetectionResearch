@@ -39,7 +39,7 @@ def train_model(args):
 
     if args.log:
         neptune.init(
-            project_qualified_name="aditya140/SSGAN",
+            project_qualified_name="aparkhi/NoveltyGAN",
             api_token=NEPTUNE_API,
         )
         neptune.create_experiment()

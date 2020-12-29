@@ -47,7 +47,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     neptune.init(
-        project_qualified_name="aditya140/10Fold",
+        project_qualified_name="aparkhi/Novelty",
         api_token=NEPTUNE_API,
     )
 

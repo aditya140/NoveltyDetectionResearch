@@ -62,7 +62,7 @@ if __name__ == "__main__":
 
     neptune_logger = NeptuneLogger(
         api_key=NEPTUNE_API,
-        project_name="aditya140/Imdb",
+        project_name="aparkhi/DocClassification",
         experiment_name="training",  # Optional,
         tags=['HAN'],
     )

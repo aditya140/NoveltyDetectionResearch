@@ -9,7 +9,7 @@ import argparse
 from utils.keys import NEPTUNE_API
 
 neptune.init(
-    project_qualified_name="aditya140/GANcompare",
+    project_qualified_name="aparkhi/NoveltyGAN",
     api_token=NEPTUNE_API,
 )
 

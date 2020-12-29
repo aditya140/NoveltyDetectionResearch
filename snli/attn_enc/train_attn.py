@@ -60,13 +60,14 @@ if __name__ == "__main__":
             "scheduler": "const"
             },
         "optimizer_tune":{
-            "optim": "sgd",
+            "optim": "adadelta",
             "lr": 3e-4,
-            "momentum": 0,
-            "weight_decay": 0,
+            "rho": 0.9,
+            "eps":1e-5,
+            "weight_decay": 0.1,
             "scheduler": "const"
         },
-        "switch_epoch":3,
+        "switch_epoch":5,
     } 
 
     Lang = data_module.Lang
@@ -74,11 +75,11 @@ if __name__ == "__main__":
     model_conf = Attn_Encoder_conf(Lang, embedding_matrix, **conf_kwargs)
     model = SNLI_model(Attn_encoder_snli, model_conf, hparams)
 
-    EPOCHS = 5
+    EPOCHS = 10
 
     neptune_logger = NeptuneLogger(
         api_key=NEPTUNE_API,
-        project_name="aditya140/SNLI",
+        project_name="aparkhi/SNLI",
         experiment_name="Evaluation",
         tags=["Attention", args.tag ],
     )

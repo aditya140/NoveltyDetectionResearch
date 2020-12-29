@@ -54,7 +54,7 @@ def objective(trial):
 
     neptune_logger = NeptuneLogger(
         api_key=NEPTUNE_API,
-        project_name="aditya140/SNLI",
+        project_name="aparkhi/SNLI",
         experiment_name="Hyperparameter Tuning",  # Optional,
         tags=["Hyperparams", "Structured Self Attention"],
     )

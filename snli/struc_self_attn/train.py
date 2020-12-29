@@ -84,7 +84,7 @@ if __name__ == "__main__":
 
     neptune_logger = NeptuneLogger(
         api_key=NEPTUNE_API,
-        project_name="aditya140/SNLI",
+        project_name="aparkhi/SNLI",
         experiment_name="Evaluation",
         tags=["Struc Self Attention"],
     )

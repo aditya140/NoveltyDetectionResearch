@@ -25,7 +25,7 @@ import random
 import copy
 import neptune
 
-neptune.init(project_qualified_name='aditya140/10Fold',
+neptune.init(project_qualified_name='aparkhi/Novelty',
              api_token=NEPTUNE_API, 
             )
 

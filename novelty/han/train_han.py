@@ -75,7 +75,7 @@ if __name__ == "__main__":
 
     neptune_logger = NeptuneLogger(
         api_key=NEPTUNE_API,
-        project_name="aditya140/Novelty",
+        project_name="aparkhi/Novelty",
         experiment_name="Evaluation",  # Optional,
         tags=[
             ("Webis" if args.webis else ("DLND" if args.dlnd else "APWSJ")),

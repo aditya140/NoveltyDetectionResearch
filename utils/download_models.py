@@ -80,27 +80,27 @@ def download_from_neptune():
 
     make_paths()
 
-    project = neptune.init("aditya140/SNLI", api_token=NEPTUNE_API)
+    project = neptune.init("aparkhi/SNLI", api_token=NEPTUNE_API)
     experiment = project.get_experiments(id=neptune_experiments["bilstm_enc"])[0]
     experiment.download_artifact(bilstm_enc, osj(ROOT_PATH, "./models"))
 
-    project = neptune.init("aditya140/SNLI", api_token=NEPTUNE_API)
+    project = neptune.init("aparkhi/SNLI", api_token=NEPTUNE_API)
     experiment = project.get_experiments(id=neptune_experiments["attn_enc"])[0]
     experiment.download_artifact(attn_enc, osj(ROOT_PATH, "./models"))
 
-    project = neptune.init("aditya140/Imdb", api_token=NEPTUNE_API)
+    project = neptune.init("aparkhi/DocClassification", api_token=NEPTUNE_API)
     experiment = project.get_experiments(
         id=neptune_experiments["document_imdb_han_clf"]
     )[0]
     experiment.download_artifact(document_imdb_han_clf, osj(ROOT_PATH, "./models"))
 
-    project = neptune.init("aditya140/Imdb", api_token=NEPTUNE_API)
+    project = neptune.init("aparkhi/DocClassification", api_token=NEPTUNE_API)
     experiment = project.get_experiments(
         id=neptune_experiments["document_imdb_han_reg"]
     )[0]
     experiment.download_artifact(document_imdb_han_reg, osj(ROOT_PATH, "./models"))
 
-    project = neptune.init("aditya140/NoveltyCNN", api_token=NEPTUNE_API)
+    project = neptune.init("aparkhi/Novelty", api_token=NEPTUNE_API)
     experiment = project.get_experiments(id=neptune_experiments["cnn_novelty"])[0]
     experiment.download_artifact(cnn_novelty, osj(ROOT_PATH, "./models"))
 
