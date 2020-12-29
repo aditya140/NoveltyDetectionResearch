@@ -127,3 +127,10 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+dataset
+glove.pkl
+lightning_logs
+cachedir
+models
+Evaluation_default

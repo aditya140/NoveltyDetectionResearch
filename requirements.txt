@@ -1,0 +1,7 @@
+neptune-client
+tokenizers
+transformers==3.5.0
+pytorch-lightning==0.9.0
+optuna
+sentence-transformers
+svn
