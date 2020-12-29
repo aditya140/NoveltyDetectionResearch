@@ -41,16 +41,16 @@ if __name__ == "__main__":
     conf_kwargs = {
         "num_layers": 2,
         "dropout": 0.10018262692246818,
-        "embedding_dim":300,
-        "hidden_size": 300,
-        "attention_layer_param":200,
+        "embedding_dim":600,
+        "hidden_size": 400,
+        "attention_layer_param":250,
         "bidirectional": True,
         "freeze_embedding": False,
         "activation": "tanh",
         "fcs": 0,
         "glove": args.glove,
         "batch_size": 128,
-        "max_len": 100,
+        "max_len": 110,
     }
 
     hparams = {
@@ -60,22 +60,20 @@ if __name__ == "__main__":
             "scheduler": "const"
             },
         "optimizer_tune":{
-            "optim": "adadelta",
-            "lr": 3e-4,
-            "rho": 0.9,
-            "eps":1e-5,
+            "optim": "adam",
+            "lr": 0.0010039910781394373,
             "weight_decay": 0.1,
-            "scheduler": "const"
+            "scheduler": "lambda"
         },
         "switch_epoch":5,
-    } 
+    }
 
     Lang = data_module.Lang
 
     model_conf = Attn_Encoder_conf(Lang, embedding_matrix, **conf_kwargs)
     model = SNLI_model(Attn_encoder_snli, model_conf, hparams)
 
-    EPOCHS = 10
+    EPOCHS = 5
 
     neptune_logger = NeptuneLogger(
         api_key=NEPTUNE_API,

@@ -139,7 +139,7 @@ class SNLI_base(pl.LightningModule):
             return [optimizer], [scheduler]
         elif self.optimizer_conf["scheduler"] == "lambda":
             scheduler = optim.lr_scheduler.LambdaLR(
-                optimizer, lr_lambda=lambda x: 10 ** ((-1) * (x // 4))
+                optimizer, lr_lambda=lambda x: 10 ** ((-1) * (x // 6))
             )
             return [optimizer], [scheduler]
         else:

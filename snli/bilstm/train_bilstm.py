@@ -13,6 +13,7 @@ from pytorch_lightning.metrics import Accuracy
 import pickle
 import os
 from joblib import Memory
+import joblib
 import shutil
 import argparse
 from lang import *
@@ -49,10 +50,19 @@ if __name__ == "__main__":
     }
 
     hparams = {
-        "optim": "adamw",
-        "lr": 0.0010039910781394373,
-        "scheduler": "lambda",
-    }  # "momentum":0.9}
+        "optimizer_base":{
+            "optim": "adamw",
+            "lr": 0.0010039910781394373,
+            "scheduler": "const"
+            },
+        "optimizer_tune":{
+            "optim": "adam",
+            "lr": 0.0010039910781394373,
+            "weight_decay": 0.1,
+            "scheduler": "lambda"
+        },
+        "switch_epoch":5,
+    } 
 
     model_conf = Bi_LSTM_Encoder_conf(Lang, embedding_matrix, **conf_kwargs)
     model = SNLI_model(Bi_LSTM, model_conf, hparams)
