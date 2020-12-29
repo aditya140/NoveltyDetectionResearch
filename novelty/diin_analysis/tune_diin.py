@@ -28,7 +28,7 @@ import json
 import os
 from novelty.diin.train_diin import *
 from novelty.diin.diin import *
-from keys import NEPTUNE_API
+from utils.keys import NEPTUNE_API
 
 class MetricsCallback(Callback):
     """PyTorch Lightning metric callback."""

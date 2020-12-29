@@ -18,7 +18,7 @@ from pytorch_lightning.profiler import AdvancedProfiler
 import json
 import os
 from snli.struc_self_attn.struc_self_attn_enc import *
-from keys import NEPTUNE_API
+from utils.keys import NEPTUNE_API
 import argparse
 
 

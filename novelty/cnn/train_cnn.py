@@ -19,7 +19,7 @@ from utils import load_bilstm_encoder, load_attn_encoder
 from novelty.train_utils import *
 from datamodule import *
 import os
-from keys import NEPTUNE_API
+from utils.keys import NEPTUNE_API
 
 
 if __name__ == "__main__":
@@ -47,6 +47,7 @@ if __name__ == "__main__":
 
     params = {
         "num_filters": 60,
+        "encoder_dim":300,
         "dropout": 0.3,
         "expand features": False,
         "filter_sizes": [4, 6, 9],

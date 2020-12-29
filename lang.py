@@ -16,6 +16,7 @@ class LanguageIndex:
         Lanugae Index -  Langugae Index  acts as an interface (similar to torch.vocab) for converting
         text to corresponding tokens, and also has the capability of indexing the vocabulaty by providing
         the phrase exerpts form the languge to index.
+
         Args:
             text ([list], optional): List of sentences to be indexed. Defaults to None.
             config ([type], optional): . Defaults to None.        
@@ -67,6 +68,7 @@ class LanguageIndex:
     def load_tokenizer(self, tok):
         """
         Load external tokenizer
+
         Args:
             tok ([type]): Tokenizer to load
         """
@@ -125,8 +127,10 @@ class LanguageIndex:
 
     def tokenize_spacy(self, phrase):
         """Tokenize using spacy tokenizer
+
         Args:
             phrase ([type]): Phrase to tokenzie
+
         Returns:
             [list] : Tokens
         """
@@ -134,8 +138,10 @@ class LanguageIndex:
 
     def tokenize_bert(self,phrase):
         """Tokenize using BERT tokenizer
+
         Args:
             phrase ([type]): Phrase to tokenzie
+
         Returns:
             [list] : Tokens
         """
@@ -143,8 +149,10 @@ class LanguageIndex:
     
     def tokenize_base(self,phrase):
         """Basic tokenizer
+
         Args:
             phrase ([type]): Phrase to tokenzie
+
         Returns:
             [list] : Tokens
         """
@@ -153,9 +161,11 @@ class LanguageIndex:
 
     def encoder_bert(self,input_,special_tokens=True):
         """Encode input string using bert tokenizer
+
         Args:
             input_ ([string]): input string to be encoded
             special_tokens (bool, optional): [description]. Defaults to True.
+
         Returns:
             [type]: encoded list
         """
@@ -165,9 +175,11 @@ class LanguageIndex:
     
     def encode_base(self,input_,special_tokens=True):
         """Encode input string using spacy tokenizer
+
         Args:
             input_ ([string]): input string to be encoded
             special_tokens (bool, optional): [description]. Defaults to True.
+
         Returns:
             [type]: encoded list
         """
@@ -175,9 +187,11 @@ class LanguageIndex:
 
     def decode_bert(self,input_,to_string=False):
         """Decode input string using bert encoder
+
         Args:
             input_ ([type]): Input tokens to be decoded
             to_string (bool, optional): Converts to one single string if True. Defaults to False.
+
         Returns:
             [type]: [description]
         """
@@ -189,9 +203,11 @@ class LanguageIndex:
 
     def decode_base(self,input_,to_string=False):
         """Decode input string using spacy encoder
+
         Args:
             input_ ([type]): Input tokens to be decoded
             to_string (bool, optional): Converts to one single string if True. Defaults to False.
+
         Returns:
             [type]: [description]
         """
@@ -201,10 +217,12 @@ class LanguageIndex:
     def encode_batch(self, batch, special_tokens=True, pair=False):
         """
         Encode batch of text
+
         Args:
             batch ([type]): [description]
             special_tokens (bool, optional): [description]. Defaults to True.
             pair (bool, optional): [description]. Defaults to False.
+
         Returns:
             [type]: [description]
         """
@@ -219,8 +237,10 @@ class LanguageIndex:
 
     def decode_batch(self, batch):
         """Decode batch of tokens
+
         Args:
             batch ([type]): [description]
+
         Returns:
             [type]: [description]
         """
@@ -228,9 +248,11 @@ class LanguageIndex:
 
     def lang_encode(self, input_, special_tokens=True):
         """Basic implementation of sentence encoder
+
         Args:
             input_ ([type]): Sentence
             special_tokens (bool, optional): [description]. Defaults to True.
+
         Returns:
             [type]: Tokens
         """
@@ -250,10 +272,12 @@ class LanguageIndex:
 
     def encoder_pair(self,sent1,sent2,special_tokens=True):
         """Encode pair of sentences separated by SEP token
+
         Args:
             sent1 ([string]): Sentence 1
             sent2 ([string]): Sentence 2
             special_tokens (bool, optional): [description]. Defaults to True.
+
         Returns:
             [type]: [description]
         """
@@ -264,9 +288,11 @@ class LanguageIndex:
     def lang_decode(self, input_, to_string=False):
         """
         Decode a list of tokens
+
         Args:
             input_ ([list]): list of tokens
             to_string (bool, optional): [description]. Defaults to False.
+
         Returns:
             [type]: [description]
         """

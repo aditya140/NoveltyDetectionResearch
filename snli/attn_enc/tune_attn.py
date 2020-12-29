@@ -18,7 +18,7 @@ from pytorch_lightning.loggers import NeptuneLogger, TensorBoardLogger
 from pytorch_lightning.profiler import AdvancedProfiler
 import json
 import os
-from keys import NEPTUNE_API
+from utils.keys import NEPTUNE_API
 import argparse
 
 

@@ -6,7 +6,7 @@ sys.path.append(".")
 from GAN.cnn.train import train_model
 import neptune
 import argparse
-from keys import NEPTUNE_API
+from utils.keys import NEPTUNE_API
 
 neptune.init(
     project_qualified_name="aditya140/GANcompare",

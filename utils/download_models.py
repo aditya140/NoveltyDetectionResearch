@@ -22,7 +22,8 @@ document_imdb_han_reg = "document_imdb_han_reg.zip"
 
 
 neptune_experiments = {
-    "attn_enc": "SNLI-105",
+    # "attn_enc": "SNLI-105",
+    "attn_enc": "SNLI-411",
     "bilstm_enc": "SNLI-104",
     "document_imdb_han_clf": "IM-33",
     "document_imdb_han_reg": "IM-34",

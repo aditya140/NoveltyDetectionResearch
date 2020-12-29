@@ -18,7 +18,7 @@ import shutil
 import argparse
 from lang import *
 from snli.train_utils import SNLI_model, snli_glove_data_module, snli_bert_data_module,SwitchOptim,SNLI_struc_attn_model
-from keys import NEPTUNE_API
+from utils.keys import NEPTUNE_API
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="SNLI Attention BiLSTM Training")

@@ -35,13 +35,16 @@ def process_glove():
         pickle.dump(glove_model, f)
 
 
+
 if __name__ == "__main__":
     print("Working dir:",os.getcwd())
+    # download_file_from_google_drive(
+    #     "10UKthizQcl48frA_KWbsIx-CjlJR2Y9n", osj(ROOT_PATH, "dlnd.zip")
+    # )  # "dataset/novelty/dlnd/")
     download_file_from_google_drive(
-        "10UKthizQcl48frA_KWbsIx-CjlJR2Y9n", osj(ROOT_PATH, "dlnd.zip")
-    )  # "dataset/novelty/dlnd/")
-
-    # Unpack all zip files (daatasets)
+        "1q-P3ReGf-yWnKrhb6XQAuMGo39hXlhYG", osj(ROOT_PATH, "dlnd.zip")
+    )
+    # Unpack all zip files (datasets)
     shutil.unpack_archive(
         osj(ROOT_PATH, "CMUNRF1.tar"), osj(ROOT_PATH, "./dataset/apwsj/")
     )

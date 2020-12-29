@@ -42,7 +42,7 @@ if __name__ == "__main__":
         "num_layers": 2,
         "dropout": 0.10018262692246818,
         "embedding_dim":300,
-        "hidden_size": 800,
+        "hidden_size": 300,
         "attention_layer_param":200,
         "bidirectional": True,
         "freeze_embedding": False,
@@ -66,7 +66,7 @@ if __name__ == "__main__":
             "weight_decay": 0,
             "scheduler": "const"
         },
-        "switch_epoch":1,
+        "switch_epoch":3,
     } 
 
     Lang = data_module.Lang

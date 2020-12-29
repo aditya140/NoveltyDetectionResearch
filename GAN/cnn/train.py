@@ -26,7 +26,7 @@ from GAN.train_utils import *
 from datamodule import *
 import seaborn as sns
 import os
-from keys import NEPTUNE_API
+from utils.keys import NEPTUNE_API
 import warnings
 
 

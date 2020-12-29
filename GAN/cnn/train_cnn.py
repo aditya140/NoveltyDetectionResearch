@@ -19,7 +19,7 @@ from utils import load_bilstm_encoder, load_attn_encoder
 from GAN.train_utils import *
 from datamodule import *
 import os
-from keys import NEPTUNE_API
+from utils.keys import NEPTUNE_API
 
 
 if __name__ == "__main__":

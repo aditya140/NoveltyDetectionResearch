@@ -8,7 +8,7 @@ import math
 
 
 class DIIN_conf:
-    embedding_dim = 800
+    embedding_dim = 600
     hidden_size = 300
     num_layers = 2
     freeze_encoder = True

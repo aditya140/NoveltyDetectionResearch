@@ -26,7 +26,7 @@ from utils.helpers import seed_torch
 from novelty.train_utils import *
 from datamodule import *
 import os
-from keys import NEPTUNE_API
+from utils.keys import NEPTUNE_API
 
 
 if __name__ == "__main__":
