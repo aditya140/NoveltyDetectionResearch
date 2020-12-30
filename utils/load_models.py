@@ -79,14 +79,14 @@ def load_han_clf_encoder():
     return encoder, Lang
 
 
-def load_bilstm_encoder():
+def load_bilstm_encoder(id):
     """Load BiLSTM encoder from the models path
 
     Returns:
         [nn.Module]: BiLSTM encoder
         [LanguageIndex]: Language Index
     """
-    BILSTM_PATH = f"./models/bilstm_encoder/"
+    BILSTM_PATH = f"./models/bilstm_encoder/{id}/"
     with open(BILSTM_PATH + "model_conf.pkl", "rb") as f:
         model_conf = pickle.load(f)
     with open(BILSTM_PATH + "lang.pkl", "rb") as f:
@@ -96,14 +96,14 @@ def load_bilstm_encoder():
     return encoder, Lang
 
 
-def load_attn_encoder():
+def load_attn_encoder(id):
     """Load Attention encoder from the models path
 
     Returns:
         [nn.Module]: Attention LSTM encoder
         [LanguageIndex]: Language Index
     """
-    ATTN_ENC_PATH = f"./models/attn_encoder/"
+    ATTN_ENC_PATH = f"./models/attn_encoder/{id}/"
     with open(ATTN_ENC_PATH + "model_conf.pkl", "rb") as f:
         model_conf = pickle.load(f)
     with open(ATTN_ENC_PATH + "lang.pkl", "rb") as f:

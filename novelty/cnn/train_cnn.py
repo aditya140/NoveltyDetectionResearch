@@ -15,7 +15,8 @@ from pytorch_lightning.callbacks import LearningRateLogger
 from pytorch_lightning.profiler import AdvancedProfiler
 from pytorch_lightning.loggers import NeptuneLogger, TensorBoardLogger
 from pytorch_lightning.metrics import Accuracy
-from utils import load_bilstm_encoder, load_attn_encoder
+from utils.load_models import load_bilstm_encoder, load_attn_encoder
+from utils.save_models import save_model,save_model_neptune
 from novelty.train_utils import *
 from datamodule import *
 import os
@@ -30,13 +31,15 @@ if __name__ == "__main__":
     parser.add_argument("--apwsj", action="store_true", help="apwsj dataset")
     parser.add_argument("--save", action="store_true", help="Save model")
     parser.add_argument("--encoder", type=str, help="Encoder Type")
-
+    
     args = parser.parse_args()
 
     if args.encoder == "bilstm":
-        encoder, Lang = load_bilstm_encoder()
+        model_id = "SNLI-13"
+        encoder, Lang = load_bilstm_encoder(model_id)
     elif args.encoder == "attention":
-        encoder, Lang = load_attn_encoder()
+        model_id = "SNLI-12"
+        encoder, Lang = load_attn_encoder(model_id)
 
     if args.webis:
         data_module = webis_data_module(Lang)
@@ -47,7 +50,7 @@ if __name__ == "__main__":
 
     params = {
         "num_filters": 60,
-        "encoder_dim":300,
+        "encoder_dim":encoder.conf.embedding_dim,
         "dropout": 0.3,
         "expand features": False,
         "filter_sizes": [4, 6, 9],
@@ -74,6 +77,7 @@ if __name__ == "__main__":
             "CNN",
         ],
     )
+    expt_id = neptune_logger.experiment.id
 
     tensorboard_logger = TensorBoardLogger("lightning_logs")
 
@@ -92,14 +96,8 @@ if __name__ == "__main__":
     trainer.fit(model, data_module)
     trainer.test(model, datamodule=data_module)
 
-    if args.save:
-        MODEL_PATH = "./models/cnn_novelty/"
-        if not os.path.exists(MODEL_PATH):
-            os.makedirs(MODEL_PATH)
-        torch.save(model.model.state_dict(), MODEL_PATH + "weights.pt")
-        with open(MODEL_PATH + "model_conf.pkl", "wb") as f:
-            pickle.dump(model_conf, f)
-        with open(MODEL_PATH + "lang.pkl", "wb") as f:
-            pickle.dump(Lang, f)
-        shutil.make_archive("./models/cnn_novelty", "zip", "./models/cnn_novelty")
-        neptune_logger.experiment.log_artifact("./models/cnn_novelty.zip")
+
+
+    model_data={"model":model.model, "model_conf":model_conf, "Lang":Lang}
+    save_path = save_model("cnn_novelty",expt_id,model_data)
+    save_model_neptune(save_path,neptune_logger)

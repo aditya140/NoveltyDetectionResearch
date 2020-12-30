@@ -16,7 +16,6 @@ from pytorch_lightning.profiler import AdvancedProfiler
 from pytorch_lightning.loggers import NeptuneLogger, TensorBoardLogger
 from pytorch_lightning.metrics import Accuracy, F1
 from pytorch_lightning import Callback
-from utils import load_bilstm_encoder
 from datamodule import *
 import os
 from itertools import cycle

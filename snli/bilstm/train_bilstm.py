@@ -19,6 +19,7 @@ import argparse
 from lang import *
 from snli.train_utils import SNLI_model, snli_glove_data_module, snli_bert_data_module
 from utils.keys import NEPTUNE_API
+from utils.save_models import save_model,save_model_neptune
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="SNLI Bi Lstm Training")
@@ -75,6 +76,7 @@ if __name__ == "__main__":
         experiment_name="Evaluation",
         tags=["BiLstm", args.tag],
     )
+    expt_id = neptune_logger.experiment.id
     tensorboard_logger = TensorBoardLogger("lightning_logs")
     lr_logger = LearningRateLogger(logging_interval="step")
 
@@ -92,14 +94,6 @@ if __name__ == "__main__":
     trainer.fit(model, data_module)
     trainer.test(model, datamodule=data_module)
 
-    if args.save:
-        if not os.path.exists("models/bilstm_encoder"):
-            os.makedirs("models/bilstm_encoder")
-        BILSTM_PATH = "./models/bilstm_encoder/"
-        torch.save(model.model.encoder.state_dict(), BILSTM_PATH + "weights.pt")
-        with open(BILSTM_PATH + "model_conf.pkl", "wb") as f:
-            pickle.dump(model_conf, f)
-        with open(BILSTM_PATH + "lang.pkl", "wb") as f:
-            joblib.dump(Lang, f)
-        shutil.make_archive("./models/bilstm_encoder", "zip", "./models/bilstm_encoder")
-        neptune_logger.experiment.log_artifact("./models/bilstm_encoder.zip")
+    model_data={"model":model.model.encoder, "model_conf":model_conf, "Lang":Lang}
+    save_path = save_model("bilstm_encoder",expt_id,model_data)
+    save_model_neptune(save_path,neptune_logger)

@@ -19,6 +19,7 @@ from lang import *
 from snli.train_utils import SNLI_model, snli_glove_data_module, snli_bert_data_module,SwitchOptim
 from utils.keys import NEPTUNE_API
 from utils.helpers import seed_torch
+from utils.save_models import save_model,save_model_neptune
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="SNLI Attention BiLSTM Training")
@@ -47,7 +48,7 @@ if __name__ == "__main__":
         "bidirectional": True,
         "freeze_embedding": False,
         "activation": "tanh",
-        "fcs": 0,
+        "fcs": 1,
         "glove": args.glove,
         "batch_size": 128,
         "max_len": 110,
@@ -68,7 +69,6 @@ if __name__ == "__main__":
         "switch_epoch":5,
     }
 
-    Lang = data_module.Lang
 
     model_conf = Attn_Encoder_conf(Lang, embedding_matrix, **conf_kwargs)
     model = SNLI_model(Attn_encoder_snli, model_conf, hparams)
@@ -81,6 +81,7 @@ if __name__ == "__main__":
         experiment_name="Evaluation",
         tags=["Attention", args.tag ],
     )
+    expt_id = neptune_logger.experiment.id
     tensorboard_logger = TensorBoardLogger("lightning_logs")
     lr_logger = LearningRateLogger(logging_interval="step")
 
@@ -98,14 +99,6 @@ if __name__ == "__main__":
     trainer.fit(model, data_module)
     trainer.test(model, datamodule=data_module)
 
-    if args.save:
-        if not os.path.exists("models/attn_encoder"):
-            os.makedirs("models/attn_encoder")
-        MODEL_PATH = "./models/attn_encoder/"
-        torch.save(model.model.encoder.state_dict(), MODEL_PATH + "weights.pt")
-        with open(MODEL_PATH + "model_conf.pkl", "wb") as f:
-            pickle.dump(model_conf, f)
-        with open(MODEL_PATH + "lang.pkl", "wb") as f:
-            joblib.dump(Lang, f)
-        shutil.make_archive("./models/attn_encoder", "zip", "./models/attn_encoder")
-        neptune_logger.experiment.log_artifact("./models/attn_encoder.zip")
+    model_data={"model":model.model.encoder, "model_conf":model_conf, "Lang":Lang}
+    save_path = save_model("attn_encoder",expt_id,model_data)
+    save_model_neptune(save_path,neptune_logger)
