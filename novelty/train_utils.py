@@ -14,7 +14,7 @@ import pytorch_lightning as pl
 from pytorch_lightning.callbacks import LearningRateLogger
 from pytorch_lightning.profiler import AdvancedProfiler
 from pytorch_lightning.loggers import NeptuneLogger, TensorBoardLogger
-from pytorch_lightning.metrics import Accuracy, F1
+from pytorch_lightning.metrics import Accuracy, F1, Recall, Precision
 from pytorch_lightning import Callback
 from datamodule import *
 import os
@@ -49,6 +49,33 @@ def apwsj_data_module(Lang):
 def dlnd_data_module(Lang):
     data_module = DLNDDataModule(batch_size=32)
     data_module.prepare_data(Lang, 100)
+    return data_module
+
+
+@memory.cache
+def webis_crossval_datamodule(Lang):
+    data_module = WebisDataModule(batch_size=32, cross_val=True)
+    print("Started data prep")
+    data_module.prepare_data(Lang, 100)
+    print("Data Prepared")
+    return data_module
+
+
+@memory.cache
+def dlnd_crossval_datamodule(Lang):
+    data_module = DLNDDataModule(batch_size=32, cross_val=True)
+    print("Started data prep")
+    data_module.prepare_data(Lang, 100)
+    print("Data Prepared")
+    return data_module
+
+
+@memory.cache
+def apwsj_crossval_datamodule(Lang):
+    data_module = APWSJDataModule(batch_size=32, cross_val=True)
+    print("Started data prep")
+    data_module.prepare_data(Lang, 100)
+    print("Data Prepared")
     return data_module
 
 
@@ -148,13 +175,19 @@ class Novelty_CNN_model(pl.LightningModule):
         test_loss = F.cross_entropy(opt, y)
         metric = Accuracy(num_classes=2)
         metricF1 = F1(num_classes=2)
+        metricRecall = Recall(num_classes=2)
+        metricPrecision = Precision(num_classes=2)
         pred = F.softmax(opt)
         test_acc = metric(pred.argmax(1), y)
         test_f1 = metricF1(pred.argmax(1), y)
+        test_recall = metricRecall(pred.argmax(1), y)
+        test_prec = metricPrecision(pred.argmax(1), y)
         result = pl.EvalResult()
         result.log("test_loss", test_loss)
         result.log("test_acc", test_acc)
         result.log("test_f1", test_f1)
+        result.log("test_recall", test_recall)
+        result.log("test_prec", test_prec)
         result.log("pred", pred)
         result.log("true", y)
         return result
@@ -164,66 +197,87 @@ class Novelty_CNN_model(pl.LightningModule):
         result.log("test_loss", outputs["test_loss"].mean())
         result.log("test_f1", outputs["test_f1"].mean())
         result.log("test_acc", outputs["test_acc"].mean())
+        result.log("test_recall", outputs["test_recall"].mean())
+        result.log("test_prec", outputs["test_prec"].mean())
+        if hasattr(self, "logger"):
+            if not isinstance(self.logger, TensorBoardLogger):
+                for logger in self.logger:
+                    if isinstance(logger, pl.loggers.neptune.NeptuneLogger):
 
-        y_score = outputs["pred"].detach().cpu().numpy()
-        Y_test = outputs["true"].detach().cpu().numpy()
-        Y_test = np.append(
-            (1 - np.expand_dims(Y_test, axis=0)), np.expand_dims(Y_test, axis=0), 0
-        ).transpose()
+                        y_score = outputs["pred"].detach().cpu().numpy()
+                        Y_test = outputs["true"].detach().cpu().numpy()
+                        Y_test = np.append(
+                            (1 - np.expand_dims(Y_test, axis=0)),
+                            np.expand_dims(Y_test, axis=0),
+                            0,
+                        ).transpose()
 
-        # Save P-R curve
-        n_classes = 2
-        precision = dict()
-        recall = dict()
-        average_precision = dict()
-        for i in range(n_classes):
-            precision[i], recall[i], _ = precision_recall_curve(
-                Y_test[:, i], y_score[:, i]
-            )
-            average_precision[i] = average_precision_score(Y_test[:, i], y_score[:, i])
-        precision["micro"], recall["micro"], _ = precision_recall_curve(
-            Y_test.ravel(), y_score.ravel()
-        )
-        average_precision["micro"] = average_precision_score(
-            Y_test, y_score, average="micro"
-        )
-        colors = cycle(["navy", "turquoise", "darkorange", "cornflowerblue", "teal"])
-        plt.figure(figsize=(7, 8))
-        f_scores = np.linspace(0.2, 0.8, num=4)
-        lines = []
-        labels = []
-        for f_score in f_scores:
-            x = np.linspace(0.01, 1)
-            y = f_score * x / (2 * x - f_score)
-            (l,) = plt.plot(x[y >= 0], y[y >= 0], color="gray", alpha=0.2)
-            plt.annotate("f1={0:0.1f}".format(f_score), xy=(0.9, y[45] + 0.02))
-        lines.append(l)
-        labels.append("iso-f1 curves")
-        (l,) = plt.plot(recall["micro"], precision["micro"], color="gold", lw=2)
-        lines.append(l)
-        labels.append(
-            "micro-average Precision-recall (area = {0:0.2f})"
-            "".format(average_precision["micro"])
-        )
-        for i, color in zip(range(n_classes), colors):
-            (l,) = plt.plot(recall[i], precision[i], color=color, lw=2)
-            lines.append(l)
-            labels.append(
-                "Precision-recall for class {0} (area = {1:0.2f})"
-                "".format(i, average_precision[i])
-            )
-        fig = plt.gcf()
-        fig.subplots_adjust(bottom=0.25)
-        plt.xlim([0.0, 1.0])
-        plt.ylim([0.0, 1.05])
-        plt.xlabel("Recall")
-        plt.ylabel("Precision")
-        plt.title("Extension of Precision-Recall curve to multi-class")
-        plt.legend(lines, labels, loc=(0, -0.38), prop=dict(size=14))
-
-        for logger in self.logger:
-            if isinstance(logger, pl.loggers.neptune.NeptuneLogger):
-                logger.experiment.log_image("precision-recall curve", fig)
-        plt.close(fig)
+                        # Save P-R curve
+                        n_classes = 2
+                        precision = dict()
+                        recall = dict()
+                        average_precision = dict()
+                        for i in range(n_classes):
+                            precision[i], recall[i], _ = precision_recall_curve(
+                                Y_test[:, i], y_score[:, i]
+                            )
+                            average_precision[i] = average_precision_score(
+                                Y_test[:, i], y_score[:, i]
+                            )
+                        precision["micro"], recall["micro"], _ = precision_recall_curve(
+                            Y_test.ravel(), y_score.ravel()
+                        )
+                        average_precision["micro"] = average_precision_score(
+                            Y_test, y_score, average="micro"
+                        )
+                        colors = cycle(
+                            [
+                                "navy",
+                                "turquoise",
+                                "darkorange",
+                                "cornflowerblue",
+                                "teal",
+                            ]
+                        )
+                        plt.figure(figsize=(7, 8))
+                        f_scores = np.linspace(0.2, 0.8, num=4)
+                        lines = []
+                        labels = []
+                        for f_score in f_scores:
+                            x = np.linspace(0.01, 1)
+                            y = f_score * x / (2 * x - f_score)
+                            (l,) = plt.plot(
+                                x[y >= 0], y[y >= 0], color="gray", alpha=0.2
+                            )
+                            plt.annotate(
+                                "f1={0:0.1f}".format(f_score), xy=(0.9, y[45] + 0.02)
+                            )
+                        lines.append(l)
+                        labels.append("iso-f1 curves")
+                        (l,) = plt.plot(
+                            recall["micro"], precision["micro"], color="gold", lw=2
+                        )
+                        lines.append(l)
+                        labels.append(
+                            "micro-average Precision-recall (area = {0:0.2f})"
+                            "".format(average_precision["micro"])
+                        )
+                        for i, color in zip(range(n_classes), colors):
+                            (l,) = plt.plot(recall[i], precision[i], color=color, lw=2)
+                            lines.append(l)
+                            labels.append(
+                                "Precision-recall for class {0} (area = {1:0.2f})"
+                                "".format(i, average_precision[i])
+                            )
+                        fig = plt.gcf()
+                        fig.subplots_adjust(bottom=0.25)
+                        plt.xlim([0.0, 1.0])
+                        plt.ylim([0.0, 1.05])
+                        plt.xlabel("Recall")
+                        plt.ylabel("Precision")
+                        plt.title("Extension of Precision-Recall curve to multi-class")
+                        plt.legend(lines, labels, loc=(0, -0.38), prop=dict(size=14))
+                        logger.experiment.log_image("precision-recall curve", fig)
+                plt.close(fig)
 
         return result
