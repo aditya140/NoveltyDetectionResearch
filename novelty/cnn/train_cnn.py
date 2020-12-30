@@ -31,6 +31,7 @@ if __name__ == "__main__":
     parser.add_argument("--apwsj", action="store_true", help="apwsj dataset")
     parser.add_argument("--save", action="store_true", help="Save model")
     parser.add_argument("--encoder", type=str, help="Encoder Type")
+    parser.add_argument("--log", action="store_true", help="Log to neptune")
     
     args = parser.parse_args()
 
@@ -50,9 +51,9 @@ if __name__ == "__main__":
 
     params = {
         "num_filters": 60,
-        "encoder_dim":encoder.conf.embedding_dim,
+        "encoder_dim":encoder.conf.hidden_size,
         "dropout": 0.3,
-        "expand features": False,
+        "expand features": True,
         "filter_sizes": [4, 6, 9],
         "freeze_embedding": True,
         "activation": "tanh",
@@ -67,22 +68,27 @@ if __name__ == "__main__":
 
     EPOCHS = 5
 
-    neptune_logger = NeptuneLogger(
-        api_key=NEPTUNE_API,
-        project_name="aparkhi/Novelty",
-        experiment_name="Evaluation",  # Optional,
-        tags=[
-            ("Webis" if args.webis else ("DLND" if args.dlnd else "APWSJ")),
-            "test",
-            "CNN",
-        ],
-    )
-    expt_id = neptune_logger.experiment.id
-
     tensorboard_logger = TensorBoardLogger("lightning_logs")
 
+    if args.log:
+        neptune_logger = NeptuneLogger(
+            api_key=NEPTUNE_API,
+            project_name="aparkhi/Novelty",
+            experiment_name="Evaluation",  # Optional,
+            tags=[
+                ("Webis" if args.webis else ("DLND" if args.dlnd else "APWSJ")),
+                "test",
+                "CNN",
+            ],
+        )
+        expt_id = neptune_logger.experiment.id
+        neptune_logger.experiment.log_metric("epochs", EPOCHS)
+        loggers = [neptune_logger,tensorboard_logger]
+    else:
+        loggers = [tensorboard_logger]
+
+
     lr_logger = LearningRateLogger(logging_interval="step")
-    neptune_logger.experiment.log_metric("epochs", EPOCHS)
     trainer = pl.Trainer(
         gpus=1,
         max_epochs=EPOCHS,
@@ -90,7 +96,7 @@ if __name__ == "__main__":
         profiler=False,
         auto_lr_find=False,
         callbacks=[lr_logger],
-        logger=[neptune_logger, tensorboard_logger],
+        logger=loggers,
         row_log_interval=2,
     )
     trainer.fit(model, data_module)

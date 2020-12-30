@@ -32,7 +32,7 @@ class DeepNoveltyCNN(nn.Module):
                 nn.Conv2d(
                     1,
                     conf.num_filters,
-                    (K, conf.encoder_dim * (4 if conf.expand_features else 2)),
+                    (K, conf.encoder_dim * 2 *(4 if conf.expand_features else 2)),
                 )
                 for K in conf.filter_sizes
             ]
