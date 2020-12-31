@@ -87,7 +87,7 @@ if __name__ == "__main__":
     neptune.log_text("Encoder", args.encoder)
 
     params = {
-        "num_filters": 60,
+        "num_filters": 100,
         "encoder_dim": encoder.conf.hidden_size,
         "dropout": 0.3,
         "expand features": True,
