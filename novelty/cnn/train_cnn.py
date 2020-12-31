@@ -16,7 +16,7 @@ from pytorch_lightning.profiler import AdvancedProfiler
 from pytorch_lightning.loggers import NeptuneLogger, TensorBoardLogger
 from pytorch_lightning.metrics import Accuracy
 from utils.load_models import load_bilstm_encoder, load_attn_encoder
-from utils.save_models import save_model,save_model_neptune
+from utils.save_models import save_model, save_model_neptune
 from novelty.train_utils import *
 from datamodule import *
 import os
@@ -32,7 +32,7 @@ if __name__ == "__main__":
     parser.add_argument("--save", action="store_true", help="Save model")
     parser.add_argument("--encoder", type=str, help="Encoder Type")
     parser.add_argument("--log", action="store_true", help="Log to neptune")
-    
+
     args = parser.parse_args()
 
     if args.encoder == "bilstm":
@@ -49,13 +49,21 @@ if __name__ == "__main__":
     elif args.apwsj:
         data_module = apwsj_data_module(Lang)
 
+    # if args.webis:
+    #     data_module = webis_crossval_datamodule(Lang)
+    # elif args.dlnd:
+    #     data_module = dlnd_crossval_datamodule(Lang)
+    # elif args.apwsj:
+    #     data_module = apwsj_crossval_datamodule(Lang)
+    # data_module.set_fold(0)
+
     params = {
-        "num_filters": 60,
-        "encoder_dim":encoder.conf.hidden_size,
+        "num_filters": 100,
+        "encoder_dim": encoder.conf.hidden_size,
         "dropout": 0.3,
         "expand features": True,
         "filter_sizes": [4, 6, 9],
-        "freeze_embedding": True,
+        "freeze_embedding": False,
         "activation": "tanh",
         "optim": "adamw",
         "weight_decay": 0.1,
@@ -83,10 +91,9 @@ if __name__ == "__main__":
         )
         expt_id = neptune_logger.experiment.id
         neptune_logger.experiment.log_metric("epochs", EPOCHS)
-        loggers = [neptune_logger,tensorboard_logger]
+        loggers = [neptune_logger, tensorboard_logger]
     else:
         loggers = [tensorboard_logger]
-
 
     lr_logger = LearningRateLogger(logging_interval="step")
     trainer = pl.Trainer(
@@ -102,8 +109,6 @@ if __name__ == "__main__":
     trainer.fit(model, data_module)
     trainer.test(model, datamodule=data_module)
 
-
-
-    model_data={"model":model.model, "model_conf":model_conf, "Lang":Lang}
-    save_path = save_model("cnn_novelty",expt_id,model_data)
-    save_model_neptune(save_path,neptune_logger)
+    model_data = {"model": model.model, "model_conf": model_conf, "Lang": Lang}
+    save_path = save_model("cnn_novelty", expt_id, model_data)
+    save_model_neptune(save_path, neptune_logger)

@@ -42,7 +42,7 @@ if __name__ == "__main__":
     conf_kwargs = {
         "num_layers": 2,
         "dropout": 0.10018262692246818,
-        "embedding_dim":600,
+        "embedding_dim":300,
         "hidden_size": 400,
         "attention_layer_param":250,
         "bidirectional": True,

@@ -30,14 +30,14 @@ memory = Memory(location, verbose=0)
 # memory.clear(warn=False)
 
 
-@memory.cache
+# @memory.cache
 def webis_data_module(Lang):
     data_module = WebisDataModule(batch_size=32)
     data_module.prepare_data(Lang, 100)
     return data_module
 
 
-@memory.cache
+# @memory.cache
 def apwsj_data_module(Lang):
     data_module = APWSJDataModule(batch_size=32)
     print("preparing data")
@@ -45,7 +45,7 @@ def apwsj_data_module(Lang):
     return data_module
 
 
-@memory.cache
+# @memory.cache
 def dlnd_data_module(Lang):
     data_module = DLNDDataModule(batch_size=32)
     data_module.prepare_data(Lang, 100)

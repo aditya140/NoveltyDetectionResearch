@@ -35,4 +35,4 @@ rm -rf glove.840B.300d.txt
 rm -rf dlnd.zip
 rm -rf CMUNRF1.tar
 
-# python3 utils/download_models.py --neptune
+python3 utils/download_models.py --neptune

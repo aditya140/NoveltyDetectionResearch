@@ -208,7 +208,7 @@ class APWSJDataModule(pl.LightningDataModule):
             ) = random_split(
                 self.APWSJ_data,
                 [train_size, val_size, test_size],
-                generator=torch.Generator().manual_seed(42),
+                generator=torch.Generator().manual_seed(140),
             )
 
     def train_dataloader(self):
@@ -255,7 +255,7 @@ class SNLIDataModule(pl.LightningDataModule):
         )
         if lang_conf == "glove":
             self.lang_conf = GloveLangConf(vocab_size=200000)
-            self.Lang = LanguageIndex(text = self.lang_text, config = self.lang_conf)
+            self.Lang = LanguageIndex(text=self.lang_text, config=self.lang_conf)
         else:
             self.lang_conf = lang_conf
             self.Lang = lang
