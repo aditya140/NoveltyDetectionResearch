@@ -10,7 +10,7 @@ from torch.utils.data import Dataset, DataLoader
 import pandas as pd
 from lang import *
 from torch.utils.data import random_split
-from sklearn.model_selection import KFold
+from sklearn.model_selection import KFold, StratifiedKFold
 from torch.utils.data import Subset
 import torch
 
@@ -29,9 +29,11 @@ class WebisDataModule(pl.LightningDataModule):
 
     def k_fold_split(self):
         data_size = len(self.webis_data)
-        kf = KFold(n_splits=10)
+        skf = StratifiedKFold(n_splits=10, shuffle=True)
         self.folds = []
-        for train_index, test_index in kf.split([i for i in range(data_size)]):
+        for train_index, test_index in skf.split(
+            [i for i in range(data_size)], self.webis_data.labels
+        ):
             self.folds.append((train_index, test_index))
 
     def prepare_data(
@@ -103,9 +105,11 @@ class DLNDDataModule(pl.LightningDataModule):
 
     def k_fold_split(self):
         data_size = len(self.DLND_data)
-        kf = KFold(n_splits=10)
+        skf = StratifiedKFold(n_splits=10, shuffle=True)
         self.folds = []
-        for train_index, test_index in kf.split([i for i in range(data_size)]):
+        for train_index, test_index in skf.split(
+            [i for i in range(data_size)], self.DLND_data.labels
+        ):
             self.folds.append((train_index, test_index))
 
     def prepare_data(
@@ -175,9 +179,11 @@ class APWSJDataModule(pl.LightningDataModule):
 
     def k_fold_split(self):
         data_size = len(self.APWSJ_data)
-        kf = KFold(n_splits=10)
+        skf = StratifiedKFold(n_splits=10, shuffle=True)
         self.folds = []
-        for train_index, test_index in kf.split([i for i in range(data_size)]):
+        for train_index, test_index in skf.split(
+            [i for i in range(data_size)], self.APWSJ_data.labels
+        ):
             self.folds.append((train_index, test_index))
 
     def prepare_data(

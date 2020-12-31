@@ -42,20 +42,20 @@ if __name__ == "__main__":
         model_id = "SNLI-12"
         encoder, Lang = load_attn_encoder(model_id)
 
-    if args.webis:
-        data_module = webis_data_module(Lang)
-    elif args.dlnd:
-        data_module = dlnd_data_module(Lang)
-    elif args.apwsj:
-        data_module = apwsj_data_module(Lang)
-
     # if args.webis:
-    #     data_module = webis_crossval_datamodule(Lang)
+    #     data_module = webis_data_module(Lang)
     # elif args.dlnd:
-    #     data_module = dlnd_crossval_datamodule(Lang)
+    #     data_module = dlnd_data_module(Lang)
     # elif args.apwsj:
-    #     data_module = apwsj_crossval_datamodule(Lang)
-    # data_module.set_fold(0)
+    #     data_module = apwsj_data_module(Lang)
+
+    if args.webis:
+        data_module = webis_crossval_datamodule(Lang)
+    elif args.dlnd:
+        data_module = dlnd_crossval_datamodule(Lang)
+    elif args.apwsj:
+        data_module = apwsj_crossval_datamodule(Lang)
+    data_module.set_fold(0)
 
     params = {
         "num_filters": 100,

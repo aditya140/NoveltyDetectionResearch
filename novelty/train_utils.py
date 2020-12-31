@@ -27,7 +27,7 @@ from sklearn.metrics import precision_recall_curve, average_precision_score
 
 location = "./cachedir"
 memory = Memory(location, verbose=0)
-# memory.clear(warn=False)
+memory.clear(warn=False)
 
 
 # @memory.cache
