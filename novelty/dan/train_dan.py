@@ -59,6 +59,7 @@ if __name__ == "__main__":
 
     params = {
         "encoder_dim": encoder.conf.hidden_size,
+        "hidden_size": 400
         "dropout": 0.3,
         "activation": "tanh",
         "optim": "adamw",

@@ -14,14 +14,14 @@ import pytorch_lightning as pl
 import torch.nn.functional as F
 from utils import *
 from datamodule import *
+from utils.load_models import load_bilstm_encoder, load_attn_encoder
 from pytorch_lightning.callbacks import LearningRateLogger
 from pytorch_lightning.loggers import NeptuneLogger, TensorBoardLogger
 from pytorch_lightning.profiler import AdvancedProfiler
 import json
 import os
-from novelty.cnn.train_cnn import *
-from novelty.cnn.cnn_model import *
-from utils.keys import NEPTUNE_API
+from novelty.dan.train_dan import *
+from novelty.dan.dan import *
 
 
 class MetricsCallback(Callback):
@@ -35,8 +35,7 @@ class MetricsCallback(Callback):
         self.metrics.append(trainer.callback_metrics)
 
 
-model_id = "SNLI-12"
-encoder, Lang = load_attn_encoder(model_id)
+encoder, Lang = load_encoder("bilstm")
 data_module = webis_data_module(Lang)
 
 DIR = os.getcwd()
