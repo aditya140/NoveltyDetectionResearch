@@ -27,7 +27,7 @@ from sklearn.metrics import precision_recall_curve, average_precision_score
 
 location = "./cachedir"
 memory = Memory(location, verbose=0)
-memory.clear(warn=False)
+# memory.clear(warn=False)
 
 
 # @memory.cache
@@ -45,7 +45,7 @@ def apwsj_data_module(Lang):
     return data_module
 
 
-# @memory.cache
+@memory.cache
 def dlnd_data_module(Lang):
     data_module = DLNDDataModule(batch_size=32)
     data_module.prepare_data(Lang, 100)
