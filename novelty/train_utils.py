@@ -140,7 +140,7 @@ class Novelty_CNN_model(pl.LightningModule):
             return [optimizer], [scheduler]
         elif self.hparams.scheduler == "lambda":
             scheduler = optim.lr_scheduler.LambdaLR(
-                optimizer, lr_lambda=lambda x: 10 ** ((-1) * (x // 4))
+                optimizer, lr_lambda=lambda x: 10 ** ((-1) * (x // 6))
             )
             return [optimizer], [scheduler]
         else:
@@ -278,6 +278,5 @@ class Novelty_CNN_model(pl.LightningModule):
                         plt.title("Extension of Precision-Recall curve to multi-class")
                         plt.legend(lines, labels, loc=(0, -0.38), prop=dict(size=14))
                         logger.experiment.log_image("precision-recall curve", fig)
-                plt.close(fig)
-
+                        plt.close(fig)
         return result

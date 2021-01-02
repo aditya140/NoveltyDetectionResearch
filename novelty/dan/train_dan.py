@@ -70,7 +70,7 @@ if __name__ == "__main__":
     model_conf = DAN_conf(100, encoder, **params)
     model = Novelty_CNN_model(DAN, model_conf, params)
 
-    EPOCHS = 5
+    EPOCHS = 10
 
     tensorboard_logger = TensorBoardLogger("lightning_logs")
 
@@ -81,8 +81,7 @@ if __name__ == "__main__":
             experiment_name="Evaluation",  # Optional,
             tags=[
                 ("Webis" if args.webis else ("DLND" if args.dlnd else "APWSJ")),
-                "test",
-                "CNN",
+                "DAN",
             ],
         )
         expt_id = neptune_logger.experiment.id
