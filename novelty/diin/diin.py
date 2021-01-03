@@ -259,7 +259,7 @@ class DIIN(nn.Module):
         self.template = nn.Parameter(torch.zeros((1)), requires_grad=True)
         self.dropout = nn.Dropout(conf.dropout[4])
 
-        self.translate = nn.Linear(conf.embedding_dim, self.conf.hidden_size)
+        self.translate = nn.Linear(2*conf.embedding_dim, self.conf.hidden_size)
         self.highway = Highway(self.conf.hidden_size, conf.num_layers,conf.dropout[1])
         self.attn = self_attention(self.conf)
         self.fuse = fuse_gate(self.conf)

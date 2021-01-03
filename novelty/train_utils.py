@@ -1,13 +1,11 @@
 import sys
 
 sys.path.append(".")
+
 import joblib
 import pickle
 import argparse
-from lang import *
-from novelty.cnn.cnn_model import *
-from snli.bilstm.bilstm import *
-from snli.attn_enc.attn_enc import *
+import os
 from joblib import Memory
 import shutil
 import pytorch_lightning as pl
@@ -16,13 +14,15 @@ from pytorch_lightning.profiler import AdvancedProfiler
 from pytorch_lightning.loggers import NeptuneLogger, TensorBoardLogger
 from pytorch_lightning.metrics import Accuracy, F1, Recall, Precision
 from pytorch_lightning import Callback
-from datamodule import *
-import os
-from itertools import cycle
-import matplotlib.pyplot as plt
 from itertools import cycle
 import matplotlib.pyplot as plt
 from sklearn.metrics import precision_recall_curve, average_precision_score
+
+from lang import *
+from novelty.cnn.cnn_model import *
+from snli.bilstm.bilstm import *
+from snli.attn_enc.attn_enc import *
+from datamodule import *
 
 
 location = "./cachedir"
