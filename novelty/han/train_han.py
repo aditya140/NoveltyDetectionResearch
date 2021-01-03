@@ -35,7 +35,6 @@ if __name__ == "__main__":
     parser.add_argument("--webis", action="store_true", help="Webis dataset")
     parser.add_argument("--dlnd", action="store_true", help="DLND dataset")
     parser.add_argument("--apwsj", action="store_true", help="APWSJ dataset")
-    parser.add_argument("--save", action="store_true", help="Save model")
     parser.add_argument("--encoder", type=str, help="Encoder Type")
     parser.add_argument(
         "--reset", action="store_true", help="Reset Weights", default=False
@@ -46,9 +45,11 @@ if __name__ == "__main__":
     seed_torch()
 
     if args.encoder == "reg":
-        encoder, Lang = load_han_reg_encoder()
+        model_id = "DOC-3"
+        encoder, Lang = load_han_reg_encoder(model_id)
     elif args.encoder == "clf":
-        encoder, Lang = load_han_clf_encoder()
+        model_id = "DOC-2"
+        encoder, Lang = load_han_clf_encoder(model_id)
 
     if args.webis:
         data_module = webis_data_module(Lang)
@@ -102,15 +103,3 @@ if __name__ == "__main__":
     )
     trainer.fit(model, data_module)
     trainer.test(model, datamodule=data_module)
-
-    if args.save:
-        MODEL_PATH = "./models/cnn_novelty/"
-        if not os.path.exists(MODEL_PATH):
-            os.makedirs(MODEL_PATH)
-        torch.save(model.model.state_dict(), MODEL_PATH + "weights.pt")
-        with open(MODEL_PATH + "model_conf.pkl", "wb") as f:
-            pickle.dump(model_conf, f)
-        with open(MODEL_PATH + "lang.pkl", "wb") as f:
-            pickle.dump(Lang, f)
-        shutil.make_archive("./models/cnn_novelty", "zip", "./models/cnn_novelty")
-        neptune_logger.experiment.log_artifact("./models/cnn_novelty.zip")

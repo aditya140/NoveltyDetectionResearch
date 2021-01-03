@@ -13,6 +13,7 @@ import pickle
 Load Encoders
 """
 
+
 def reset_model(model):
     """Parameters of each layer in the model will be reset. Only the layers which have an property reset_paramters will be reset.
 
@@ -45,14 +46,14 @@ def load_bert_encoder():
     return encoder, Lang
 
 
-def load_han_reg_encoder():
+def load_han_reg_encoder(id):
     """Load Hierarchical Attention Network encoder(trained on regression task) from the models path
 
     Returns:
         [nn.Module]: HAN encoder
         [LanguageIndex]: Language Index
     """
-    HAN_PATH = f"./models/document_imdb_han_reg/"
+    HAN_PATH = f"./models/han/{id}/"
     with open(HAN_PATH + "model_conf.pkl", "rb") as f:
         model_conf = pickle.load(f)
     attn_enc, Lang = load_attn_encoder()
@@ -62,17 +63,17 @@ def load_han_reg_encoder():
     return encoder, Lang
 
 
-def load_han_clf_encoder():
+def load_han_clf_encoder(id):
     """Load Hierarchical Attention Network encoder(trained on classification task) from the models path
 
     Returns:
         [nn.Module]: HAN encoder
         [LanguageIndex]: Language Index
     """
-    HAN_PATH = f"./models/document_imdb_han_clf/"
+    HAN_PATH = f"./models/han/{id}/"
     with open(HAN_PATH + "model_conf.pkl", "rb") as f:
         model_conf = pickle.load(f)
-    attn_enc, Lang = load_attn_encoder()
+    attn_enc, Lang = load_attn_encoder("SNLI-12")
     model_conf.encoder = attn_enc
     encoder = HAN(model_conf)
     encoder.load_state_dict(torch.load(HAN_PATH + "weights.pt"))

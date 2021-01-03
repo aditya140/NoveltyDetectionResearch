@@ -8,6 +8,7 @@ import joblib
 import random
 import torch
 import json
+from tqdm import tqdm
 
 snli_path = "./dataset/snli/snli_1.0/"
 
@@ -150,6 +151,28 @@ def get_apwsj_data():
 def get_snli_data(data_t):
     snli_file = glob.glob(snli_path + f"*{data_t}*.txt")[0]
     return pd.read_csv(snli_file, sep="\t")
+
+
+
+def json_reader(filename):
+    with open(filename) as f:
+        for line in f:
+            yield json.loads(line)
+
+def get_yelp_data():
+    """[summary]
+    """
+    yelp_path = "./dataset/yelp/yelp_academic_dataset_review.json"
+    data = json_reader(yelp_path)
+
+    data_json = {}
+    count = 0
+    for i in tqdm(data,total=8021122):
+        data_json[count] = {"text":i["text"],"label":i["stars"]}
+        count+=1
+    return data_json
+    
+
 
 def get_imdb_data():
     """[summary]

@@ -22,34 +22,32 @@ document_imdb_han_reg = "document_imdb_han_reg.zip"
 
 
 neptune_experiments_to_download = {
-    ("SNLI","attn_encoder"): ["SNLI-12"],
-    ("SNLI","bilstm_encoder"): ["SNLI-13"]
+    ("SNLI", "attn_encoder"): ["SNLI-12"],
+    ("SNLI", "bilstm_encoder"): ["SNLI-13"],
+    ("DocClassification", "han"): ["DOC-2"],
 }
 
 
-def download_model(project,model_type,_id):
+def download_model(project, model_type, _id):
     model_folder_path = "./models"
-    model_path = osj(model_folder_path,model_type,_id)
+    model_path = osj(model_folder_path, model_type, _id)
     if not os.path.exists(model_path):
         os.makedirs(model_path)
-    
+
     project = neptune.init(f"aparkhi/{project}", api_token=NEPTUNE_API)
     experiment = project.get_experiments(id=_id)[0]
-    experiment.download_artifact(_id+".zip", osj(model_folder_path,model_type))
-    
+    experiment.download_artifact(_id + ".zip", osj(model_folder_path, model_type))
+
     shutil.unpack_archive(
-        osj(model_folder_path,model_type, _id+".zip"),
+        osj(model_folder_path, model_type, _id + ".zip"),
         extract_dir=model_path,
     )
 
 
 def download_from_neptune():
-    for project,ids in neptune_experiments_to_download.items():
+    for project, ids in neptune_experiments_to_download.items():
         for _id in ids:
-            download_model(project[0],project[1],_id)
-
-
-
+            download_model(project[0], project[1], _id)
 
 
 if __name__ == "__main__":

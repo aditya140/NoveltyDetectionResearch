@@ -14,12 +14,13 @@ from utils.dataset import (
     get_dlnd_data,
     get_imdb_data,
     get_apwsj_data,
+    get_yelp_data,
 )
 import numpy as np
 import pandas as pd
 from sklearn.model_selection import KFold
 import nltk
-
+from tqdm import tqdm
 
 class APWSJDataset(Dataset):
     def __init__(self):
@@ -274,71 +275,71 @@ class DLNDDataset(Dataset):
         return org_idx, par_idx, label_idx
 
 
-class IMDBDataset(Dataset):
-    def __init__(self):
-        df = pd.DataFrame.from_dict(get_dlnd_data(), orient="index")
-        df["source"] = df["source"].apply(lambda x: ". ".join(x))
-        df["DLA"] = df["DLA"].apply(
-            lambda x: "Non-Novel" if ("non" in x.lower()) else "Novel"
-        )
-        df.reset_index(drop=True, inplace=True)
-        self.data = df.to_dict("index")
-        self.data = list(self.data.values())
-        self.org = [i["target_text"] for i in self.data]
-        self.par = [i["source"] for i in self.data]
-        self.label = [i["DLA"] for i in self.data]
-        self.le = preprocessing.LabelEncoder()
-        self.labels = self.le.fit_transform(self.label)
-        self.labels = torch.tensor(self.labels)
+# class IMDBDataset(Dataset):
+#     def __init__(self):
+#         df = pd.DataFrame.from_dict(get_dlnd_data(), orient="index")
+#         df["source"] = df["source"].apply(lambda x: ". ".join(x))
+#         df["DLA"] = df["DLA"].apply(
+#             lambda x: "Non-Novel" if ("non" in x.lower()) else "Novel"
+#         )
+#         df.reset_index(drop=True, inplace=True)
+#         self.data = df.to_dict("index")
+#         self.data = list(self.data.values())
+#         self.org = [i["target_text"] for i in self.data]
+#         self.par = [i["source"] for i in self.data]
+#         self.label = [i["DLA"] for i in self.data]
+#         self.le = preprocessing.LabelEncoder()
+#         self.labels = self.le.fit_transform(self.label)
+#         self.labels = torch.tensor(self.labels)
 
-    def encode_lang(self, lang):
-        self.org = [
-            list(
-                filter(
-                    lambda x: x != "" and x != " ",
-                    [lang.preprocess_sentence(j) for j in nltk.sent_tokenize(i)],
-                )
-            )
-            for i in self.org
-        ]
-        self.par = [
-            list(
-                filter(
-                    lambda x: x != "" and x != " ",
-                    [lang.preprocess_sentence(j) for j in nltk.sent_tokenize(i)],
-                )
-            )
-            for i in self.par
-        ]
-        self.org = [lang.encode_batch(i) for i in self.org]
-        self.par = [lang.encode_batch(i) for i in self.par]
-        self.max_len = lang.max_len
+#     def encode_lang(self, lang):
+#         self.org = [
+#             list(
+#                 filter(
+#                     lambda x: x != "" and x != " ",
+#                     [lang.preprocess_sentence(j) for j in nltk.sent_tokenize(i)],
+#                 )
+#             )
+#             for i in self.org
+#         ]
+#         self.par = [
+#             list(
+#                 filter(
+#                     lambda x: x != "" and x != " ",
+#                     [lang.preprocess_sentence(j) for j in nltk.sent_tokenize(i)],
+#                 )
+#             )
+#             for i in self.par
+#         ]
+#         self.org = [lang.encode_batch(i) for i in self.org]
+#         self.par = [lang.encode_batch(i) for i in self.par]
+#         self.max_len = lang.max_len
 
-    def pad_to(self, num_sent):
-        pad_arr = [0] * self.max_len
-        org_pad_len = [max((num_sent - len(i)), 0) for i in self.org]
-        par_pad_len = [max((num_sent - len(i)), 0) for i in self.par]
-        self.org = [
-            np.append(org, [pad_arr] * org_pad_len[i], axis=0)
-            if org_pad_len[i] != 0
-            else org[:num_sent]
-            for i, org in enumerate(self.org)
-        ]
-        self.par = [
-            np.append(par, [pad_arr] * par_pad_len[i], axis=0)
-            if par_pad_len[i] != 0
-            else par[:num_sent]
-            for i, par in enumerate(self.par)
-        ]
+#     def pad_to(self, num_sent):
+#         pad_arr = [0] * self.max_len
+#         org_pad_len = [max((num_sent - len(i)), 0) for i in self.org]
+#         par_pad_len = [max((num_sent - len(i)), 0) for i in self.par]
+#         self.org = [
+#             np.append(org, [pad_arr] * org_pad_len[i], axis=0)
+#             if org_pad_len[i] != 0
+#             else org[:num_sent]
+#             for i, org in enumerate(self.org)
+#         ]
+#         self.par = [
+#             np.append(par, [pad_arr] * par_pad_len[i], axis=0)
+#             if par_pad_len[i] != 0
+#             else par[:num_sent]
+#             for i, par in enumerate(self.par)
+#         ]
 
-    def __len__(self):
-        return len(self.data)
+#     def __len__(self):
+#         return len(self.data)
 
-    def __getitem__(self, idx):
-        org_idx = self.org[idx]
-        par_idx = self.par[idx]
-        label_idx = self.labels[idx]
-        return org_idx, par_idx, label_idx
+#     def __getitem__(self, idx):
+#         org_idx = self.org[idx]
+#         par_idx = self.par[idx]
+#         label_idx = self.labels[idx]
+#         return org_idx, par_idx, label_idx
 
 
 class IMDBDataset(Dataset):
@@ -367,6 +368,49 @@ class IMDBDataset(Dataset):
             for i in self.text
         ]
         self.text = [lang.encode_batch(i) for i in self.text]
+        self.max_len = lang.max_len
+
+    def pad_to(self, num_sent):
+        pad_arr = [0] * self.max_len
+        pad_len = [max((num_sent - len(i)), 0) for i in self.text]
+
+        self.text = [
+            np.append(par, [pad_arr] * pad_len[i], axis=0)
+            if pad_len[i] != 0
+            else par[:num_sent]
+            for i, par in enumerate(self.text)
+        ]
+
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, idx):
+        text_idx = self.text[idx]
+        label_idx = self.labels[idx]
+        return text_idx, label_idx
+
+
+class YelpDataset(Dataset):
+    def __init__(self):
+        data = get_yelp_data()
+        data = list(data.values())
+        self.text = [i["text"] for i in data]
+        self.label = [i["label"] for i in data]
+        self.le = preprocessing.LabelEncoder()
+        self.label = self.le.fit_transform(self.label)
+        self.labels = torch.tensor(self.label)
+
+    def encode_lang(self, lang):
+        self.text = [
+            list(
+                filter(
+                    lambda x: x != "" and x != " ",
+                    [lang.preprocess_sentence(j) for j in nltk.sent_tokenize(i)],
+                )
+            )
+            for i in tqdm(self.text)
+        ]
+        self.text = [lang.encode_batch(i) for i in tqdm(self.text)]
         self.max_len = lang.max_len
 
     def pad_to(self, num_sent):

@@ -5,6 +5,7 @@ from dataloaders import (
     SNLIDataset,
     IMDBDataset,
     APWSJDataset,
+    YelpDataset,
 )
 from torch.utils.data import Dataset, DataLoader
 import pandas as pd
@@ -333,3 +334,46 @@ class IMDBDataModule(pl.LightningDataModule):
             self.IMDB_data_test, batch_size=self.batch_size, shuffle=True, num_workers=6
         )
         return IMDB_test
+
+
+class YelpDataModule(pl.LightningDataModule):
+    def __init__(self, batch_size=16):
+        super().__init__()
+        self.batch_size = batch_size
+
+    def prepare_data(self, lang, num_sent):
+        self.Yelp_data = YelpDataset()
+        self.Yelp_data.encode_lang(lang)
+        self.Yelp_data.pad_to(num_sent)
+
+        data_size = len(self.Yelp_data)
+        train_size = 8 * data_size // 10
+        test_size = 1 * data_size // 10
+        val_size = data_size - (train_size + test_size)
+
+        (self.Yelp_data_train, self.Yelp_data_val, self.Yelp_data_test,) = random_split(
+            self.Yelp_data,
+            [train_size, val_size, test_size],
+            generator=torch.Generator().manual_seed(42),
+        )
+
+    def train_dataloader(self):
+        Yelp_train = DataLoader(
+            self.Yelp_data_train,
+            batch_size=self.batch_size,
+            shuffle=True,
+            num_workers=6,
+        )
+        return Yelp_train
+
+    def val_dataloader(self):
+        Yelp_val = DataLoader(
+            self.Yelp_data_val, batch_size=self.batch_size, shuffle=True, num_workers=6
+        )
+        return Yelp_val
+
+    def test_dataloader(self):
+        Yelp_test = DataLoader(
+            self.Yelp_data_test, batch_size=self.batch_size, shuffle=True, num_workers=6
+        )
+        return Yelp_test

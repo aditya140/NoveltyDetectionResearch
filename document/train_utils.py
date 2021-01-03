@@ -16,7 +16,6 @@ from pytorch_lightning.loggers import NeptuneLogger, TensorBoardLogger
 from pytorch_lightning.metrics import Accuracy,F1
 from pytorch_lightning.metrics.regression import RMSE
 from pytorch_lightning import Callback
-from utils import load_bilstm_encoder
 from datamodule import *
 import os
 from itertools import cycle
@@ -41,6 +40,14 @@ def imdb_data_module(Lang):
     return data_module
 
 
+
+@memory.cache
+def yelp_data_module(Lang):
+    print("Preparing Data Module")
+    data_module = YelpDataModule(batch_size=64)
+    data_module.prepare_data(Lang, 100)
+    print("Prepared Data Module")
+    return data_module
 
 class MetricsCallback(Callback):
     """PyTorch Lightning metric callback."""
