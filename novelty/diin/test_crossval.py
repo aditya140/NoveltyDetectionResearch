@@ -94,7 +94,7 @@ if __name__ == "__main__":
         "weight_decay": 0.01,
         "scheduler": "constant",
         "encoder_type": args.encoder,
-        "batch_size": args.batch_size,
+        "batch_size": data_module.batch_size,
         "embedding_dim": encoder.conf.hidden_size,
     }
 
