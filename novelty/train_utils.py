@@ -39,7 +39,7 @@ def webis_data_module(Lang):
 
 @memory.cache
 def apwsj_data_module(Lang):
-    data_module = APWSJDataModule(batch_size=32)
+    data_module = APWSJDataModule(batch_size=25)
     print("preparing data")
     data_module.prepare_data(Lang, 100)
     return data_module

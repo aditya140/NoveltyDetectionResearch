@@ -30,7 +30,7 @@ from utils.helpers import seed_torch
 def test_fold(model, data_module, epochs):
     trainer = pl.Trainer(
         gpus=1,
-        max_epochs=EPOCHS,
+        max_epochs=epochs,
         progress_bar_refresh_rate=10,
         profiler=False,
         auto_lr_find=False,
