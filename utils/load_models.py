@@ -56,7 +56,7 @@ def load_han_reg_encoder(id):
     HAN_PATH = f"./models/han/{id}/"
     with open(HAN_PATH + "model_conf.pkl", "rb") as f:
         model_conf = pickle.load(f)
-    attn_enc, Lang = load_attn_encoder()
+    attn_enc, Lang = load_attn_encoder("SNLI-12")
     model_conf.encoder = attn_enc
     encoder = HAN(model_conf)
     encoder.load_state_dict(torch.load(HAN_PATH + "weights.pt"))

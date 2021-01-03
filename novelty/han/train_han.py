@@ -30,7 +30,7 @@ from utils.keys import NEPTUNE_API
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Novelty CNN Training")
+    parser = argparse.ArgumentParser(description="Novelty HAN Training")
 
     parser.add_argument("--webis", action="store_true", help="Webis dataset")
     parser.add_argument("--dlnd", action="store_true", help="DLND dataset")
@@ -45,7 +45,7 @@ if __name__ == "__main__":
     seed_torch()
 
     if args.encoder == "reg":
-        model_id = "DOC-3"
+        model_id = "DOC-4"
         encoder, Lang = load_han_reg_encoder(model_id)
     elif args.encoder == "clf":
         model_id = "DOC-2"

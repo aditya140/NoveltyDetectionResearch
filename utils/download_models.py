@@ -24,7 +24,7 @@ document_imdb_han_reg = "document_imdb_han_reg.zip"
 neptune_experiments_to_download = {
     ("SNLI", "attn_encoder"): ["SNLI-12"],
     ("SNLI", "bilstm_encoder"): ["SNLI-13"],
-    ("DocClassification", "han"): ["DOC-2"],
+    ("DocClassification", "han"): ["DOC-2",'DOC-4'],
 }
 
 
