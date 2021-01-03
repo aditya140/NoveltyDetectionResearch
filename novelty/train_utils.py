@@ -72,7 +72,7 @@ def dlnd_crossval_datamodule(Lang):
 
 @memory.cache
 def apwsj_crossval_datamodule(Lang):
-    data_module = APWSJDataModule(batch_size=32, cross_val=True)
+    data_module = APWSJDataModule(batch_size=25, cross_val=True)
     print("Started data prep")
     data_module.prepare_data(Lang, 100)
     print("Data Prepared")
