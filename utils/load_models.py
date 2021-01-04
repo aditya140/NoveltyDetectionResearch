@@ -46,7 +46,7 @@ def load_bert_encoder():
     return encoder, Lang
 
 
-def load_han_reg_encoder(id):
+def load_han_bilstm_encoder(id):
     """Load Hierarchical Attention Network encoder(trained on regression task) from the models path
 
     Returns:
@@ -56,14 +56,14 @@ def load_han_reg_encoder(id):
     HAN_PATH = f"./models/han/{id}/"
     with open(HAN_PATH + "model_conf.pkl", "rb") as f:
         model_conf = pickle.load(f)
-    attn_enc, Lang = load_attn_encoder("SNLI-12")
+    attn_enc, Lang = load_bilstm_encoder("SNLI-14")
     model_conf.encoder = attn_enc
     encoder = HAN(model_conf)
     encoder.load_state_dict(torch.load(HAN_PATH + "weights.pt"))
     return encoder, Lang
 
 
-def load_han_clf_encoder(id):
+def load_han_attn_encoder(id):
     """Load Hierarchical Attention Network encoder(trained on classification task) from the models path
 
     Returns:

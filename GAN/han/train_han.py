@@ -15,7 +15,7 @@ from pytorch_lightning.callbacks import LearningRateLogger
 from pytorch_lightning.profiler import AdvancedProfiler
 from pytorch_lightning.loggers import NeptuneLogger, TensorBoardLogger
 from pytorch_lightning.metrics import Accuracy
-from utils import load_bilstm_encoder, load_attn_encoder, load_han_clf_encoder,load_han_reg_encoder,reset_model,seed_torch
+from utils import load_bilstm_encoder, load_attn_encoder, load_han_attn_encoder,load_han_bilsmt_encoder,reset_model,seed_torch
 from novelty.train_utils import *
 from datamodule import *
 import os
@@ -37,10 +37,10 @@ if __name__ == "__main__":
 
     seed_torch()
 
-    if args.encoder == "reg":
-        encoder, Lang = load_han_reg_encoder()
-    elif args.encoder == "clf":
-        encoder, Lang = load_han_clf_encoder()
+    if args.encoder == "attention":
+        encoder, Lang = load_han_attn_encoder()
+    elif args.encoder == "bilstm":
+        encoder, Lang = load_han_bilstm_encoder()
 
     data_module = webis_data_module(Lang) if args.webis else dlnd_data_module(Lang)
 

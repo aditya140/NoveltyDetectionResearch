@@ -18,8 +18,8 @@ from pytorch_lightning.metrics import Accuracy
 from utils.load_models import (
     load_bilstm_encoder,
     load_attn_encoder,
-    load_han_clf_encoder,
-    load_han_reg_encoder,
+    load_han_attn_encoder,
+    load_han_bilstm_encoder,
     reset_model,
 )
 from utils.helpers import seed_torch
@@ -39,24 +39,26 @@ if __name__ == "__main__":
     parser.add_argument(
         "--reset", action="store_true", help="Reset Weights", default=False
     )
-
+    parser.add_argument("--use_nltk", action="store_true", help="Dataset imdb", default=False)  
     args = parser.parse_args()
 
+    use_nltk=args.use_nltk
     seed_torch()
 
-    if args.encoder == "reg":
-        model_id = "DOC-4"
-        encoder, Lang = load_han_reg_encoder(model_id)
-    elif args.encoder == "clf":
-        model_id = "DOC-2"
-        encoder, Lang = load_han_clf_encoder(model_id)
+    if args.encoder == "bilstm":
+        model_id = "DOC-5"
+        encoder, Lang = load_han_bilstm_encoder(model_id)
+    elif args.encoder == "attention":
+        # model_id = "DOC-2"
+        model_id = "DOC-13"
+        encoder, Lang = load_han_attn_encoder(model_id)
 
     if args.webis:
-        data_module = webis_data_module(Lang)
+        data_module = webis_data_module(Lang,use_nltk=use_nltk)
     elif args.dlnd:
-        data_module = dlnd_data_module(Lang)
+        data_module = dlnd_data_module(Lang,use_nltk=use_nltk)
     elif args.apwsj:
-        data_module = apwsj_data_module(Lang)
+        data_module = apwsj_data_module(Lang,use_nltk=use_nltk)
 
     params = {
         "optim": "adamw",
@@ -91,6 +93,7 @@ if __name__ == "__main__":
 
     lr_logger = LearningRateLogger(logging_interval="step")
     neptune_logger.experiment.log_metric("epochs", EPOCHS)
+    neptune_logger.experiment.log_text("Use NLTK", str(use_nltk))
     trainer = pl.Trainer(
         gpus=1,
         max_epochs=EPOCHS,

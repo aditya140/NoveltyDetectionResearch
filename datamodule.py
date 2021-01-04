@@ -38,10 +38,10 @@ class WebisDataModule(pl.LightningDataModule):
             self.folds.append((train_index, test_index))
 
     def prepare_data(
-        self, lang, num_sent, train_size=0.8, test_size=0.1, train_samples=None, seed=42
+        self, lang, num_sent, train_size=0.8, test_size=0.1, train_samples=None, seed=42, use_nltk = False
     ):
         self.webis_data = WebisDataset()
-        self.webis_data.encode_lang(lang)
+        self.webis_data.encode_lang(lang,use_nltk=use_nltk)
         self.webis_data.pad_to(num_sent)
         if self.cross_val:
             self.k_fold_split()
@@ -114,10 +114,10 @@ class DLNDDataModule(pl.LightningDataModule):
             self.folds.append((train_index, test_index))
 
     def prepare_data(
-        self, lang, num_sent, train_size=0.8, test_size=0.1, train_samples=None, seed=42
+        self, lang, num_sent, train_size=0.8, test_size=0.1, train_samples=None, seed=42, use_nltk=False
     ):
         self.DLND_data = DLNDDataset()
-        self.DLND_data.encode_lang(lang)
+        self.DLND_data.encode_lang(lang,use_nltk=use_nltk)
         self.DLND_data.pad_to(num_sent)
         if self.cross_val:
             self.k_fold_split()
@@ -188,10 +188,10 @@ class APWSJDataModule(pl.LightningDataModule):
             self.folds.append((train_index, test_index))
 
     def prepare_data(
-        self, lang, num_sent, train_size=0.8, test_size=0.1, train_samples=None, seed=42
+        self, lang, num_sent, train_size=0.8, test_size=0.1, train_samples=None, seed=42, use_nltk=False
     ):
         self.APWSJ_data = APWSJDataset()
-        self.APWSJ_data.encode_lang(lang)
+        self.APWSJ_data.encode_lang(lang,use_nltk=use_nltk)
         self.APWSJ_data.pad_to(num_sent)
         if self.cross_val:
             self.k_fold_split()
@@ -298,9 +298,9 @@ class IMDBDataModule(pl.LightningDataModule):
         super().__init__()
         self.batch_size = batch_size
 
-    def prepare_data(self, lang, num_sent):
+    def prepare_data(self, lang, num_sent, use_nltk=False):
         self.IMDB_data = IMDBDataset()
-        self.IMDB_data.encode_lang(lang)
+        self.IMDB_data.encode_lang(lang,use_nltk=use_nltk)
         self.IMDB_data.pad_to(num_sent)
 
         data_size = len(self.IMDB_data)
@@ -341,9 +341,9 @@ class YelpDataModule(pl.LightningDataModule):
         super().__init__()
         self.batch_size = batch_size
 
-    def prepare_data(self, lang, num_sent):
+    def prepare_data(self, lang, num_sent,use_nltk=False):
         self.Yelp_data = YelpDataset()
-        self.Yelp_data.encode_lang(lang)
+        self.Yelp_data.encode_lang(lang, use_nltk=use_nltk)
         self.Yelp_data.pad_to(num_sent)
 
         data_size = len(self.Yelp_data)

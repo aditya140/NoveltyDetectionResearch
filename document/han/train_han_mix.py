@@ -32,12 +32,14 @@ if __name__ == "__main__":
     parser.add_argument("--encoder", type=str, help="Encoder Type")
     parser.add_argument("--yelp", action="store_true", help="Dataset yelp")
     parser.add_argument("--imdb", action="store_true", help="Dataset imdb")
-    parser.add_argument("--use_nltk", action="store_true", help="Dataset imdb", default=False)  
+    parser.add_argument("--use_nltk", action="store_true", help="Dataset imdb", default=False)
+
     args = parser.parse_args()
+
+    use_nltk = args.use_nltk
 
     seed_torch()
 
-    use_nltk = args.use_nltk
     if args.encoder == "bilstm":
         model_id = "SNLI-13"
         encoder, Lang = load_bilstm_encoder(model_id)
@@ -75,9 +77,11 @@ if __name__ == "__main__":
     }
 
     model_conf = HAN_conf(100, encoder, **params)
-    model = Document_model_clf(HAN_classifier, model_conf, params)
+    model = Document_model_mixed(HAN_mixed, model_conf, params)
 
-    EPOCHS = 4
+    EPOCHS = 6
+
+
 
     neptune_logger = NeptuneLogger(
         api_key=NEPTUNE_API,

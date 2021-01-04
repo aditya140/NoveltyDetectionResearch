@@ -19,7 +19,7 @@ from lang import *
 from novelty.han.han_novelty import *
 from snli.bilstm.bilstm import *
 from snli.attn_enc.attn_enc import *
-from utils.load_models import load_han_clf_encoder, load_han_reg_encoder, reset_model
+from utils.load_models import load_han_attn_encoder, load_han_bilstm_encoder, reset_model
 from utils.save_models import save_model, save_model_neptune
 from novelty.train_utils import *
 from datamodule import *
@@ -59,11 +59,13 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    if args.encoder == "reg":
-        encoder, Lang = load_han_reg_encoder()
-    elif args.encoder == "clf":
-        model_id = "DOC-2"
-        encoder, Lang = load_han_clf_encoder(model_id)
+    if args.encoder == "bilstm":
+        model_id = "DOC-5"
+        encoder, Lang = load_han_bilstm_encoder(model_id)
+    elif args.encoder == "attention":
+        # model_id = "DOC-2"
+        model_id = "DOC-12"
+        encoder, Lang = load_han_attn_encoder(model_id)
 
     if args.webis:
         data_module = webis_crossval_datamodule(Lang)

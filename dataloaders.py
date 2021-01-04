@@ -22,6 +22,24 @@ from sklearn.model_selection import KFold
 import nltk
 from tqdm import tqdm
 
+
+
+def encode_doc(lang,doc,use_nltk=False):
+    if use_nltk:
+        return list(
+                filter(
+                    lambda x: x != "" and x != " ",
+                    [lang.preprocess_sentence(j) for j in nltk.sent_tokenize(doc)],
+                )
+            )
+    else:
+        return list(
+                    filter(
+                        lambda x: x != "" and x != " ",
+                        lang.preprocess_sentence(doc).split("."),
+                    )
+                )
+
 class APWSJDataset(Dataset):
     def __init__(self):
         df = pd.DataFrame.from_dict(get_apwsj_data(), orient="index")
@@ -34,24 +52,12 @@ class APWSJDataset(Dataset):
         self.labels = [i["label"] for i in self.data]
         self.labels = torch.tensor(self.labels)
 
-    def encode_lang(self, lang):
+    def encode_lang(self, lang,use_nltk=False):
         self.org = [
-            list(
-                filter(
-                    lambda x: x != "" and x != " ",
-                    [lang.preprocess_sentence(j) for j in nltk.sent_tokenize(i)],
-                )
-            )
-            for i in self.org
+            encode_doc(lang, i, use_nltk=use_nltk) for i in self.org
         ]
         self.par = [
-            list(
-                filter(
-                    lambda x: x != "" and x != " ",
-                    [lang.preprocess_sentence(j) for j in nltk.sent_tokenize(i)],
-                )
-            )
-            for i in self.par
+            encode_doc(lang, i, use_nltk=use_nltk) for i in self.par
         ]
         self.org = [lang.encode_batch(i) for i in self.org]
         self.par = [lang.encode_batch(i) for i in self.par]
@@ -97,24 +103,12 @@ class WebisDataset(Dataset):
         self.labels = self.le.fit_transform(self.label)
         self.labels = torch.tensor(self.labels)
 
-    def encode_lang(self, lang):
+    def encode_lang(self, lang, use_nltk=False):
         self.org = [
-            list(
-                filter(
-                    lambda x: x != "" and x != " ",
-                    [lang.preprocess_sentence(j) for j in nltk.sent_tokenize(i)],
-                )
-            )
-            for i in self.org
+            encode_doc(lang, i, use_nltk=use_nltk) for i in self.org
         ]
         self.par = [
-            list(
-                filter(
-                    lambda x: x != "" and x != " ",
-                    [lang.preprocess_sentence(j) for j in nltk.sent_tokenize(i)],
-                )
-            )
-            for i in self.par
+            encode_doc(lang, i, use_nltk=use_nltk) for i in self.par
         ]
         self.org = [lang.encode_batch(i) for i in self.org]
         self.par = [lang.encode_batch(i) for i in self.par]
@@ -225,24 +219,12 @@ class DLNDDataset(Dataset):
         self.labels = self.le.fit_transform(self.label)
         self.labels = torch.tensor(self.labels)
 
-    def encode_lang(self, lang):
+    def encode_lang(self, lang, use_nltk=False):
         self.org = [
-            list(
-                filter(
-                    lambda x: x != "" and x != " ",
-                    [lang.preprocess_sentence(j) for j in nltk.sent_tokenize(i)],
-                )
-            )
-            for i in self.org
+            encode_doc(lang, i, use_nltk=use_nltk) for i in self.org
         ]
         self.par = [
-            list(
-                filter(
-                    lambda x: x != "" and x != " ",
-                    [lang.preprocess_sentence(j) for j in nltk.sent_tokenize(i)],
-                )
-            )
-            for i in self.par
+            encode_doc(lang, i, use_nltk=use_nltk) for i in self.par
         ]
         self.org = [lang.encode_batch(i) for i in self.org]
         self.par = [lang.encode_batch(i) for i in self.par]
@@ -357,15 +339,9 @@ class IMDBDataset(Dataset):
         self.label = self.le.fit_transform(self.label)
         self.labels = torch.tensor(self.label)
 
-    def encode_lang(self, lang):
+    def encode_lang(self, lang, use_nltk=False):
         self.text = [
-            list(
-                filter(
-                    lambda x: x != "" and x != " ",
-                    [lang.preprocess_sentence(j) for j in nltk.sent_tokenize(i)],
-                )
-            )
-            for i in self.text
+            encode_doc(lang, i, use_nltk=use_nltk) for i in self.text
         ]
         self.text = [lang.encode_batch(i) for i in self.text]
         self.max_len = lang.max_len
@@ -400,15 +376,9 @@ class YelpDataset(Dataset):
         self.label = self.le.fit_transform(self.label)
         self.labels = torch.tensor(self.label)
 
-    def encode_lang(self, lang):
+    def encode_lang(self, lang,use_nltk=False):
         self.text = [
-            list(
-                filter(
-                    lambda x: x != "" and x != " ",
-                    [lang.preprocess_sentence(j) for j in nltk.sent_tokenize(i)],
-                )
-            )
-            for i in tqdm(self.text)
+            encode_doc(lang, i, use_nltk=use_nltk) for i in self.text
         ]
         self.text = [lang.encode_batch(i) for i in tqdm(self.text)]
         self.max_len = lang.max_len

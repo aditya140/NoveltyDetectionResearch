@@ -32,20 +32,20 @@ memory = Memory(location, verbose=0)
 
 
 @memory.cache
-def imdb_data_module(Lang):
+def imdb_data_module(Lang, use_nltk):
     print("Preparing Data Module")
     data_module = IMDBDataModule(batch_size=64)
-    data_module.prepare_data(Lang, 100)
+    data_module.prepare_data(Lang,100, use_nltk=use_nltk)
     print("Prepared Data Module")
     return data_module
 
 
 
 @memory.cache
-def yelp_data_module(Lang):
+def yelp_data_module(Lang,use_nltk):
     print("Preparing Data Module")
     data_module = YelpDataModule(batch_size=64)
-    data_module.prepare_data(Lang, 100)
+    data_module.prepare_data(Lang,100, use_nltk=use_nltk)
     print("Prepared Data Module")
     return data_module
 
@@ -305,6 +305,141 @@ class Document_model_clf(Document_model):
         plt.close(fig)
 
         return result
+
+
+
+
+
+
+class Document_model_mixed(Document_model):
+    def __init__(self, model, conf, hparams, trial_set=None):
+        super().__init__(model,conf,hparams,trial_set=None)
+        self.loss_fn_mse = nn.MSELoss()
+        
+    def training_step(self, batch, batch_idx):
+        x, y = batch
+        y_reg=y.to(torch.float32)
+
+        reg,clf = self(x)
+        reg = reg.squeeze(1)
+        clf = clf.squeeze(1)
+
+        train_loss_xe = F.cross_entropy(clf, y)
+        train_loss_mse = self.loss_fn_mse(reg, y_reg)
+
+        train_loss = train_loss_xe + train_loss_mse
+        result = pl.TrainResult(train_loss)
+        result.log("training_loss", train_loss)
+        return result
+
+    def validation_step(self, batch, batch_idx):
+        x, y = batch
+        y_reg=y.to(torch.float32)
+
+        reg,clf = self(x)
+        reg = reg.squeeze(1)
+        clf = clf.squeeze(1)
+
+
+        val_loss_xe = F.cross_entropy(clf, y)
+        val_loss_mse = self.loss_fn_mse(reg, y_reg)
+        val_loss = val_loss_mse+val_loss_xe
+
+        result = pl.EvalResult(checkpoint_on=val_loss)
+        metricF1 = F1(num_classes=self.classes)
+        metric = Accuracy(num_classes=self.classes)
+        pred = F.softmax(clf)
+        test_acc = metric(pred.argmax(1), y)
+        test_f1 = metricF1(pred.argmax(1), y)
+        result.log("val_acc", test_acc)
+        result.log("val_loss", val_loss)
+        result.log("val_f1",test_f1)
+        return result
+
+    def test_step(self, batch, batch_idx):
+        x, y = batch
+        y_reg=y.to(torch.float32)
+
+        reg,clf = self(x)
+        reg = reg.squeeze(1)
+        clf = clf.squeeze(1)
+        
+        
+        test_loss_xe = F.cross_entropy(clf, y)
+        test_loss_mse = self.loss_fn_mse(reg, y_reg)
+        test_loss = test_loss_xe+test_loss_mse
+
+        metric = Accuracy(num_classes=self.classes)
+        metricF1 = F1(num_classes=self.classes)
+        pred = F.softmax(clf)
+        test_acc = metric(pred.argmax(1), y)
+        test_f1 = metricF1(pred.argmax(1), y)
+        result = pl.EvalResult()
+        result.log("test_loss", test_loss)
+        result.log("test_acc", test_acc)
+        result.log("test_f1",test_f1)
+        result.log('pred',pred)
+        result.log('true',y)
+        return result
+
+    def test_end(self,outputs):
+        result = pl.EvalResult()
+        result.log('test_loss',outputs['test_loss'].mean())
+        result.log('test_f1',outputs['test_f1'].mean())
+        result.log('test_acc',outputs['test_acc'].mean())
+
+        y_score = outputs["pred"].detach().cpu().numpy()
+        Y_test = outputs["true"].detach().cpu()
+        # Y_test = np.append((1-np.expand_dims(Y_test, axis=0)),np.expand_dims(Y_test, axis=0),0).transpose()
+        Y_test = F.one_hot(Y_test,num_classes=10).numpy()
+        # Save P-R curve
+        n_classes = self.classes
+        precision = dict()
+        recall = dict()
+        average_precision = dict()
+        for i in range(n_classes):
+            precision[i], recall[i], _ = precision_recall_curve(Y_test[:,i],y_score[:,i])
+            average_precision[i] = average_precision_score(Y_test[:,i], y_score[:,i])
+        precision["micro"], recall["micro"], _ = precision_recall_curve(Y_test.ravel(),
+            y_score.ravel())
+        average_precision["micro"] = average_precision_score(Y_test, y_score,average="micro")
+        colors = cycle(['navy', 'turquoise', 'darkorange', 'cornflowerblue', 'teal'])
+        plt.figure(figsize=(14, 16))
+        f_scores = np.linspace(0.2, 0.8, num=4)
+        lines = []
+        labels = []
+        for f_score in f_scores:
+            x = np.linspace(0.01, 1)
+            y = f_score * x / (2 * x - f_score)
+            l, = plt.plot(x[y >= 0], y[y >= 0], color='gray', alpha=0.2)
+            plt.annotate('f1={0:0.1f}'.format(f_score), xy=(0.9, y[45] + 0.02))
+        lines.append(l)
+        labels.append('iso-f1 curves')
+        l, = plt.plot(recall["micro"], precision["micro"], color='gold', lw=2)
+        lines.append(l)
+        labels.append('micro-average Precision-recall (area = {0:0.2f})'
+                    ''.format(average_precision["micro"]))
+        for i, color in zip(range(n_classes), colors):
+            l, = plt.plot(recall[i], precision[i], color=color, lw=2)
+            lines.append(l)
+            labels.append('Precision-recall for class {0} (area = {1:0.2f})'
+                        ''.format(i, average_precision[i]))
+        fig = plt.gcf()
+        fig.subplots_adjust(bottom=0.25)
+        plt.xlim([0.0, 1.0])
+        plt.ylim([0.0, 1.05])
+        plt.xlabel('Recall')
+        plt.ylabel('Precision')
+        plt.title('Extension of Precision-Recall curve to multi-class')
+        plt.legend(lines, labels, loc=(0,-.38), prop=dict(size=14))
+
+        for logger in self.logger:
+            if isinstance(logger,pl.loggers.neptune.NeptuneLogger):
+                logger.experiment.log_image('precision-recall curve', fig)
+        plt.close(fig)
+
+        return result
+
 
 
 

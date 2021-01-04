@@ -171,6 +171,48 @@ class HAN_regressor(nn.Module):
 
 
         
+class HAN_mixed(nn.Module):
+    def __init__(self,conf):
+        super(HAN_mixed,self).__init__()
+        self.han = HAN(conf)
+
+        if conf.activation.lower() == "relu".lower():
+            self.act = nn.ReLU()
+        elif conf.activation.lower() == "tanh".lower():
+            self.act = nn.Tanh()
+        elif conf.activation.lower() == "leakyrelu".lower():
+            self.act = nn.LeakyReLU()
+
+        self.fc_in = nn.Linear(
+            (2 if conf.bidirectional else 1)  * conf.hidden_size,
+            conf.hidden_size,
+        )
+
+        self.fcs = nn.ModuleList(
+            [
+                nn.Linear(conf.hidden_size, conf.hidden_size)
+                for i in range(conf.fcs)
+            ]
+        )
+        self.fc_reg = nn.Linear(conf.hidden_size,1)
+        self.fc_clf = nn.Linear(conf.hidden_size,conf.opt_labels)
+
+        self.dropout = nn.Dropout(conf.dropout)
+
+                 
+    def forward(self,inp):
+        cont=self.han(inp)
+        opt = self.fc_in(cont)
+        opt = self.dropout(opt)
+        for fc in self.fcs:
+            opt = fc(opt)
+            opt = self.dropout(opt)
+            opt = self.act(opt)
+        reg = self.fc_reg(opt)
+        clf = self.fc_clf(opt)
+        return reg,clf
+
+
 
 
 # model_conf = HAN_conf(100,encoder)

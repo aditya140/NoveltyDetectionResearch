@@ -31,50 +31,50 @@ memory = Memory(location, verbose=0)
 
 
 @memory.cache
-def webis_data_module(Lang):
+def webis_data_module(Lang,use_nltk):
     data_module = WebisDataModule(batch_size=32)
-    data_module.prepare_data(Lang, 100)
+    data_module.prepare_data(Lang, 100,use_nltk=use_nltk)
     return data_module
 
 
 @memory.cache
-def apwsj_data_module(Lang):
+def apwsj_data_module(Lang,use_nltk):
     data_module = APWSJDataModule(batch_size=25)
     print("preparing data")
-    data_module.prepare_data(Lang, 100)
+    data_module.prepare_data(Lang, 100,use_nltk=use_nltk)
     return data_module
 
 
 @memory.cache
-def dlnd_data_module(Lang):
+def dlnd_data_module(Lang,use_nltk):
     data_module = DLNDDataModule(batch_size=32)
-    data_module.prepare_data(Lang, 100)
+    data_module.prepare_data(Lang, 100,use_nltk=use_nltk)
     return data_module
 
 
 @memory.cache
-def webis_crossval_datamodule(Lang):
+def webis_crossval_datamodule(Lang,use_nltk):
     data_module = WebisDataModule(batch_size=32, cross_val=True)
     print("Started data prep")
-    data_module.prepare_data(Lang, 100)
+    data_module.prepare_data(Lang, 100,use_nltk=use_nltk)
     print("Data Prepared")
     return data_module
 
 
 @memory.cache
-def dlnd_crossval_datamodule(Lang):
+def dlnd_crossval_datamodule(Lang,use_nltk):
     data_module = DLNDDataModule(batch_size=32, cross_val=True)
     print("Started data prep")
-    data_module.prepare_data(Lang, 100)
+    data_module.prepare_data(Lang, 100,use_nltk=use_nltk)
     print("Data Prepared")
     return data_module
 
 
 @memory.cache
-def apwsj_crossval_datamodule(Lang):
+def apwsj_crossval_datamodule(Lang,use_nltk):
     data_module = APWSJDataModule(batch_size=25, cross_val=True)
     print("Started data prep")
-    data_module.prepare_data(Lang, 100)
+    data_module.prepare_data(Lang, 100, use_nltk=use_nltk)
     print("Data Prepared")
     return data_module
 

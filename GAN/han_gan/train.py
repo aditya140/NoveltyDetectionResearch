@@ -24,8 +24,8 @@ import json
 from utils.load_models import (
     load_bilstm_encoder,
     load_attn_encoder,
-    load_han_clf_encoder,
-    load_han_reg_encoder,
+    load_han_attn_encoder,
+    load_han_bilsmt_encoder,
 )
 from utils.helpers import seed_torch
 import os
@@ -298,7 +298,7 @@ def get_models(args):
     D = Discriminator(D_conf)
 
     # doc encoder (trained on IMDB)
-    doc_enc, lang = load_han_clf_encoder()
+    doc_enc, lang = load_han_attn_encoder()
     doc_enc_conf = doc_enc.conf
     num_sent = doc_enc_conf.num_sent
 
