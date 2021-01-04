@@ -56,23 +56,25 @@ if __name__ == "__main__":
     parser.add_argument("--encoder", type=str, help="Encoder Type")
     parser.add_argument("--epochs", type=int, help="Epochs")
     parser.add_argument("--reset", action="store_true", help="reset weights")
-
+    parser.add_argument("--use_nltk", action="store_true", help="Dataset imdb", default=False)  
     args = parser.parse_args()
+
+    use_nltk=args.use_nltk
 
     if args.encoder == "bilstm":
         model_id = "DOC-5"
         encoder, Lang = load_han_bilstm_encoder(model_id)
     elif args.encoder == "attention":
         # model_id = "DOC-2"
-        model_id = "DOC-12"
+        model_id = "DOC-13"
         encoder, Lang = load_han_attn_encoder(model_id)
 
     if args.webis:
-        data_module = webis_crossval_datamodule(Lang)
+        data_module = webis_crossval_datamodule(Lang,use_nltk)
     elif args.dlnd:
-        data_module = dlnd_crossval_datamodule(Lang)
+        data_module = dlnd_crossval_datamodule(Lang,use_nltk)
     elif args.apwsj:
-        data_module = apwsj_crossval_datamodule(Lang)
+        data_module = apwsj_crossval_datamodule(Lang,use_nltk)
 
     neptune.init(
         project_qualified_name="aparkhi/Novelty",
@@ -90,6 +92,7 @@ if __name__ == "__main__":
         "Dataset", ("Webis" if args.webis else ("DLND" if args.dlnd else "APWSJ"))
     )
     neptune.log_text("Encoder", args.encoder)
+    neptune.log_text("Use NLTK", str(use_nltk))
 
     params = {
         "optim": "adamw",
