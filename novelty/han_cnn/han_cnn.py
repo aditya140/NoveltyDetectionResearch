@@ -13,7 +13,8 @@ class HAN_CNN_conf:
     dropout = 0.3
     freeze_encoder = False
     expand_features = True
-    encoder_dim = 800
+    encoder_dim = 400
+    doc_encoder_dim = 600
     fc_hidden = 600
     freeze_encoder = False
 
@@ -27,8 +28,7 @@ class HAN_CNN_conf:
 class HAN_CNN(nn.Module):
     def __init__(self, conf):
         super(HAN_CNN, self).__init__()
-        self.accumulator = Accumulator(conf.encoder.encoder)
-        self.linear = nn.Linear(conf.num_filters * len(conf.filter_sizes), 2)
+        self.accumulator = Accumulator(conf)
         self.convs1 = nn.ModuleList(
             [
                 nn.Conv2d(
@@ -48,9 +48,9 @@ class HAN_CNN(nn.Module):
 
         self.doc_encoder = conf.encoder
         self.doc_encoder.requires_grad = conf.freeze_encoder
-        self.fc_in = nn.Linear(conf.encoder_dim * 4, conf.fc_hidden)
-        self.fc_out = nn.Linear(conf.fc_hidden, 2)
+        self.fc_in = nn.Linear(conf.doc_encoder_dim * 4, conf.fc_hidden)
         self.dropout = nn.Dropout(conf.dropout)
+        self.fc_final = nn.Linear(conf.num_filters * len(conf.filter_sizes) + conf.fc_hidden, 2)
 
     def forward(self, x0, x1):
         rdv = self.accumulator(x0, x1)
@@ -58,7 +58,7 @@ class HAN_CNN(nn.Module):
         opt = [F.max_pool1d(i, i.size(2)).squeeze(2) for i in opt]
         opt = torch.cat(opt, 1)
         opt = self.act(opt)
-        opt = self.linear(opt)
+        # print(opt.shape)
 
 
         x0_enc = self.doc_encoder(x0)
@@ -73,10 +73,7 @@ class HAN_CNN(nn.Module):
                 dim=1,
             )
         cont = self.dropout(cont)
+        # print(cont.shape)
         cont = self.act(self.fc_in(cont))
-        cont = self.fc_out(cont)
-        return cont
-
-
-
-        return opt
+        final = torch.cat([cont,opt],dim=1)
+        return self.fc_final(final)
