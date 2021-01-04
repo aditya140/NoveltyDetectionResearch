@@ -57,9 +57,7 @@ class HAN_CNN(nn.Module):
         opt = [self.act(conv(rdv.unsqueeze(1))).squeeze(3) for conv in self.convs1]
         opt = [F.max_pool1d(i, i.size(2)).squeeze(2) for i in opt]
         opt = torch.cat(opt, 1)
-        opt = self.act(opt)
-        # print(opt.shape)
-
+        opt = self.dropout(self.act(opt))
 
         x0_enc = self.doc_encoder(x0)
         x1_enc = self.doc_encoder(x1)
@@ -73,7 +71,6 @@ class HAN_CNN(nn.Module):
                 dim=1,
             )
         cont = self.dropout(cont)
-        # print(cont.shape)
-        cont = self.act(self.fc_in(cont))
+        cont = self.dropout(self.act(self.fc_in(cont)))
         final = torch.cat([cont,opt],dim=1)
         return self.fc_final(final)

@@ -62,12 +62,13 @@ if __name__ == "__main__":
         data_module = apwsj_data_module(Lang,use_nltk=use_nltk)
 
 
-    data_module.batch_size = 16
+    data_module.batch_size = 12
     params = {
         "optim": "adamw",
         "weight_decay": 0.1,
         "lr": 0.00010869262115700171,
         "scheduler": "lambda",
+        "activation": "tanh",
     }
 
     model_conf = HAN_CNN_conf(100,encoder, **params)
@@ -77,7 +78,7 @@ if __name__ == "__main__":
         print("Reinitializing weights")
         model.model = reset_model(model.model)
 
-    EPOCHS = 4
+    EPOCHS = 2
 
     tensorboard_logger = TensorBoardLogger("lightning_logs")
 

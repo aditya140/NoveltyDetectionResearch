@@ -6,9 +6,6 @@ from collections import defaultdict
 
 def create_json():
     """
-    Creates JSON for the TREC dataset by extracting the individual document and following procedure as instructed by Novelty Detection datasetself.
-    This function expects that trec folder is present in the dataset directory along with the novelty detection datase.
-
     TREC path - ./dataset/trec/wsj
     CMUNRF1 path - ./dataset/apwsj/NoveltyData
 
