@@ -10,7 +10,6 @@ class Accumulator(nn.Module):
         self.conf = conf
         self.encoder = self.conf.encoder.encoder
         self.encoder.requires_grad = conf.freeze_encoder
-        del self.conf.encoder
         self.num_sent = conf.num_sent
         self.template = nn.Parameter(torch.zeros((1)), requires_grad=True)
 
