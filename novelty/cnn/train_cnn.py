@@ -32,8 +32,11 @@ if __name__ == "__main__":
     parser.add_argument("--save", action="store_true", help="Save model")
     parser.add_argument("--encoder", type=str, help="Encoder Type")
     parser.add_argument("--log", action="store_true", help="Log to neptune")
+    parser.add_argument("--use_nltk", action="store_true", help="Dataset imdb", default=False)  
 
     args = parser.parse_args()
+
+    use_nltk=args.use_nltk
 
     if args.encoder == "bilstm":
         model_id = "SNLI-13"
@@ -43,11 +46,11 @@ if __name__ == "__main__":
         encoder, Lang = load_attn_encoder(model_id)
 
     if args.webis:
-        data_module = webis_data_module(Lang)
+        data_module = webis_data_module(Lang,use_nltk=use_nltk)
     elif args.dlnd:
-        data_module = dlnd_data_module(Lang)
+        data_module = dlnd_data_module(Lang,use_nltk=use_nltk)
     elif args.apwsj:
-        data_module = apwsj_data_module(Lang)
+        data_module = apwsj_data_module(Lang,use_nltk=use_nltk)
 
     # if args.webis:
     #     data_module = webis_crossval_datamodule(Lang)
@@ -91,6 +94,7 @@ if __name__ == "__main__":
         )
         expt_id = neptune_logger.experiment.id
         neptune_logger.experiment.log_metric("epochs", EPOCHS)
+        neptune_logger.experiment.log_text("Use NLTK", str(use_nltk))
         loggers = [neptune_logger, tensorboard_logger]
     else:
         loggers = [tensorboard_logger]
