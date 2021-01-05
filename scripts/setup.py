@@ -53,10 +53,36 @@ if __name__ == "__main__":
         download_file_from_google_drive(
             "1q-P3ReGf-yWnKrhb6XQAuMGo39hXlhYG", osj(ROOT_PATH, "dlnd.zip")
         )
+
+        download_file_from_google_drive(
+            "1h7bS3zdP-6bPDuvJ_JXq8YzR6a3OEmRg", osj(ROOT_PATH, "dataset_apw.zip")
+        )
+
+        
         # Unpack all zip files (datasets)
         shutil.unpack_archive(
             osj(ROOT_PATH, "CMUNRF1.tar"), osj(ROOT_PATH, "./dataset/apwsj/")
         )
+
+        shutil.unpack_archive(
+            osj(ROOT_PATH, "dataset_apw.zip"), osj(ROOT_PATH, "./dataset/")
+        )
+
+        shutil.unpack_archive(
+            osj("./dataset/trec", "AP.tar"), osj("./dataset/trec","AP")
+        )
+        shutil.unpack_archive(
+            osj("./dataset/trec", "trec.zip"), osj("./dataset/trec","trec")
+        )
+        shutil.unpack_archive(
+            osj("./dataset/trec", "wsj_split.zip"), osj("./dataset/trec","WSJ")
+        )
+
+        os.remove(osj("./dataset/trec", "AP.tar"))
+        os.remove(osj("./dataset/trec", "wsj_split.zip"))
+        os.remove(osj("./dataset/trec", "trec.zip"))
+
+
         shutil.unpack_archive(
             osj(ROOT_PATH, "Webis-CPC-11.zip"),
             osj(ROOT_PATH, "./dataset/novelty/webis/"),
@@ -81,7 +107,7 @@ if __name__ == "__main__":
             osj(ROOT_PATH, "arxiv.zip"), osj(ROOT_PATH, "./dataset/arxiv/")
         )
         shutil.unpack_archive(
-            osj(ROOT_PATH, "reuters21578.zip"), osj(ROOT_PATH, "./dataset/reuters/")
+            osj(ROOT_PATH, "reuters21578.tar.gz"), osj(ROOT_PATH, "./dataset/reuters/")
         )
 
     if args.snli == 1:

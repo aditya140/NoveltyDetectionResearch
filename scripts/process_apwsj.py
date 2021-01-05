@@ -2,18 +2,46 @@ import os
 import glob
 import json
 from collections import defaultdict
+import gzip
+from os.path import join as osj
+
+
+
+
+
+def organize_files():
+    AP_path = "./dataset/trec/AP"
+    AP_files = glob.glob(osj(AP_path,"*.gz"))
+    for i in AP_files:
+        with gzip.open(i,'r') as f:
+            text = f.read()
+
+        with open(i[:-3],'wb') as f_new:
+            f_new.write(text)
+        os.remove(i)
+
 
 
 def create_json():
     """
-    TREC path - ./dataset/trec/wsj
-    CMUNRF1 path - ./dataset/apwsj/NoveltyData
-
     """
-    wsj = "./dataset/trec/wsj"
-    ap = "./dataset/trec/ap"
+    wsj = "./dataset/trec/trec/wsj"
+    ap = "./dataset/trec/trec/ap"
+    ap_others = "./dataset/trec/AP"
+    wsj_others = "./dataset/trec/WSJ/wsj_split"
+
     wsj_files = glob.glob(wsj + "/*")
     ap_files = glob.glob(ap + "/*")
+
+
+    wsj_other_files = []
+    ap_other_files = glob.glob(osj(ap_others,"*"))
+
+    wsj_big = glob.glob(osj(wsj_others,"*"))
+    for i in wsj_big:
+        for file_path in glob.glob(osj(i,"*")):
+            wsj_other_files.append(file_path)
+        
 
     docs_json = {}
     errors = 0
@@ -48,6 +76,42 @@ def create_json():
                 docs_json[id] = text
             except:
                 errors += 1
+
+
+
+    for wsj_file in wsj_other_files:
+        with open(wsj_file, "r") as f:
+            txt = f.read()
+        docs = [
+            i.split("<DOC>")[1]
+            for i in filter(lambda x: len(x) > 10, txt.split("</DOC>"))
+        ]
+
+        for doc in docs:
+            try:
+                id = doc.split("<DOCNO>")[1].split("</DOCNO>")[0]
+                text = doc.split("<TEXT>")[1].split("</TEXT>")[0]
+                docs_json[id] = text
+            except:
+                errors += 1
+
+    for ap_file in ap_other_files:
+        with open(ap_file, "r", encoding="latin-1") as f:
+            txt = f.read()
+        docs = [
+            i.split("<DOC>")[1]
+            for i in filter(lambda x: len(x) > 10, txt.split("</DOC>"))
+        ]
+
+        for doc in docs:
+            try:
+                id = doc.split("<DOCNO>")[1].split("</DOCNO>")[0]
+                text = doc.split("<TEXT>")[1].split("</TEXT>")[0]
+                docs_json[id] = text
+            except:
+                errors += 1
+
+
     print("Reading APWSJ dataset, Errors : ", errors)
 
     docs_json = {k.strip(): v.strip() for k, v in docs_json.items()}
@@ -167,6 +231,8 @@ def create_json():
                 if source_id in docs_json.keys():
                     data_inst["source"] += docs_json[source_id] + ". \n"
             data_inst["label"] = 1
+        else:
+            print(target_id)
         if data_inst["source"] != "":
             dataset.append(data_inst)
 
@@ -181,6 +247,8 @@ def create_json():
                 if source_id in docs_json.keys():
                     data_inst["source"] += docs_json[source_id] + ". \n"
             data_inst["label"] = 0
+        else:
+            print(target_id)
         if data_inst["source"] != "":
             dataset.append(data_inst)
 
