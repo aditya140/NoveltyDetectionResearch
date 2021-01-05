@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-from novelty.cnn.aggregator import *
+from novelty.han_cnn.aggregator import *
 
 
 class HAN_CNN_conf:

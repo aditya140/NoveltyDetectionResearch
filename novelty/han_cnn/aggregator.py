@@ -8,7 +8,7 @@ class Accumulator(nn.Module):
     def __init__(self, conf):
         super(Accumulator, self).__init__()
         self.conf = conf
-        self.encoder = self.conf.encoder
+        self.encoder = self.conf.encoder.encoder
         self.encoder.requires_grad = conf.freeze_encoder
         del self.conf.encoder
         self.num_sent = conf.num_sent
