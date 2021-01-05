@@ -16,7 +16,7 @@ import neptune
 sys.path.append(".")
 
 from lang import *
-from novelty.han.han_novelty import *
+from novelty.han_cnn.han_cnn import *
 from snli.bilstm.bilstm import *
 from snli.attn_enc.attn_enc import *
 from utils.load_models import (
@@ -88,7 +88,7 @@ if __name__ == "__main__":
     )
 
     neptune.create_experiment(
-        tags=["10-fold", "HAN", ("no_pretraining" if args.reset else "pretrained")]
+        tags=["10-fold", "HAN-CNN", ("no_pretraining" if args.reset else "pretrained")]
     )
     seed_torch(140)
 
@@ -100,18 +100,18 @@ if __name__ == "__main__":
     neptune.log_text("Encoder", args.encoder)
     neptune.log_text("Use NLTK", str(use_nltk))
 
-    params = {
+    data_module.batch_size = 12
+
+    sparams = {
         "optim": "adamw",
         "weight_decay": 0.1,
         "lr": 0.00010869262115700171,
         "scheduler": "lambda",
+        "activation": "tanh",
     }
 
-    neptune.log_text("params", params.__str__())
-    neptune.log_text("epochs", str(args.epochs))
-
-    model_conf = HAN_Novelty_conf(encoder, **params)
-    model = Novelty_CNN_model(HAN_Novelty, model_conf, params)
+    model_conf = HAN_CNN_conf(100, encoder, **params)
+    model = Novelty_CNN_model(HAN_CNN, model_conf, params)
 
     if args.reset:
         print("Reinitializing weights")
