@@ -58,7 +58,6 @@ if __name__ == "__main__":
             "1h7bS3zdP-6bPDuvJ_JXq8YzR6a3OEmRg", osj(ROOT_PATH, "dataset_apw.zip")
         )
 
-        
         # Unpack all zip files (datasets)
         shutil.unpack_archive(
             osj(ROOT_PATH, "CMUNRF1.tar"), osj(ROOT_PATH, "./dataset/apwsj/")
@@ -69,19 +68,18 @@ if __name__ == "__main__":
         )
 
         shutil.unpack_archive(
-            osj("./dataset/trec", "AP.tar"), osj("./dataset/trec","AP")
+            osj("./dataset/trec", "AP.tar"), osj("./dataset/trec", "AP")
         )
         shutil.unpack_archive(
-            osj("./dataset/trec", "trec.zip"), osj("./dataset/trec","trec")
+            osj("./dataset/trec", "trec.zip"), osj("./dataset/trec", "trec")
         )
         shutil.unpack_archive(
-            osj("./dataset/trec", "wsj_split.zip"), osj("./dataset/trec","WSJ")
+            osj("./dataset/trec", "wsj_split.zip"), osj("./dataset/trec", "WSJ")
         )
 
         os.remove(osj("./dataset/trec", "AP.tar"))
         os.remove(osj("./dataset/trec", "wsj_split.zip"))
         os.remove(osj("./dataset/trec", "trec.zip"))
-
 
         shutil.unpack_archive(
             osj(ROOT_PATH, "Webis-CPC-11.zip"),
@@ -91,11 +89,12 @@ if __name__ == "__main__":
         shutil.unpack_archive(
             osj(ROOT_PATH, "dlnd.zip"), osj(ROOT_PATH, "./dataset/novelty/dlnd/")
         )
-        # download TREC data
-        r = svn.remote.RemoteClient(
-            "http://svn.dridan.com/sandpit/QA/trecdata/datacollection/"
-        )
-        r.checkout(osj(ROOT_PATH, "./dataset/trec"))
+        # # download TREC data
+        # r = svn.remote.RemoteClient(
+        #     "http://svn.dridan.com/sandpit/QA/trecdata/datacollection/"
+        # )
+        # r.checkout(osj(ROOT_PATH, "./dataset/trec"))
+        process_apwsj.organize_files()
         process_apwsj.create_json()
 
     if args.document == 1:
