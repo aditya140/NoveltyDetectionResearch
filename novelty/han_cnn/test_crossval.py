@@ -109,6 +109,8 @@ if __name__ == "__main__":
         "scheduler": "lambda",
         "activation": "tanh",
     }
+    neptune.log_text("params", params.__str__())
+    neptune.log_text("epochs", str(args.epochs))
 
     model_conf = HAN_CNN_conf(100,encoder, **params)
     model = Novelty_CNN_model(HAN_CNN, model_conf, params)
