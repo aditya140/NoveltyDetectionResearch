@@ -89,6 +89,7 @@ rm -rf dlnd.zip
 rm -rf CMUNRF1.tar
 rm -rf yelp-dataset.zip
 rm -rf arxiv.zip
-rm -rf reuters21578.tag.gz
+rm -rf reuters21578.tar.gz
+rm -rf dataset_apw.zip
 
-python3 utils/download_models.py --neptune
+python3 utils/download_models.py --neptunes
