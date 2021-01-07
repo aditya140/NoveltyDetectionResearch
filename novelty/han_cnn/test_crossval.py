@@ -81,6 +81,7 @@ if __name__ == "__main__":
         data_module = dlnd_crossval_datamodule(Lang, use_nltk)
     elif args.apwsj:
         data_module = apwsj_crossval_datamodule(Lang, use_nltk)
+        data_module.batch_size = 12
 
     neptune.init(
         project_qualified_name="aparkhi/Novelty",
@@ -99,7 +100,7 @@ if __name__ == "__main__":
     )
     neptune.log_text("Encoder", args.encoder)
     neptune.log_text("Use NLTK", str(use_nltk))
-    data_module.batch_size = 12
+    
 
     params = {
         "optim": "adamw",
