@@ -99,10 +99,9 @@ if __name__ == "__main__":
     )
     neptune.log_text("Encoder", args.encoder)
     neptune.log_text("Use NLTK", str(use_nltk))
-
     data_module.batch_size = 12
 
-    sparams = {
+    params = {
         "optim": "adamw",
         "weight_decay": 0.1,
         "lr": 0.00010869262115700171,
@@ -110,7 +109,7 @@ if __name__ == "__main__":
         "activation": "tanh",
     }
 
-    model_conf = HAN_CNN_conf(100, encoder, **params)
+    model_conf = HAN_CNN_conf(100,encoder, **params)
     model = Novelty_CNN_model(HAN_CNN, model_conf, params)
 
     if args.reset:
