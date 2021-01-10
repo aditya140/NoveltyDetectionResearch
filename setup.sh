@@ -29,6 +29,7 @@ pip3 install kaggle
 mkdir ~/.kaggle
 cp kaggle.json ~/.kaggle/
 chmod 600 ~/.kaggle/kaggle.json
+export PATH="$HOME/.local/bin/:$PATH"
 
 
 

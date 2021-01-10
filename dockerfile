@@ -6,5 +6,5 @@ RUN useradd -m aditya
 RUN chown -R aditya:aditya /home/aditya/
 COPY --chown=aditya . /home/aditya/
 USER aditya
-RUN cd /home/aditya && bash setup.sh GLOVE=0 NOV_DATA=1 DOC_DATA=0 SNLI_DATA=0
+RUN cd /home/aditya && bash setup.sh GLOVE=0 NOV_DATA=1 DOC_DATA=1 SNLI_DATA=1
 WORKDIR /home/aditya

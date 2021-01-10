@@ -77,8 +77,10 @@ if __name__ == "__main__":
 
     if args.webis:
         data_module = webis_crossval_datamodule(Lang, use_nltk)
+        data_module.batch_size = 12
     elif args.dlnd:
         data_module = dlnd_crossval_datamodule(Lang, use_nltk)
+        data_module.batch_size = 12
     elif args.apwsj:
         data_module = apwsj_crossval_datamodule(Lang, use_nltk)
         data_module.batch_size = 12
