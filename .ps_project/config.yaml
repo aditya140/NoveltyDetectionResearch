@@ -1,0 +1,20 @@
+version: 2
+
+workflows:
+  single-node:
+    steps:
+      -
+        name: "train_model"
+        command: experiment.run_single_node
+        params:
+          command: nvidia-smi
+          container: aditya1e0/novelty:train
+          machineType: "K80"
+        triggers:
+          branches:
+            only:
+              - master
+          tags:
+            only:
+              - train.*
+        
