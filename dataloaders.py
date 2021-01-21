@@ -215,9 +215,11 @@ class DLNDDataset(Dataset):
         self.org = [i["target_text"] for i in self.data]
         self.par = [i["source"] for i in self.data]
         self.label = [i["DLA"] for i in self.data]
+        self.id = [int(i["id"]) for i in self.data]
         self.le = preprocessing.LabelEncoder()
         self.labels = self.le.fit_transform(self.label)
         self.labels = torch.tensor(self.labels)
+        self.id = torch.tensor(self.id)
 
     def encode_lang(self, lang, use_nltk=False):
         self.org = [
@@ -254,6 +256,7 @@ class DLNDDataset(Dataset):
         org_idx = self.org[idx]
         par_idx = self.par[idx]
         label_idx = self.labels[idx]
+        id_idx = self.id[idx]
         return org_idx, par_idx, label_idx
 
 

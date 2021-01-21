@@ -57,7 +57,7 @@ if __name__ == "__main__":
         model.train()
         loss_values = []
         for batch in tqdm(data_module.train_dataloader()):
-            x0, x1, y = batch
+            x0, x1, y, id_ = batch
             model.zero_grad()
             opt = model(x0.to(device), x1.to(device)).squeeze(1)
             loss = F.cross_entropy(opt, y.to(device))
@@ -76,7 +76,7 @@ if __name__ == "__main__":
         model.eval()
         with torch.no_grad():
             for batch in tqdm(data_module.test_dataloader()):
-                x0, x1, y = batch
+                x0, x1, y, id_ = batch
                 model.zero_grad()
                 opt = model(x0.to(device), x1.to(device)).squeeze(1)
                 loss = F.cross_entropy(opt, y.to(device))

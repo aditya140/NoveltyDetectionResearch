@@ -82,7 +82,7 @@ class SNLI_base(pl.LightningModule):
                 torch.randint(0, 10000, (self.conf.batch_size, self.conf.max_len)),
             )
         self.set_optim('base')
-    
+
     def set_optim(self,mode):
         if mode == 'base':
             self.optimizer_conf = self.hparams.optimizer_base
@@ -199,7 +199,7 @@ class SNLI_model(SNLI_base):
         return res
 
     def training_step(self, batch, batch_idx):
-        x0, x1, y = batch
+        x0, x1, y, id_ = batch
         opt = self(x0, x1).squeeze(0)
         train_loss = F.cross_entropy(opt, y)
         result = pl.TrainResult(train_loss)
@@ -207,7 +207,7 @@ class SNLI_model(SNLI_base):
         return result
 
     def validation_step(self, batch, batch_idx):
-        x0, x1, y = batch
+        x0, x1, y, id_ = batch
         opt = self(x0, x1).squeeze(0)
         val_loss = F.cross_entropy(opt, y)
         result = pl.EvalResult(checkpoint_on=val_loss)
@@ -219,7 +219,7 @@ class SNLI_model(SNLI_base):
         return result
 
     def test_step(self, batch, batch_idx):
-        x0, x1, y = batch
+        x0, x1, y, id_ = batch
         opt = self(x0, x1).squeeze(0)
         test_loss = F.cross_entropy(opt, y)
         result = pl.EvalResult()
@@ -243,7 +243,7 @@ class SNLI_struc_attn_model(SNLI_base):
         return res
 
     def training_step(self, batch, batch_idx):
-        x0, x1, y = batch
+        x0, x1, y, id_ = batch
         opt,att0,att1 = self(x0, x1)
         opt = opt.squeeze(0)
         train_loss = F.cross_entropy(opt, y)
@@ -255,7 +255,7 @@ class SNLI_struc_attn_model(SNLI_base):
         return result
 
     def validation_step(self, batch, batch_idx):
-        x0, x1, y = batch
+        x0, x1, y, id_ = batch
         opt,att0,att1 = self(x0, x1)
         opt = opt.squeeze(0)
         val_loss = F.cross_entropy(opt, y)
@@ -268,7 +268,7 @@ class SNLI_struc_attn_model(SNLI_base):
         return result
 
     def test_step(self, batch, batch_idx):
-        x0, x1, y = batch
+        x0, x1, y, id_ = batch
         opt,att0,att1 = self(x0, x1)
         opt = opt.squeeze(0)
         test_loss = F.cross_entropy(opt, y)
@@ -283,7 +283,7 @@ class SNLI_struc_attn_model(SNLI_base):
 
 class SwitchOptim(Callback):
     def on_train_epoch_start(self, trainer,pl_module):
-        
+
         if trainer.current_epoch == pl_module.hparams.switch_epoch:
             pl_module.set_optim('tune')
             print("Switching Optimizer at epoch:",trainer.current_epoch)

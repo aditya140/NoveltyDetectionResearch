@@ -117,7 +117,7 @@ class Novelty_CNN_model(pl.LightningModule):
             return optimizer
 
     def training_step(self, batch, batch_idx):
-        x0, x1, y = batch
+        x0, x1, y, id_ = batch
         opt = self(x0, x1).squeeze(1)
         train_loss = F.cross_entropy(opt, y)
         result = pl.TrainResult(train_loss)
@@ -125,7 +125,7 @@ class Novelty_CNN_model(pl.LightningModule):
         return result
 
     def validation_step(self, batch, batch_idx):
-        x0, x1, y = batch
+        x0, x1, y, id_ = batch
         opt = self(x0, x1).squeeze(1)
         val_loss = F.cross_entropy(opt, y)
         result = pl.EvalResult(checkpoint_on=val_loss)
@@ -140,7 +140,7 @@ class Novelty_CNN_model(pl.LightningModule):
         return result
 
     def test_step(self, batch, batch_idx):
-        x0, x1, y = batch
+        x0, x1, y, id_ = batch
         opt = self(x0, x1).squeeze(1)
         test_loss = F.cross_entropy(opt, y)
         metric = Accuracy(num_classes=2)

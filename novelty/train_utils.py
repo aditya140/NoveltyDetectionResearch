@@ -147,7 +147,7 @@ class Novelty_CNN_model(pl.LightningModule):
             return optimizer
 
     def training_step(self, batch, batch_idx):
-        x0, x1, y = batch
+        x0, x1, y, id_ = batch
         opt = self(x0, x1).squeeze(1)
         train_loss = F.cross_entropy(opt, y)
         result = pl.TrainResult(train_loss)
@@ -155,7 +155,7 @@ class Novelty_CNN_model(pl.LightningModule):
         return result
 
     def validation_step(self, batch, batch_idx):
-        x0, x1, y = batch
+        x0, x1, y, id_ = batch
         opt = self(x0, x1).squeeze(1)
         val_loss = F.cross_entropy(opt, y)
         result = pl.EvalResult(checkpoint_on=val_loss)
@@ -170,7 +170,7 @@ class Novelty_CNN_model(pl.LightningModule):
         return result
 
     def test_step(self, batch, batch_idx):
-        x0, x1, y = batch
+        x0, x1, y, id_ = batch
         opt = self(x0, x1).squeeze(1)
         test_loss = F.cross_entropy(opt, y)
         metric = Accuracy(num_classes=2)
@@ -190,10 +190,23 @@ class Novelty_CNN_model(pl.LightningModule):
         result.log("test_prec", test_prec)
         result.log("pred", pred)
         result.log("true", y)
+        # Log results if analysis mode is on
+        if self.analysis==True:
+            result.log("id",id_)
+
         return result
 
     def test_end(self, outputs):
         result = pl.EvalResult()
+        if self.analysis==True:
+            # write results to a file
+            ids = outputs['id'].detach().cpu().numpy()
+            pred = outputs['pred'].detach().cpu().numpy()
+            true = outputs['true'].detach().cpu().numpy()
+            df = pd.DataFrame()
+            with open(self.analysisWriteFile,'w') as f:
+                pass
+
         result.log("test_loss", outputs["test_loss"].mean())
         result.log("test_f1", outputs["test_f1"].mean())
         result.log("test_acc", outputs["test_acc"].mean())
