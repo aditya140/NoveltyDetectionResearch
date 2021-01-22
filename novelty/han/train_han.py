@@ -39,7 +39,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--reset", action="store_true", help="Reset Weights", default=False
     )
-    parser.add_argument("--use_nltk", action="store_true", help="Dataset imdb", default=False)  
+    parser.add_argument("--use_nltk", action="store_true", help="Dataset imdb", default=False)
     args = parser.parse_args()
 
     use_nltk=args.use_nltk

@@ -171,7 +171,7 @@ def get_yelp_data():
         data_json[count] = {"text":i["text"],"label":i["stars"]}
         count+=1
     return data_json
-    
+
 
 
 def get_imdb_data():

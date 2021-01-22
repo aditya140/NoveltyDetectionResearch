@@ -99,6 +99,17 @@ class Novelty_CNN_model(pl.LightningModule):
             self.trial_setup(trial_set)
         self.model = model(conf)
 
+        if hasattr(self.conf, "analysis"):
+            self.analysis = self.conf.analysis
+        else:
+            self.analysis = False
+
+        if hasattr(self.conf, "analysisFile"):
+            self.analysisFile = self.conf.analysisFile
+        else:
+            self.analysisFile = 'analysisfile.csv'
+
+
     def forward(self, x0, x1):
         res = self.model.forward(x0, x1)
         return res
@@ -201,11 +212,10 @@ class Novelty_CNN_model(pl.LightningModule):
         if self.analysis==True:
             # write results to a file
             ids = outputs['id'].detach().cpu().numpy()
-            pred = outputs['pred'].detach().cpu().numpy()
+            pred = outputs['pred'].detach().cpu().numpy()[:,0]
             true = outputs['true'].detach().cpu().numpy()
-            df = pd.DataFrame()
-            with open(self.analysisWriteFile,'w') as f:
-                pass
+            df = pd.DataFrame({"id":ids,"pred":pred,"true":true})
+            df.to_csv(self.analysisFile)
 
         result.log("test_loss", outputs["test_loss"].mean())
         result.log("test_f1", outputs["test_f1"].mean())

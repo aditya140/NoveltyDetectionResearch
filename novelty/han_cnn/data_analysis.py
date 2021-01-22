@@ -5,7 +5,7 @@ import joblib
 import pickle
 import argparse
 from lang import *
-from novelty.han.han_novelty import *
+from novelty.han_cnn.han_cnn import *
 from snli.bilstm.bilstm import *
 from snli.attn_enc.attn_enc import *
 from joblib import Memory
@@ -40,6 +40,7 @@ if __name__ == "__main__":
         "--reset", action="store_true", help="Reset Weights", default=False
     )
     parser.add_argument("--use_nltk", action="store_true", help="Dataset imdb", default=False)
+    parser.add_argument("--log", action="store_true", help="Dataset imdb")
     args = parser.parse_args()
 
     use_nltk=args.use_nltk
@@ -49,8 +50,8 @@ if __name__ == "__main__":
         model_id = "DOC-5"
         encoder, Lang = load_han_bilstm_encoder(model_id)
     elif args.encoder == "attention":
-        # model_id = "DOC-2"
-        model_id = "DOC-13"
+        model_id = "DOC-2"
+        # model_id = "DOC-13"
         encoder, Lang = load_han_attn_encoder(model_id)
 
     if args.webis:
@@ -60,42 +61,52 @@ if __name__ == "__main__":
     elif args.apwsj:
         data_module = apwsj_data_module(Lang,use_nltk=use_nltk)
 
+
+    data_module.batch_size = 12
     params = {
         "optim": "adamw",
         "weight_decay": 0.1,
         "lr": 0.00010869262115700171,
         "scheduler": "lambda",
+        "activation": "tanh",
         "analysis":True,
-        "analysisFile":'han_analysis.csv'
+        "analysisFile":'han_cnn_analysis.py',
     }
 
-    model_conf = HAN_Novelty_conf(encoder, **params)
-    model = Novelty_CNN_model(HAN_Novelty, model_conf, params)
+    model_conf = HAN_CNN_conf(100,encoder, **params)
+    model = Novelty_CNN_model(HAN_CNN, model_conf, params)
 
     if args.reset:
         print("Reinitializing weights")
         model.model = reset_model(model.model)
 
-    EPOCHS = 4
-
-    neptune_logger = NeptuneLogger(
-        api_key=NEPTUNE_API,
-        project_name="aparkhi/Novelty",
-        experiment_name="Evaluation",  # Optional,
-        tags=[
-            ("Webis" if args.webis else ("DLND" if args.dlnd else "APWSJ")),
-            "test",
-            "HAN",
-            "encoder_" + args.encoder,
-            ("weights_reset" if args.reset else "pretrained"),
-        ],
-    )
+    EPOCHS = 1
 
     tensorboard_logger = TensorBoardLogger("lightning_logs")
 
+    if args.log:
+        neptune_logger = NeptuneLogger(
+            api_key=NEPTUNE_API,
+            project_name="aparkhi/Novelty",
+            experiment_name="Evaluation",  # Optional,
+            tags=[
+                ("Webis" if args.webis else ("DLND" if args.dlnd else "APWSJ")),
+                "test",
+                "HAN_CNN",
+                "encoder_" + args.encoder,
+                ("weights_reset" if args.reset else "pretrained"),
+            ],
+        )
+        neptune_logger.experiment.log_metric("epochs", EPOCHS)
+        neptune_logger.experiment.log_text("Use NLTK", str(use_nltk))
+        logger = [neptune_logger,tensorboard_logger]
+    else:
+        logger = [tensorboard_logger]
+
+
+
+
     lr_logger = LearningRateLogger(logging_interval="step")
-    neptune_logger.experiment.log_metric("epochs", EPOCHS)
-    neptune_logger.experiment.log_text("Use NLTK", str(use_nltk))
     trainer = pl.Trainer(
         gpus=1,
         max_epochs=EPOCHS,
@@ -103,9 +114,11 @@ if __name__ == "__main__":
         profiler=False,
         auto_lr_find=False,
         callbacks=[lr_logger],
-        logger=[neptune_logger, tensorboard_logger],
+        logger=logger,
         row_log_interval=2,
     )
     trainer.fit(model, data_module)
+    trainer.test(model, datamodule = data_module)
 
-    trainer.test(model, datamodule=data_module)
+
+

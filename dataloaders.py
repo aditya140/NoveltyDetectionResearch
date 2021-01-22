@@ -209,7 +209,10 @@ class DLNDDataset(Dataset):
         df["DLA"] = df["DLA"].apply(
             lambda x: "Non-Novel" if ("non" in x.lower()) else "Novel"
         )
+        df['id'] = df.index
         df.reset_index(drop=True, inplace=True)
+        df.to_csv("dlnd_data.csv")
+
         self.data = df.to_dict("index")
         self.data = list(self.data.values())
         self.org = [i["target_text"] for i in self.data]
@@ -257,7 +260,7 @@ class DLNDDataset(Dataset):
         par_idx = self.par[idx]
         label_idx = self.labels[idx]
         id_idx = self.id[idx]
-        return org_idx, par_idx, label_idx
+        return org_idx, par_idx, label_idx, id_idx
 
 
 # class IMDBDataset(Dataset):
