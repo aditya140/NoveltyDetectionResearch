@@ -48,7 +48,10 @@ def test_fold(model, data_module, epochs):
     test_f1 = test_res["test_f1"]
     test_recall = test_res["test_recall"]
     test_prec = test_res["test_prec"]
-    return test_loss, test_acc, test_f1, test_recall, test_prec
+    with open("./analysis/tempids.txt", "r") as f:
+        error_ids = [int(i) for i in f.read().split(",")]
+
+    return test_loss, test_acc, test_f1, test_recall, test_prec, error_ids
 
 
 if __name__ == "__main__":
@@ -62,6 +65,10 @@ if __name__ == "__main__":
     parser.add_argument("--reset", action="store_true", help="reset weights")
     parser.add_argument(
         "--use_nltk", action="store_true", help="Dataset imdb", default=False
+    )
+
+    parser.add_argument(
+        "--analysis", action="store_true", help="Anaysis mode", default=False
     )
     args = parser.parse_args()
 
@@ -102,7 +109,6 @@ if __name__ == "__main__":
     )
     neptune.log_text("Encoder", args.encoder)
     neptune.log_text("Use NLTK", str(use_nltk))
-    
 
     params = {
         "optim": "adamw",
@@ -110,11 +116,13 @@ if __name__ == "__main__":
         "lr": 0.00010869262115700171,
         "scheduler": "lambda",
         "activation": "tanh",
+        "analysis": args.analysis,
+        "analysisFile": "temp.csv",
     }
     neptune.log_text("params", params.__str__())
     neptune.log_text("epochs", str(args.epochs))
 
-    model_conf = HAN_CNN_conf(100,encoder, **params)
+    model_conf = HAN_CNN_conf(100, encoder, **params)
     model = Novelty_CNN_model(HAN_CNN, model_conf, params)
 
     if args.reset:
@@ -125,10 +133,11 @@ if __name__ == "__main__":
     EPOCHS = args.epochs
 
     overall_loss, overall_acc, overall_prec, overall_recal, overall_f1 = 0, 0, 0, 0, 0
+    all_error_ids = []
     for folds in range(10):
         data_module.set_fold(folds)
         model.model.load_state_dict(init_state)
-        test_loss, test_acc, test_f1, test_recall, test_prec = test_fold(
+        test_loss, test_acc, test_f1, test_recall, test_prec, error_ids = test_fold(
             model, data_module, EPOCHS
         )
         neptune.log_metric("test_loss", test_loss)
@@ -141,6 +150,8 @@ if __name__ == "__main__":
         overall_prec += test_prec
         overall_recal += test_recall
         overall_f1 += test_f1
+        if error_ids != None:
+            all_error_ids += error_ids
 
     overall_loss, overall_acc, overall_prec, overall_recal, overall_f1 = (
         overall_loss / 10,
@@ -159,3 +170,7 @@ if __name__ == "__main__":
     neptune.log_metric("final_recall", overall_recal)
     neptune.log_metric("final_f1", overall_f1)
     neptune.stop()
+
+    if all_error_ids != []:
+        with open("analysis/han_cnn.txt", "w") as f:
+            f.write(",".join([str(i) for i in all_error_ids]))

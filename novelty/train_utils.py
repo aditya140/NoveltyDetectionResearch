@@ -31,47 +31,47 @@ memory = Memory(location, verbose=0)
 
 
 @memory.cache
-def webis_data_module(Lang,use_nltk):
+def webis_data_module(Lang, use_nltk):
     data_module = WebisDataModule(batch_size=32)
-    data_module.prepare_data(Lang, 100,use_nltk=use_nltk)
+    data_module.prepare_data(Lang, 100, use_nltk=use_nltk)
     return data_module
 
 
 @memory.cache
-def apwsj_data_module(Lang,use_nltk):
+def apwsj_data_module(Lang, use_nltk):
     data_module = APWSJDataModule(batch_size=25)
     print("preparing data")
-    data_module.prepare_data(Lang, 100,use_nltk=use_nltk)
+    data_module.prepare_data(Lang, 100, use_nltk=use_nltk)
     return data_module
 
 
 @memory.cache
-def dlnd_data_module(Lang,use_nltk):
+def dlnd_data_module(Lang, use_nltk):
     data_module = DLNDDataModule(batch_size=32)
-    data_module.prepare_data(Lang, 100,use_nltk=use_nltk)
+    data_module.prepare_data(Lang, 100, use_nltk=use_nltk)
     return data_module
 
 
 @memory.cache
-def webis_crossval_datamodule(Lang,use_nltk):
+def webis_crossval_datamodule(Lang, use_nltk):
     data_module = WebisDataModule(batch_size=32, cross_val=True)
     print("Started data prep")
-    data_module.prepare_data(Lang, 100,use_nltk=use_nltk)
+    data_module.prepare_data(Lang, 100, use_nltk=use_nltk)
     print("Data Prepared")
     return data_module
 
 
 @memory.cache
-def dlnd_crossval_datamodule(Lang,use_nltk):
+def dlnd_crossval_datamodule(Lang, use_nltk):
     data_module = DLNDDataModule(batch_size=32, cross_val=True)
     print("Started data prep")
-    data_module.prepare_data(Lang, 100,use_nltk=use_nltk)
+    data_module.prepare_data(Lang, 100, use_nltk=use_nltk)
     print("Data Prepared")
     return data_module
 
 
 @memory.cache
-def apwsj_crossval_datamodule(Lang,use_nltk):
+def apwsj_crossval_datamodule(Lang, use_nltk):
     data_module = APWSJDataModule(batch_size=25, cross_val=True)
     print("Started data prep")
     data_module.prepare_data(Lang, 100, use_nltk=use_nltk)
@@ -107,8 +107,7 @@ class Novelty_CNN_model(pl.LightningModule):
         if hasattr(self.conf, "analysisFile"):
             self.analysisFile = self.conf.analysisFile
         else:
-            self.analysisFile = 'analysisfile.csv'
-
+            self.analysisFile = "analysisfile.csv"
 
     def forward(self, x0, x1):
         res = self.model.forward(x0, x1)
@@ -202,26 +201,31 @@ class Novelty_CNN_model(pl.LightningModule):
         result.log("pred", pred)
         result.log("true", y)
         # Log results if analysis mode is on
-        if self.analysis==True:
-            result.log("id",id_)
+        if self.analysis == True:
+            result.log("id", id_)
 
         return result
 
     def test_end(self, outputs):
         result = pl.EvalResult()
-        if self.analysis==True:
+        if self.analysis == True:
             # write results to a file
-            ids = outputs['id'].detach().cpu().numpy()
-            pred = outputs['pred'].detach().cpu().numpy()[:,0]
-            true = outputs['true'].detach().cpu().numpy()
-            df = pd.DataFrame({"id":ids,"pred":pred,"true":true})
+            ids = outputs["id"].detach().cpu().numpy()
+            pred = outputs["pred"].detach().cpu().numpy()[:, 0]
+            true = outputs["true"].detach().cpu().numpy()
+            df = pd.DataFrame({"id": ids, "pred": pred, "true": true})
             df.to_csv(self.analysisFile)
+            df["pred_cls"] = (1 - df["pred"]).apply(lambda x: round(x))
+            error_ids = df[df["pred_cls"] != df["true"]].id.values
+            with open("./analysis/tempids.txt", "w") as f:
+                f.write(",".join([str(i) for i in error_ids]))
 
         result.log("test_loss", outputs["test_loss"].mean())
         result.log("test_f1", outputs["test_f1"].mean())
         result.log("test_acc", outputs["test_acc"].mean())
         result.log("test_recall", outputs["test_recall"].mean())
         result.log("test_prec", outputs["test_prec"].mean())
+
         if hasattr(self, "logger"):
             if not isinstance(self.logger, TensorBoardLogger):
                 for logger in self.logger:
