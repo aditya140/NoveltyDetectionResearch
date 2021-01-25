@@ -22,6 +22,8 @@ from utils.load_models import (
     load_han_bilstm_encoder,
     reset_model,
 )
+from utils.save_models import save_model, save_model_neptune
+
 from utils.helpers import seed_torch
 from novelty.train_utils import *
 from datamodule import *
@@ -39,10 +41,13 @@ if __name__ == "__main__":
     parser.add_argument(
         "--reset", action="store_true", help="Reset Weights", default=False
     )
-    parser.add_argument("--use_nltk", action="store_true", help="Dataset imdb", default=False)
+    parser.add_argument(
+        "--use_nltk", action="store_true", help="Dataset imdb", default=False
+    )
+    parser.add_argument("--save", action="store_true", help="Save model")
     args = parser.parse_args()
 
-    use_nltk=args.use_nltk
+    use_nltk = args.use_nltk
     seed_torch()
 
     if args.encoder == "bilstm":
@@ -54,11 +59,11 @@ if __name__ == "__main__":
         encoder, Lang = load_han_attn_encoder(model_id)
 
     if args.webis:
-        data_module = webis_data_module(Lang,use_nltk=use_nltk)
+        data_module = webis_data_module(Lang, use_nltk=use_nltk)
     elif args.dlnd:
-        data_module = dlnd_data_module(Lang,use_nltk=use_nltk)
+        data_module = dlnd_data_module(Lang, use_nltk=use_nltk)
     elif args.apwsj:
-        data_module = apwsj_data_module(Lang,use_nltk=use_nltk)
+        data_module = apwsj_data_module(Lang, use_nltk=use_nltk)
 
     params = {
         "optim": "adamw",
@@ -88,6 +93,7 @@ if __name__ == "__main__":
             ("weights_reset" if args.reset else "pretrained"),
         ],
     )
+    expt_id = neptune_logger.experiment.id
 
     tensorboard_logger = TensorBoardLogger("lightning_logs")
 
@@ -106,3 +112,8 @@ if __name__ == "__main__":
     )
     trainer.fit(model, data_module)
     trainer.test(model, datamodule=data_module)
+
+    if args.save:
+        model_data = {"model": model.model, "model_conf": model_conf, "Lang": Lang}
+        save_path = save_model("han_novelty", expt_id, model_data)
+        save_model_neptune(save_path, neptune_logger)

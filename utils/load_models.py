@@ -1,6 +1,7 @@
 import os
 from snli.bilstm.bilstm import Bi_LSTM_Encoder_conf, Bi_LSTM_Encoder
 from snli.attn_enc.attn_enc import Attn_Encoder_conf, Attn_Encoder
+from novelty.han.han_novelty import HAN_Novelty, HAN_Novelty_conf
 from document.han.han import HAN_conf, HAN
 from lang import BertLangConf, GloveLangConf, LanguageIndex
 from transformers import BertModel, DistilBertModel
@@ -112,3 +113,20 @@ def load_attn_encoder(id):
     encoder = Attn_Encoder(model_conf)
     encoder.load_state_dict(torch.load(ATTN_ENC_PATH + "weights.pt"))
     return encoder, Lang
+
+
+def load_han_novelty(id):
+    """Load Hierarchical Attention Network encoder(trained on classification task) from the models path
+
+    Returns:
+        [nn.Module]: HAN encoder
+        [LanguageIndex]: Language Index
+    """
+    HAN_NOV_PATH = f"./models/han_novelty/{id}/"
+    with open(HAN_NOV_PATH + "model_conf.pkl", "rb") as f:
+        model_conf = pickle.load(f)
+    attn_enc, Lang = load_han_attn_encoder("DOC-13")
+    model_conf.encoder = attn_enc
+    encoder = HAN_Novelty(model_conf)
+    encoder.load_state_dict(torch.load(HAN_NOV_PATH + "weights.pt"))
+    return encoder, Lang, model_conf

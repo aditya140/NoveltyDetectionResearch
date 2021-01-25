@@ -3,10 +3,11 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 
+
 class HAN_conf:
     num_layers = 2
     num_sent = 100
-    activation = 'relu'
+    activation = "relu"
     dropout = 0.3
     encoder_dim = 800
     bidirectional = True
@@ -20,7 +21,6 @@ class HAN_conf:
         self.encoder = encoder
         for k, v in kwargs.items():
             setattr(self, k, v)
-
 
 
 class Attention(nn.Module):
@@ -42,13 +42,15 @@ class Attention(nn.Module):
 
 
 class HAN(nn.Module):
-    def __init__(self,conf):
-        super(HAN,self).__init__()
+    def __init__(self, conf):
+        super(HAN, self).__init__()
         self.conf = conf
         self.num_sent = conf.num_sent
         self.encoder = conf.encoder
         del self.conf.encoder
-        self.translate = nn.Linear(self.conf.encoder_dim, self.conf.hidden_size) # make (300,..) if not working
+        self.translate = nn.Linear(
+            self.conf.encoder_dim, self.conf.hidden_size
+        )  # make (300,..) if not working
         if self.conf.activation.lower() == "relu".lower():
             self.act = nn.ReLU()
         elif self.conf.activation.lower() == "tanh".lower():
@@ -64,9 +66,9 @@ class HAN(nn.Module):
         )
         self.attention = Attention(conf)
 
-    def forward(self,inp):
-        batch_size,_,_ = inp.shape
-        x = inp.view(-1,self.num_sent)
+    def forward(self, inp):
+        batch_size, _, _ = inp.shape
+        x = inp.view(-1, self.num_sent)
 
         x_padded_idx = x.sum(dim=1) != 0
         x_enc = []
@@ -88,11 +90,12 @@ class HAN(nn.Module):
         attn = self.attention(all_)
 
         cont = torch.bmm(all_.permute(1, 2, 0), attn.permute(1, 0, 2)).permute(2, 0, 1)
-        return cont.squeeze(0)
+        return cont.squeeze(0), attn
+
 
 class HAN_classifier(nn.Module):
-    def __init__(self,conf):
-        super(HAN_classifier,self).__init__()
+    def __init__(self, conf):
+        super(HAN_classifier, self).__init__()
         self.han = HAN(conf)
 
         if conf.activation.lower() == "relu".lower():
@@ -103,22 +106,18 @@ class HAN_classifier(nn.Module):
             self.act = nn.LeakyReLU()
 
         self.fc_in = nn.Linear(
-            (2 if conf.bidirectional else 1)  * conf.hidden_size,
+            (2 if conf.bidirectional else 1) * conf.hidden_size,
             conf.hidden_size,
         )
 
         self.fcs = nn.ModuleList(
-            [
-                nn.Linear(conf.hidden_size, conf.hidden_size)
-                for i in range(conf.fcs)
-            ]
+            [nn.Linear(conf.hidden_size, conf.hidden_size) for i in range(conf.fcs)]
         )
         self.fc_out = nn.Linear(conf.hidden_size, conf.opt_labels)
         self.dropout = nn.Dropout(conf.dropout)
 
-                 
-    def forward(self,inp):
-        cont=self.han(inp)
+    def forward(self, inp):
+        cont, attn = self.han(inp)
         opt = self.fc_in(cont)
         opt = self.dropout(opt)
         for fc in self.fcs:
@@ -127,13 +126,11 @@ class HAN_classifier(nn.Module):
             opt = self.act(opt)
         opt = self.fc_out(opt)
         return opt
-
-
 
 
 class HAN_regressor(nn.Module):
-    def __init__(self,conf):
-        super(HAN_regressor,self).__init__()
+    def __init__(self, conf):
+        super(HAN_regressor, self).__init__()
         self.han = HAN(conf)
 
         if conf.activation.lower() == "relu".lower():
@@ -144,22 +141,18 @@ class HAN_regressor(nn.Module):
             self.act = nn.LeakyReLU()
 
         self.fc_in = nn.Linear(
-            (2 if conf.bidirectional else 1)  * conf.hidden_size,
+            (2 if conf.bidirectional else 1) * conf.hidden_size,
             conf.hidden_size,
         )
 
         self.fcs = nn.ModuleList(
-            [
-                nn.Linear(conf.hidden_size, conf.hidden_size)
-                for i in range(conf.fcs)
-            ]
+            [nn.Linear(conf.hidden_size, conf.hidden_size) for i in range(conf.fcs)]
         )
-        self.fc_out = nn.Linear(conf.hidden_size,1)
+        self.fc_out = nn.Linear(conf.hidden_size, 1)
         self.dropout = nn.Dropout(conf.dropout)
 
-                 
-    def forward(self,inp):
-        cont=self.han(inp)
+    def forward(self, inp):
+        cont,attn = self.han(inp)
         opt = self.fc_in(cont)
         opt = self.dropout(opt)
         for fc in self.fcs:
@@ -170,10 +163,9 @@ class HAN_regressor(nn.Module):
         return opt
 
 
-        
 class HAN_mixed(nn.Module):
-    def __init__(self,conf):
-        super(HAN_mixed,self).__init__()
+    def __init__(self, conf):
+        super(HAN_mixed, self).__init__()
         self.han = HAN(conf)
 
         if conf.activation.lower() == "relu".lower():
@@ -184,24 +176,20 @@ class HAN_mixed(nn.Module):
             self.act = nn.LeakyReLU()
 
         self.fc_in = nn.Linear(
-            (2 if conf.bidirectional else 1)  * conf.hidden_size,
+            (2 if conf.bidirectional else 1) * conf.hidden_size,
             conf.hidden_size,
         )
 
         self.fcs = nn.ModuleList(
-            [
-                nn.Linear(conf.hidden_size, conf.hidden_size)
-                for i in range(conf.fcs)
-            ]
+            [nn.Linear(conf.hidden_size, conf.hidden_size) for i in range(conf.fcs)]
         )
-        self.fc_reg = nn.Linear(conf.hidden_size,1)
-        self.fc_clf = nn.Linear(conf.hidden_size,conf.opt_labels)
+        self.fc_reg = nn.Linear(conf.hidden_size, 1)
+        self.fc_clf = nn.Linear(conf.hidden_size, conf.opt_labels)
 
         self.dropout = nn.Dropout(conf.dropout)
 
-                 
-    def forward(self,inp):
-        cont=self.han(inp)
+    def forward(self, inp):
+        cont = self.han(inp)
         opt = self.fc_in(cont)
         opt = self.dropout(opt)
         for fc in self.fcs:
@@ -210,9 +198,7 @@ class HAN_mixed(nn.Module):
             opt = self.act(opt)
         reg = self.fc_reg(opt)
         clf = self.fc_clf(opt)
-        return reg,clf
-
-
+        return reg, clf
 
 
 # model_conf = HAN_conf(100,encoder)
