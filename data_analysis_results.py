@@ -79,21 +79,31 @@ import nltk
 import matplotlib.pyplot as plt
 
 
-def report_analysis(rep):
+def report_analysis(rep, ax):
     target_num_words = rep["target_text"].apply(lambda x: len(nltk.word_tokenize(x)))
     target_num_sent = rep["target_text"].apply(lambda x: len(nltk.sent_tokenize(x)))
     source_num_words = rep["source"].apply(lambda x: len(nltk.word_tokenize(x)))
     source_num_sent = rep["source"].apply(lambda x: len(nltk.sent_tokenize(x)))
+    source_max_words_per_sent = rep['source'].apply(lambda x: max([len(nltk.word_tokenize(i)) for i  in nltk.sent_tokenize(x)]))
+    target_max_words_per_sent = rep['target_text'].apply(lambda x: max([len(nltk.word_tokenize(i)) for i  in nltk.sent_tokenize(x)]))
+    source_named_entities = rep['source'].apply(lambda x: len(set([(X.text, X.label_) for X in nlp(x).ents])))
+    target_named_entities = rep['target_text'].apply(lambda x: len(set([(X.text, X.label_) for X in nlp(x).ents])))
+
+    
     analysis = pd.DataFrame(
         {
             "target_num_words": target_num_words,
             "target_num_sent": target_num_sent,
             "source_num_words": source_num_words,
             "source_num_sent": source_num_sent,
+            "source_max_words_per_sent":source_max_words_per_sent,
+            "target_max_words_per_sent":target_max_words_per_sent,
+            "source_named_entities":source_named_entities,
+            "target_named_entities":target_named_entities,
         }
     )
 
-    analysis.hist()
+    analysis.hist(ax = ax)
     return analysis.describe(percentiles=[])
 
 
@@ -145,10 +155,39 @@ len(set(ids))
 # %%
 han_cnn_all_errors = dlnd_data[dlnd_data["id"].isin(set(ids))]
 # %%
-
-report_analysis(han_cnn_all_errors)
+fig = plt.figure(figsize = (15,20))
+ax = fig.gca()
+report_analysis(han_cnn_all_errors, ax)
 # %%
 
 
 han_cnn_all_errors.to_csv("./han_cnn_10_fold_all_errors.csv")
+# %%
+
+with open("./analysis/dan.txt", "r") as f:
+    ids = [int(i) for i in f.read().split(",")]
+print(len(set(ids)))
+dan_all_errors = dlnd_data[dlnd_data["id"].isin(set(ids))]
+fig = plt.figure(figsize = (15,20))
+ax = fig.gca()
+report_analysis(dan_all_errors,ax)
+# %%
+
+
+fig = plt.figure(figsize = (15,20))
+ax = fig.gca()
+report_analysis(dlnd_data, ax)
+# %%
+
+
+
+# %%
+import spacy
+from spacy import displacy
+from collections import Counter
+import en_core_web_sm
+nlp = en_core_web_sm.load()
+# %%
+doc = nlp('European authorities fined Google ,European a record $5.1 billion on Wednesday for abusing its power in the mobile phone market and ordered the company to alter its practices')
+print(len(set([(X.text, X.label_) for X in doc.ents])))
 # %%
