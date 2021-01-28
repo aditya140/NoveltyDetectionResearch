@@ -65,8 +65,6 @@ class MetricsCallback(Callback):
         self.metrics.append(trainer.callback_metrics)
 
 
-
-
 class SNLI_base(pl.LightningModule):
     def __init__(self, model, conf, hparams, trial_set=None):
         super().__init__()
@@ -199,7 +197,7 @@ class SNLI_model(SNLI_base):
         return res
 
     def training_step(self, batch, batch_idx):
-        x0, x1, y, id_ = batch
+        x0, x1, y = batch
         opt = self(x0, x1).squeeze(0)
         train_loss = F.cross_entropy(opt, y)
         result = pl.TrainResult(train_loss)
@@ -207,7 +205,7 @@ class SNLI_model(SNLI_base):
         return result
 
     def validation_step(self, batch, batch_idx):
-        x0, x1, y, id_ = batch
+        x0, x1, y = batch
         opt = self(x0, x1).squeeze(0)
         val_loss = F.cross_entropy(opt, y)
         result = pl.EvalResult(checkpoint_on=val_loss)
@@ -219,7 +217,7 @@ class SNLI_model(SNLI_base):
         return result
 
     def test_step(self, batch, batch_idx):
-        x0, x1, y, id_ = batch
+        x0, x1, y = batch
         opt = self(x0, x1).squeeze(0)
         test_loss = F.cross_entropy(opt, y)
         result = pl.EvalResult()
