@@ -8,9 +8,15 @@ import unicodedata
 import re
 from transformers import DistilBertTokenizer
 import pickle
+from utils.statics import CHAR_LIST
+
+
+char_to_ind = {CHAR_LIST[j]: j for j in range(len(CHAR_LIST))}
+ind_to_char = {j: CHAR_LIST[j] for j in range(len(CHAR_LIST))}
+
 
 class LanguageIndex:
-    def __init__(self,text= None, config = None):
+    def __init__(self, text=None, config=None):
 
         """
         Lanugae Index -  Langugae Index  acts as an interface (similar to torch.vocab) for converting
@@ -19,13 +25,16 @@ class LanguageIndex:
 
         Args:
             text ([list], optional): List of sentences to be indexed. Defaults to None.
-            config ([type], optional): . Defaults to None.        
+            config ([type], optional): . Defaults to None.
         """
         self.text = text
         self.config = config
 
         if self.config == None:
             self.config = LangConf()
+
+        self.char_emb = self.config.char_emb
+        self.char_emb_max_len = self.config.max_char_len
 
         self.lower = self.config.lower_case
         self.tokenizer_ = self.config.tokenizer
@@ -36,7 +45,7 @@ class LanguageIndex:
             self.tokenize = self.tokenize_bert
             self.encode = self.encoder_bert
             self.decode = self.decode_bert
-        elif self.tokenizer_ == 'spacy':
+        elif self.tokenizer_ == "spacy":
             self.load_spacy()
             self.tokenize = self.tokenize_spacy
             self.encode = self.encode_base
@@ -44,7 +53,6 @@ class LanguageIndex:
             self.create_language()
         else:
             pass
-        
 
     def load_bert(self):
         """
@@ -58,10 +66,9 @@ class LanguageIndex:
             self.bert_tokenizer = DistilBertTokenizer.from_pretrained(model_type)
         self.vocab_size = self.bert_tokenizer.vocab_size
 
-            
     def load_spacy(self):
         """
-        Load Spacy 
+        Load Spacy
         """
         self.spacy = spacy.load("en")
 
@@ -75,7 +82,6 @@ class LanguageIndex:
         self.bert_tokenizer = tok
         self.vocab_size = self.bert_tokenizer.vocab_size
 
-    
     def create_language(self):
         """
         Create the vocab from the given text exceprt
@@ -103,7 +109,6 @@ class LanguageIndex:
         self.vocab = set()
         self.counter = Counter()
         self.create_index()
-    
 
     def create_index(self):
         for phrase in self.text:
@@ -136,7 +141,7 @@ class LanguageIndex:
         """
         return [tok.text for tok in self.spacy.tokenizer(phrase)]
 
-    def tokenize_bert(self,phrase):
+    def tokenize_bert(self, phrase):
         """Tokenize using BERT tokenizer
 
         Args:
@@ -146,8 +151,8 @@ class LanguageIndex:
             [list] : Tokens
         """
         return self.bert_tokenizer.tokenize(phrase)
-    
-    def tokenize_base(self,phrase):
+
+    def tokenize_base(self, phrase):
         """Basic tokenizer
 
         Args:
@@ -158,8 +163,7 @@ class LanguageIndex:
         """
         return self.preprocess(phrase)
 
-
-    def encoder_bert(self,input_,special_tokens=True):
+    def encoder_bert(self, input_, special_tokens=True):
         """Encode input string using bert tokenizer
 
         Args:
@@ -172,8 +176,8 @@ class LanguageIndex:
         return self.bert_tokenizer.encode(
             input_, padding="max_length", max_length=self.max_len
         )[: self.max_len]
-    
-    def encode_base(self,input_,special_tokens=True):
+
+    def encode_base(self, input_, special_tokens=True):
         """Encode input string using spacy tokenizer
 
         Args:
@@ -183,9 +187,9 @@ class LanguageIndex:
         Returns:
             [type]: encoded list
         """
-        return self.lang_encode(input_,special_tokens=special_tokens)
+        return self.lang_encode(input_, special_tokens=special_tokens)
 
-    def decode_bert(self,input_,to_string=False):
+    def decode_bert(self, input_, to_string=False):
         """Decode input string using bert encoder
 
         Args:
@@ -199,9 +203,8 @@ class LanguageIndex:
             return self.bert_tokenizer.convert_tokens_to_string(input_)
         else:
             return self.bert_tokenizer.convert_ids_to_tokens(input_)
-        
 
-    def decode_base(self,input_,to_string=False):
+    def decode_base(self, input_, to_string=False):
         """Decode input string using spacy encoder
 
         Args:
@@ -212,7 +215,6 @@ class LanguageIndex:
             [type]: [description]
         """
         return self.lang_decode(input_, to_string)
-
 
     def encode_batch(self, batch, special_tokens=True, pair=False):
         """
@@ -228,11 +230,18 @@ class LanguageIndex:
         """
         if pair:
             return np.array(
-                np.array([self.encoder_pair(s1,s2, special_tokens=special_tokens) for s1,s2 in zip(*batch)])
+                np.array(
+                    [
+                        self.encoder_pair(s1, s2, special_tokens=special_tokens)
+                        for s1, s2 in zip(*batch)
+                    ]
+                )
             )
         else:
             return np.array(
-                np.array([self.encode(obj, special_tokens=special_tokens) for obj in batch])
+                np.array(
+                    [self.encode(obj, special_tokens=special_tokens) for obj in batch]
+                )
             )
 
     def decode_batch(self, batch):
@@ -270,7 +279,7 @@ class LanguageIndex:
             + ([2] if special_tokens else [])
         )
 
-    def encoder_pair(self,sent1,sent2,special_tokens=True):
+    def encoder_pair(self, sent1, sent2, special_tokens=True):
         """Encode pair of sentences separated by SEP token
 
         Args:
@@ -281,9 +290,8 @@ class LanguageIndex:
         Returns:
             [type]: [description]
         """
-        inp_ = sent1+ " " +self.bert_tokenizer.sep_token + " " +sent2
-        return self.encode(inp_,special_tokens=special_tokens)        
-
+        inp_ = sent1 + " " + self.bert_tokenizer.sep_token + " " + sent2
+        return self.encode(inp_, special_tokens=special_tokens)
 
     def lang_decode(self, input_, to_string=False):
         """
@@ -303,6 +311,25 @@ class LanguageIndex:
         if to_string:
             return " ".join(sent)
         return sent
+
+    def char_embedd(self, token_list):
+        """[summary]
+
+        returns a char embedding of token list
+
+        Args:
+            token_list ([type]): [description]
+        """
+        sent_vec = []
+        for tok in token_list:
+            if len(tok)<self.char_emb_max_len:
+                pad = [0]**(self.char_emb_max_len-len(tok))
+            else:
+                pad = []
+            tok_vec = [char_to_ind[i] for i in tok]+pad
+            sent_vec.append(tok_vec[:self.char_emb_max_len])
+        return sent_vec
+        
 
     def vocab_size_final(self):
         if self.tokenizer_ == "BERT" or self.tokenizer_ == "Distil_BERT":
@@ -359,7 +386,9 @@ class LangConf:
     max_len = 100
     vocab_size = None
     lower_case = True
-    
+    char_emb = True
+    max_char_len = 9
+
     def __init__(self, vocab_size, **kwargs):
         self.vocab_size = vocab_size
         for k, v in kwargs.items():
@@ -368,9 +397,9 @@ class LangConf:
 
 class BertLangConf(LangConf):
     """ Bert Index Config """
-    
-    def __init__(self,vocab_size, **kwargs):
-        super(BertLangConf,self).__init__(vocab_size,**kwargs)
+
+    def __init__(self, vocab_size, **kwargs):
+        super(BertLangConf, self).__init__(vocab_size, **kwargs)
 
 
 class GloveLangConf(LangConf):
@@ -382,5 +411,5 @@ class GloveLangConf(LangConf):
     eos_token = "<EOS>"
     unk_token = "<UNK>"
 
-    def __init__(self,vocab_size, **kwargs):
-        super(GloveLangConf,self).__init__(vocab_size,**kwargs)
+    def __init__(self, vocab_size, **kwargs):
+        super(GloveLangConf, self).__init__(vocab_size, **kwargs)
