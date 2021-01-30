@@ -171,6 +171,7 @@ class SNLIDataset(Dataset):
         self.le = preprocessing.LabelEncoder()
         self.labels = self.le.fit_transform(self.class_labels)
         self.labels = torch.tensor(self.labels)
+        self.combine=False
 
     def encode_lang(self, lang, combine=False):
         self.combine = combine
