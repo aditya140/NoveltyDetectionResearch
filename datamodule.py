@@ -114,11 +114,12 @@ class DLNDDataModule(pl.LightningDataModule):
             self.folds.append((train_index, test_index))
 
     def prepare_data(
-        self, lang, num_sent, train_size=0.8, test_size=0.1, train_samples=None, seed=42, use_nltk=False
+        self, lang, num_sent, train_size=0.8, test_size=0.1, train_samples=None, seed=42, use_nltk=False, combine= False
     ):
         self.DLND_data = DLNDDataset()
-        self.DLND_data.encode_lang(lang,use_nltk=use_nltk)
-        self.DLND_data.pad_to(num_sent)
+        self.DLND_data.encode_lang(lang,use_nltk=use_nltk,combine = combine)
+        if not combine:
+            self.DLND_data.pad_to(num_sent)
         if self.cross_val:
             self.k_fold_split()
         else:

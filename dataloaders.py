@@ -224,16 +224,22 @@ class DLNDDataset(Dataset):
         self.labels = torch.tensor(self.labels)
         self.id = torch.tensor(self.id)
 
-    def encode_lang(self, lang, use_nltk=False):
-        self.org = [
-            encode_doc(lang, i, use_nltk=use_nltk) for i in self.org
-        ]
-        self.par = [
-            encode_doc(lang, i, use_nltk=use_nltk) for i in self.par
-        ]
-        self.org = [lang.encode_batch(i) for i in self.org]
-        self.par = [lang.encode_batch(i) for i in self.par]
-        self.max_len = lang.max_len
+    def encode_lang(self, lang, use_nltk=False,combine=False):
+        self.combine = combine
+        
+        if not self.combine:
+            self.org = [
+                encode_doc(lang, i, use_nltk=use_nltk) for i in self.org
+            ]
+            self.par = [
+                encode_doc(lang, i, use_nltk=use_nltk) for i in self.par
+            ]
+            self.org = [lang.encode_batch(i) for i in self.org]
+            self.par = [lang.encode_batch(i) for i in self.par]
+            self.max_len = lang.max_len
+
+        else:
+            self.inp = lang.encode_batch([self.org, self.par], pair=True)
 
     def pad_to(self, num_sent):
         pad_arr = [0] * self.max_len
@@ -252,15 +258,29 @@ class DLNDDataset(Dataset):
             for i, par in enumerate(self.par)
         ]
 
-    def __len__(self):
-        return len(self.data)
+    def getitem__combine(self, idx):
+        inp_idx = self.inp[idx]
+        label_idx = self.labels[idx]
+        id_idx = self.id[idx]
+        return inp_idx, label_idx, id_idx
 
-    def __getitem__(self, idx):
+    def getitem__separate(self, idx):
         org_idx = self.org[idx]
         par_idx = self.par[idx]
         label_idx = self.labels[idx]
         id_idx = self.id[idx]
         return org_idx, par_idx, label_idx, id_idx
+
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, idx):
+        if self.combine:
+            return self.getitem__combine(idx)
+        else:
+            return self.getitem__separate(idx)
+
+
 
 
 # class IMDBDataset(Dataset):
