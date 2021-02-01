@@ -7,12 +7,11 @@ import numpy as np
 
 class ADIN_encoder_conf:
     embedding_dim = 300
-    hidden_size = 300
-    dropout = 0.1
+    hidden_size = 400
+    dropout = 0.2
     opt_labels = 3
-    attention_layer_param = 100
     char_embedding_size = 50
-    num_layers = 1
+    num_layers = 2
 
     k = 100  # attention param
     N = 2  # inference params
