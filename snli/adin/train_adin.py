@@ -41,10 +41,6 @@ if __name__ == "__main__":
     embedding_matrix = None
 
     conf_kwargs = {
-        "num_layers": 2,
-        "dropout": 0.1,
-        "embedding_dim": 300,
-        "hidden_size": 400,
         "batch_size": 128,
         "max_len": 100,
     }

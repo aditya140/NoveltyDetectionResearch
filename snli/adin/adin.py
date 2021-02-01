@@ -99,10 +99,10 @@ class SentenceEncoder(nn.Module):
 class InferentialModule(nn.Module):
     def __init__(self, conf):
         super(InferentialModule, self).__init__()
-        self.W = nn.Linear(conf.embedding_dim, conf.k, bias=False)
+        self.W = nn.Linear(conf.hidden_size, conf.k, bias=False)
         self.P = nn.Linear(conf.k, 1, bias=False)
-        self.Wb = nn.Linear(4 * conf.embedding_dim, conf.embedding_dim)
-        self.LayerNorm = nn.LayerNorm(conf.embedding_dim)
+        self.Wb = nn.Linear(4 * conf.hidden_size, conf.hidden_size)
+        self.LayerNorm = nn.LayerNorm(conf.hidden_size)
 
     def forward(self, ha, hb):
         e = F.softmax(self.P(F.tanh(self.W(ha * hb))))
@@ -172,5 +172,5 @@ class ADIN(nn.Module):
 
         r = torch.cat([x0_new, x1_new, x0_new - x1_new, x0_new * x1_new], dim=1)
         v = F.relu(self.r(r))
-        y = F.softmax(self.v(v))
+        y = self.v(v)
         return y
