@@ -35,6 +35,12 @@ if __name__ == "__main__":
     parser.add_argument(
         "--use_nltk", action="store_true", help="Dataset imdb", default=False
     )
+
+    parser.add_argument("--hidden_size", type=int, help="Hidden Size")
+    parser.add_argument("--N", type=int, help="N")
+    parser.add_argument("--k", type=int, help="k")
+    parser.add_argument("--num_layers", type=int, help="num_layers")
+
     args = parser.parse_args()
 
     use_nltk = args.use_nltk
@@ -53,14 +59,6 @@ if __name__ == "__main__":
     elif args.apwsj:
         data_module = apwsj_data_module(Lang, use_nltk=use_nltk)
 
-    # if args.webis:
-    #     data_module = webis_crossval_datamodule(Lang)
-    # elif args.dlnd:
-    #     data_module = dlnd_crossval_datamodule(Lang)
-    # elif args.apwsj:
-    #     data_module = apwsj_crossval_datamodule(Lang)
-    # data_module.set_fold(0)
-
     params = {
         "encoder_dim": encoder.conf.hidden_size,
         "optim": "adamw",
@@ -68,6 +66,17 @@ if __name__ == "__main__":
         "lr": 0.00010869262115700171,
         "scheduler": "lambda",
     }
+    if args.hidden_size != None:
+        params["hidden_size"] = args.hidden_size
+
+    if args.N != None:
+        params["N"] = args.N
+
+    if args.k != None:
+        params["k"] = args.k
+
+    if args.num_layers != None:
+        params["num_layers"] = args.num_layers
 
     model_conf = ADIN_conf(100, encoder, **params)
     model = Novelty_CNN_model(ADIN, model_conf, params)
