@@ -106,4 +106,3 @@ if __name__ == "__main__":
     )
     trainer.fit(model, data_module)
     trainer.test(model, datamodule=data_module)
-

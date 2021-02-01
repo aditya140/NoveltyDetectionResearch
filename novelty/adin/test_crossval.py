@@ -19,11 +19,7 @@ from lang import *
 from novelty.adin.adin import *
 from snli.bilstm.bilstm import *
 from snli.attn_enc.attn_enc import *
-from utils.load_models import (
-    load_han_attn_encoder,
-    load_han_bilstm_encoder,
-    reset_model,
-)
+from utils.load_models import load_bilstm_encoder, load_attn_encoder
 from utils.save_models import save_model, save_model_neptune
 from novelty.train_utils import *
 from datamodule import *
@@ -68,12 +64,11 @@ if __name__ == "__main__":
     use_nltk = args.use_nltk
 
     if args.encoder == "bilstm":
-        model_id = "DOC-5"
-        encoder, Lang = load_han_bilstm_encoder(model_id)
+        model_id = "SNLI-13"
+        encoder, Lang = load_bilstm_encoder(model_id)
     elif args.encoder == "attention":
-        # model_id = "DOC-2"
-        model_id = "DOC-13"
-        encoder, Lang = load_han_attn_encoder(model_id)
+        model_id = "SNLI-12"
+        encoder, Lang = load_attn_encoder(model_id)
 
     if args.webis:
         data_module = webis_crossval_datamodule(Lang, use_nltk)
