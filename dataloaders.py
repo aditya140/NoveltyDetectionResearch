@@ -23,22 +23,22 @@ import nltk
 from tqdm import tqdm
 
 
-
-def encode_doc(lang,doc,use_nltk=False):
+def encode_doc(lang, doc, use_nltk=False):
     if use_nltk:
         return list(
-                filter(
-                    lambda x: x != "" and x != " ",
-                    [lang.preprocess_sentence(j) for j in nltk.sent_tokenize(doc)],
-                )
+            filter(
+                lambda x: x != "" and x != " ",
+                [lang.preprocess_sentence(j) for j in nltk.sent_tokenize(doc)],
             )
+        )
     else:
         return list(
-                    filter(
-                        lambda x: x != "" and x != " ",
-                        lang.preprocess_sentence(doc).split("."),
-                    )
-                )
+            filter(
+                lambda x: x != "" and x != " ",
+                lang.preprocess_sentence(doc).split("."),
+            )
+        )
+
 
 class APWSJDataset(Dataset):
     def __init__(self):
@@ -52,13 +52,9 @@ class APWSJDataset(Dataset):
         self.labels = [i["label"] for i in self.data]
         self.labels = torch.tensor(self.labels)
 
-    def encode_lang(self, lang,use_nltk=False):
-        self.org = [
-            encode_doc(lang, i, use_nltk=use_nltk) for i in self.org
-        ]
-        self.par = [
-            encode_doc(lang, i, use_nltk=use_nltk) for i in self.par
-        ]
+    def encode_lang(self, lang, use_nltk=False):
+        self.org = [encode_doc(lang, i, use_nltk=use_nltk) for i in self.org]
+        self.par = [encode_doc(lang, i, use_nltk=use_nltk) for i in self.par]
         self.org = [lang.encode_batch(i) for i in self.org]
         self.par = [lang.encode_batch(i) for i in self.par]
         self.max_len = lang.max_len
@@ -104,12 +100,8 @@ class WebisDataset(Dataset):
         self.labels = torch.tensor(self.labels)
 
     def encode_lang(self, lang, use_nltk=False):
-        self.org = [
-            encode_doc(lang, i, use_nltk=use_nltk) for i in self.org
-        ]
-        self.par = [
-            encode_doc(lang, i, use_nltk=use_nltk) for i in self.par
-        ]
+        self.org = [encode_doc(lang, i, use_nltk=use_nltk) for i in self.org]
+        self.par = [encode_doc(lang, i, use_nltk=use_nltk) for i in self.par]
         self.org = [lang.encode_batch(i) for i in self.org]
         self.par = [lang.encode_batch(i) for i in self.par]
         self.max_len = lang.max_len
@@ -171,7 +163,8 @@ class SNLIDataset(Dataset):
         self.le = preprocessing.LabelEncoder()
         self.labels = self.le.fit_transform(self.class_labels)
         self.labels = torch.tensor(self.labels)
-        self.combine=False
+        self.combine = False
+        self.char_emb = False
 
     def encode_lang(self, lang, combine=False):
         self.combine = combine
@@ -180,6 +173,14 @@ class SNLIDataset(Dataset):
         else:
             self.hypo = lang.encode_batch(self.hypo)
             self.prem = lang.encode_batch(self.prem)
+            if lang.char_emb:
+                self.char_emb = True
+                self.hypo, self.hypo_char = self.hypo[:, 0], [
+                    np.vstack(i) for i in self.hypo[:, 1]
+                ]
+                self.prem, self.prem_char = self.prem[:, 0], [
+                    np.vstack(i) for i in self.prem[:, 1]
+                ]
 
     def __len__(self):
         return len(self.labels)
@@ -188,7 +189,16 @@ class SNLIDataset(Dataset):
         if self.combine:
             return self.hypo[idx], self.labels[idx]
         else:
-            return self.hypo[idx], self.prem[idx], self.labels[idx]
+            if self.char_emb:
+                return (
+                    self.hypo[idx].astype(int),
+                    self.hypo_char[idx].astype(int),
+                    self.prem[idx].astype(int),
+                    self.prem_char[idx].astype(int),
+                    self.labels[idx],
+                )
+            else:
+                return self.hypo[idx], self.prem[idx], self.labels[idx]
 
     def get_text(
         self,
@@ -210,7 +220,7 @@ class DLNDDataset(Dataset):
         df["DLA"] = df["DLA"].apply(
             lambda x: "Non-Novel" if ("non" in x.lower()) else "Novel"
         )
-        df['id'] = df.index
+        df["id"] = df.index
         df.reset_index(drop=True, inplace=True)
         df.to_csv("dlnd_data.csv")
 
@@ -225,16 +235,12 @@ class DLNDDataset(Dataset):
         self.labels = torch.tensor(self.labels)
         self.id = torch.tensor(self.id)
 
-    def encode_lang(self, lang, use_nltk=False,combine=False):
+    def encode_lang(self, lang, use_nltk=False, combine=False):
         self.combine = combine
-        
+
         if not self.combine:
-            self.org = [
-                encode_doc(lang, i, use_nltk=use_nltk) for i in self.org
-            ]
-            self.par = [
-                encode_doc(lang, i, use_nltk=use_nltk) for i in self.par
-            ]
+            self.org = [encode_doc(lang, i, use_nltk=use_nltk) for i in self.org]
+            self.par = [encode_doc(lang, i, use_nltk=use_nltk) for i in self.par]
             self.org = [lang.encode_batch(i) for i in self.org]
             self.par = [lang.encode_batch(i) for i in self.par]
             self.max_len = lang.max_len
@@ -280,8 +286,6 @@ class DLNDDataset(Dataset):
             return self.getitem__combine(idx)
         else:
             return self.getitem__separate(idx)
-
-
 
 
 # class IMDBDataset(Dataset):
@@ -367,9 +371,7 @@ class IMDBDataset(Dataset):
         self.labels = torch.tensor(self.label)
 
     def encode_lang(self, lang, use_nltk=False):
-        self.text = [
-            encode_doc(lang, i, use_nltk=use_nltk) for i in self.text
-        ]
+        self.text = [encode_doc(lang, i, use_nltk=use_nltk) for i in self.text]
         self.text = [lang.encode_batch(i) for i in self.text]
         self.max_len = lang.max_len
 
@@ -403,10 +405,8 @@ class YelpDataset(Dataset):
         self.label = self.le.fit_transform(self.label)
         self.labels = torch.tensor(self.label)
 
-    def encode_lang(self, lang,use_nltk=False):
-        self.text = [
-            encode_doc(lang, i, use_nltk=use_nltk) for i in self.text
-        ]
+    def encode_lang(self, lang, use_nltk=False):
+        self.text = [encode_doc(lang, i, use_nltk=use_nltk) for i in self.text]
         self.text = [lang.encode_batch(i) for i in tqdm(self.text)]
         self.max_len = lang.max_len
 

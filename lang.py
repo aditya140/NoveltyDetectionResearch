@@ -9,6 +9,7 @@ import re
 from transformers import DistilBertTokenizer
 import pickle
 from utils.statics import CHAR_LIST
+import nltk
 
 
 char_to_ind = {CHAR_LIST[j]: j for j in range(len(CHAR_LIST))}
@@ -35,6 +36,7 @@ class LanguageIndex:
 
         self.char_emb = self.config.char_emb
         self.char_emb_max_len = self.config.max_char_len
+        self.char_vocab_size = len(CHAR_LIST)
 
         self.lower = self.config.lower_case
         self.tokenizer_ = self.config.tokenizer
@@ -173,9 +175,17 @@ class LanguageIndex:
         Returns:
             [type]: encoded list
         """
-        return self.bert_tokenizer.encode(
-            input_, padding="max_length", max_length=self.max_len
-        )[: self.max_len]
+        if self.char_emb:
+            return (
+                self.bert_tokenizer.encode(
+                    input_, padding="max_length", max_length=self.max_len
+                )[: self.max_len],
+                self.char_embedd(nltk.word_tokenize(input_.lower())),
+            )
+        else:
+            return self.bert_tokenizer.encode(
+                input_, padding="max_length", max_length=self.max_len
+            )[: self.max_len]
 
     def encode_base(self, input_, special_tokens=True):
         """Encode input string using spacy tokenizer
@@ -187,7 +197,13 @@ class LanguageIndex:
         Returns:
             [type]: encoded list
         """
-        return self.lang_encode(input_, special_tokens=special_tokens)
+        if self.char_emb:
+            return (
+                self.lang_encode(input_, special_tokens=special_tokens),
+                self.char_embedd(nltk.word_tokenize(input_.lower())),
+            )
+        else:
+            return self.lang_encode(input_, special_tokens=special_tokens)
 
     def decode_bert(self, input_, to_string=False):
         """Decode input string using bert encoder
@@ -322,14 +338,16 @@ class LanguageIndex:
         """
         sent_vec = []
         for tok in token_list:
-            if len(tok)<self.char_emb_max_len:
-                pad = [0]**(self.char_emb_max_len-len(tok))
+            if len(tok) < self.char_emb_max_len:
+                pad = [0] * (self.char_emb_max_len - len(tok))
             else:
                 pad = []
-            tok_vec = [char_to_ind[i] for i in tok]+pad
-            sent_vec.append(tok_vec[:self.char_emb_max_len])
+            tok_vec = [char_to_ind.get(i, 0) for i in tok] + pad
+            sent_vec.append(tok_vec[: self.char_emb_max_len])
+
+        padding = [[0] * self.char_emb_max_len] * (self.max_len - len(token_list))
+        sent_vec += padding
         return sent_vec
-        
 
     def vocab_size_final(self):
         if self.tokenizer_ == "BERT" or self.tokenizer_ == "Distil_BERT":

@@ -17,9 +17,14 @@ class Attn_Encoder_conf:
     attention_layer_param = 100
     activation = "tanh"
     freeze_embedding = False
+    char_embedding_size = 100
 
     def __init__(self, lang, embedding_matrix=None, **kwargs):
         self.embedding_matrix = None
+        self.char_emb = lang.char_emb
+        self.char_vocab_size = lang.char_vocab_size
+        self.char_word_len = lang.char_emb_max_len
+
         if lang.tokenizer_ == "BERT":
             self.vocab_size = lang.vocab_size
             self.padding_idx = lang.bert_tokenizer.vocab["[PAD]"]
@@ -58,8 +63,15 @@ class Attn_Encoder(nn.Module):
             embedding_dim=self.conf.embedding_dim,
             padding_idx=self.conf.padding_idx,
         )
+        if self.conf.char_emb:
+            self.char_embedding = nn.Embedding(
+                num_embeddings=self.conf.char_vocab_size,
+                embedding_dim=self.conf.char_embedding_size,
+                padding_idx=0
+            )
+            self.char_cnn = nn.Conv2d(self.conf.char_word_len,self.conf.char_embedding_size , (1, 6), stride=(1, 1), padding=0, bias=True)
         self.translate = nn.Linear(
-            self.conf.embedding_dim, self.conf.hidden_size
+            self.conf.embedding_dim+(self.conf.char_embedding_size if self.conf.char_emb else 0), self.conf.hidden_size
         )  # make (300,..) if not working
         if self.conf.activation.lower() == "relu".lower():
             self.act = nn.ReLU()
@@ -80,9 +92,25 @@ class Attn_Encoder(nn.Module):
         )
         self.attention = Attention(conf)
 
-    def forward(self, inp):
+    def char_embedding_forward(self,x):
+        #X - [batch_size, seq_len, char_emb_size])
+        batch_size, seq_len, char_emb_size= x.shape
+        x = x.view(-1,char_emb_size)
+        x = self.char_embedding(x) #(batch_size * seq_len, char_emb_size, emb_size)
+        x = x.view(batch_size, -1, seq_len, char_emb_size)
+        x = x.permute(0,3,2,1)
+        x = self.char_cnn(x)
+        x = torch.max(F.relu(x), 3)[0]
+        return x.view(-1,seq_len,self.conf.char_embedding_size)
+
+
+    def forward(self, inp, char_vec = None):
         batch_size = inp.shape[0]
         embedded = self.embedding(inp)
+        if char_vec!=None:
+            char_emb = self.char_embedding_forward(char_vec)
+            embedded = torch.cat([embedded,char_emb],dim=2)
+
         embedded = self.translate(embedded)
         embedded = self.act(embedded)
         embedded = embedded.permute(1, 0, 2)
@@ -119,10 +147,10 @@ class Attn_encoder_snli(nn.Module):
         self.softmax = nn.Softmax(dim=2)
         self.dropout = nn.Dropout(p=self.conf.dropout)
 
-    def forward(self, x0, x1):
-        x0_enc = self.encoder(x0.long())
+    def forward(self, x0, x1, x0_char_vec = None, x1_char_vec = None):
+        x0_enc = self.encoder(x0.long(),char_vec = x0_char_vec)
         x0_enc = self.dropout(x0_enc)
-        x1_enc = self.encoder(x1.long())
+        x1_enc = self.encoder(x1.long(),char_vec = x1_char_vec)
         x1_enc = self.dropout(x1_enc)
         cont = torch.cat(
             [x0_enc, x1_enc, torch.abs(x0_enc - x1_enc), x0_enc * x1_enc], dim=2
