@@ -54,9 +54,9 @@ class Attention(nn.Module):
         return opt
 
 
-class Attn_Encoder(nn.Module):
+class Attn_Encoder_char_emb(nn.Module):
     def __init__(self, conf):
-        super(Attn_Encoder, self).__init__()
+        super(Attn_Encoder_char_emb, self).__init__()
         self.conf = conf
         self.embedding = nn.Embedding(
             num_embeddings=self.conf.vocab_size,
@@ -126,7 +126,7 @@ class Attn_encoder_snli(nn.Module):
     def __init__(self, conf):
         super(Attn_encoder_snli, self).__init__()
         self.conf = conf
-        self.encoder = Attn_Encoder(conf)
+        self.encoder = Attn_Encoder_char_emb(conf)
         self.fc_in = nn.Linear(
             (2 if conf.bidirectional else 1) * 4 * self.conf.hidden_size,
             self.conf.hidden_size,

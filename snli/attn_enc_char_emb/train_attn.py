@@ -36,7 +36,7 @@ if __name__ == "__main__":
     seed_torch()
     print(args)
 
-    data_module = snli_bert_data_module(128, char_emb=args.char)
+    data_module = snli_bert_data_module(128, char_emb=True)
     Lang = data_module.Lang
     embedding_matrix = None
 
@@ -80,7 +80,7 @@ if __name__ == "__main__":
         api_key=NEPTUNE_API,
         project_name="aparkhi/SNLI",
         experiment_name="Evaluation",
-        tags=["Attention", args.tag],
+        tags=["Attention", "char_emb", args.tag],
     )
     expt_id = neptune_logger.experiment.id
     tensorboard_logger = TensorBoardLogger("lightning_logs")
@@ -101,5 +101,5 @@ if __name__ == "__main__":
     trainer.test(model, datamodule=data_module)
 
     model_data = {"model": model.model.encoder, "model_conf": model_conf, "Lang": Lang}
-    save_path = save_model("attn_encoder", expt_id, model_data)
+    save_path = save_model("attn_char_encoder", expt_id, model_data)
     save_model_neptune(save_path, neptune_logger)
