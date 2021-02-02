@@ -55,10 +55,18 @@ if __name__ == "__main__":
     parser.add_argument("--apwsj", action="store_true", help="apwsj dataset")
     parser.add_argument("--encoder", type=str, help="Encoder Type")
     parser.add_argument("--epochs", type=int, help="Epochs")
-    parser.add_argument("--reset", action="store_true", help="reset weights")
     parser.add_argument(
         "--use_nltk", action="store_true", help="Dataset imdb", default=False
     )
+
+    parser.add_argument("--hidden_size", type=int, help="Hidden Size")
+    parser.add_argument("--N", type=int, help="N")
+    parser.add_argument("--k", type=int, help="k")
+    parser.add_argument("--num_layers", type=int, help="num_layers")
+    parser.add_argument(
+        "--scheduler", type=str, help="scheduler type (lambda or constant or plateau)"
+    )
+
     args = parser.parse_args()
 
     use_nltk = args.use_nltk
@@ -103,12 +111,23 @@ if __name__ == "__main__":
         "scheduler": "lambda",
     }
 
+    if args.hidden_size != None:
+        params["hidden_size"] = args.hidden_size
+
+    if args.N != None:
+        params["N"] = args.N
+
+    if args.k != None:
+        params["k"] = args.k
+
+    if args.num_layers != None:
+        params["num_layers"] = args.num_layers
+
+    if args.scheduler != None:
+        params["scheduler"] = args.scheduler
+
     model_conf = ADIN_conf(100, encoder, **params)
     model = Novelty_CNN_model(ADIN, model_conf, params)
-
-    if args.reset:
-        print("Reinitializing weights")
-        model.model = reset_model(model.model)
 
     init_state = copy.deepcopy(model.model.state_dict())
     EPOCHS = args.epochs
