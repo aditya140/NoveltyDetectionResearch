@@ -40,6 +40,9 @@ if __name__ == "__main__":
     parser.add_argument("--N", type=int, help="N")
     parser.add_argument("--k", type=int, help="k")
     parser.add_argument("--num_layers", type=int, help="num_layers")
+    parser.add_argument(
+        "--scheduler", type=str, help="scheduler type (lambda or constant or plateau)"
+    )
 
     args = parser.parse_args()
 
@@ -77,6 +80,9 @@ if __name__ == "__main__":
 
     if args.num_layers != None:
         params["num_layers"] = args.num_layers
+
+    if args.scheduler != None:
+        params["scheduler"] = args.scheduler
 
     model_conf = ADIN_conf(100, encoder, **params)
     model = Novelty_CNN_model(ADIN, model_conf, params)
