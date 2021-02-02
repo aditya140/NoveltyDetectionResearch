@@ -31,6 +31,7 @@ if __name__ == "__main__":
     parser.add_argument("--apwsj", action="store_true", help="apwsj dataset")
     parser.add_argument("--save", action="store_true", help="Save model")
     parser.add_argument("--encoder", type=str, help="Encoder Type")
+    parser.add_argument("--epochs", type=int, help="Epochs")
     parser.add_argument("--log", action="store_true", help="Log to neptune")
     parser.add_argument(
         "--use_nltk", action="store_true", help="Dataset imdb", default=False
@@ -87,7 +88,10 @@ if __name__ == "__main__":
     model_conf = ADIN_conf(100, encoder, **params)
     model = Novelty_CNN_model(ADIN, model_conf, params)
 
-    EPOCHS = 10
+    if args.epochs != None:
+        EPOCHS = args.epochs
+    else:
+        EPOCHS = 10
 
     tensorboard_logger = TensorBoardLogger("lightning_logs")
 
