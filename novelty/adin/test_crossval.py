@@ -91,7 +91,7 @@ if __name__ == "__main__":
     )
 
     neptune.create_experiment(
-        tags=["10-fold", "ADIN", ("no_pretraining" if args.reset else "pretrained")]
+        tags=["10-fold", "ADIN"]
     )
     seed_torch(140)
 
@@ -159,7 +159,7 @@ if __name__ == "__main__":
     )
 
     print(
-        "Final Accuracy: {overall_acc}, Precsion: {overall_prec}, Recall: {overall_recal}, F1 Score: {overall_f1}"
+        f"Final Accuracy: {overall_acc}, Precsion: {overall_prec}, Recall: {overall_recal}, F1 Score: {overall_f1}"
     )
     neptune.log_metric("final_loss", overall_loss)
     neptune.log_metric("final_acc", overall_acc)
