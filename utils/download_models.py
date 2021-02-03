@@ -16,6 +16,7 @@ from os.path import join as osj
 
 bilstm_enc = "bilstm_encoder.zip"
 attn_enc = "attn_encoder.zip"
+attn_char_enc = "attn_char_encoder.zip"
 cnn_novelty = "cnn_novelty.zip"
 document_imdb_han_clf = "document_imdb_han_clf.zip"
 document_imdb_han_reg = "document_imdb_han_reg.zip"
@@ -24,6 +25,7 @@ document_imdb_han_reg = "document_imdb_han_reg.zip"
 neptune_experiments_to_download = {
     ("SNLI", "attn_encoder"): ["SNLI-12"],
     ("SNLI", "bilstm_encoder"): ["SNLI-13"],
+    ("SNLI", "attn_char_encoder"): ["SNLI-31"],
     ("DocClassification", "han"): ["DOC-2",'DOC-4',"DOC-13"],
 }
 

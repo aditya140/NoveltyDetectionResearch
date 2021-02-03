@@ -5,7 +5,7 @@ import torch.optim as optim
 import numpy as np
 
 
-class Attn_Encoder_conf:
+class Attn_Char_Encoder_conf:
     embedding_dim = 300
     hidden_size = 300
     fcs = 1

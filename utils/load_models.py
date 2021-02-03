@@ -1,6 +1,7 @@
 import os
 from snli.bilstm.bilstm import Bi_LSTM_Encoder_conf, Bi_LSTM_Encoder
 from snli.attn_enc.attn_enc import Attn_Encoder_conf, Attn_Encoder
+from snli.attn_char_enc.attn_enc import Attn_Char_Encoder_conf,Attn_Encoder_char_emb
 from novelty.han.han_novelty import HAN_Novelty, HAN_Novelty_conf
 from document.han.han import HAN_conf, HAN
 from lang import BertLangConf, GloveLangConf, LanguageIndex
@@ -111,6 +112,22 @@ def load_attn_encoder(id):
     with open(ATTN_ENC_PATH + "lang.pkl", "rb") as f:
         Lang = joblib.load(f)
     encoder = Attn_Encoder(model_conf)
+    encoder.load_state_dict(torch.load(ATTN_ENC_PATH + "weights.pt"))
+    return encoder, Lang
+
+def load_attn_char_encoder(id):
+    """Load Attention encoder from the models path
+
+    Returns:
+        [nn.Module]: Attention LSTM encoder
+        [LanguageIndex]: Language Index
+    """
+    ATTN_ENC_PATH = f"./models/attn_char_encoder/{id}/"
+    with open(ATTN_ENC_PATH + "model_conf.pkl", "rb") as f:
+        model_conf = pickle.load(f)
+    with open(ATTN_ENC_PATH + "lang.pkl", "rb") as f:
+        Lang = joblib.load(f)
+    encoder = Attn_Encoder_char_emb(model_conf)
     encoder.load_state_dict(torch.load(ATTN_ENC_PATH + "weights.pt"))
     return encoder, Lang
 

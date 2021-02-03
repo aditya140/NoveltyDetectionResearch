@@ -70,7 +70,7 @@ if __name__ == "__main__":
         "switch_epoch": 6,
     }
 
-    model_conf = Attn_Encoder_conf(Lang, embedding_matrix, **conf_kwargs)
+    model_conf = Attn_Char_Encoder_conf(Lang, embedding_matrix, **conf_kwargs)
 
     model = SNLI_char_emb(Attn_encoder_snli, model_conf, hparams)
 
