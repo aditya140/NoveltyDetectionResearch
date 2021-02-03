@@ -65,21 +65,33 @@ if __name__ == "__main__":
     elif args.apwsj:
         data_module = apwsj_data_module(Lang, use_nltk=use_nltk)
 
-    params = {
-        "optim": "adamw",
-        "weight_decay": 0.1,
-        "lr": 0.00010869262115700171,
-        "scheduler": "lambda",
+    params = {}
+
+    hparams = {
+        "optimizer_base":{
+            "optim": "adamw",
+            "lr": 0.0010039910781394373,
+            "scheduler": "const"
+            },
+        "optimizer_tune":{
+            "optim": "adam",
+            "lr": 0.00010039910781394373,
+            "weight_decay": 0.1,
+            "scheduler": "lambda"
+        },
+        "switch_epoch":3,
     }
 
     model_conf = HAN_Novelty_conf(encoder, **params)
-    model = Novelty_CNN_model(HAN_Novelty, model_conf, params)
+    model = Novelty_model(HAN_Novelty, model_conf, hparams)
+
+    EPOCHS = 4
+
 
     if args.reset:
         print("Reinitializing weights")
         model.model = reset_model(model.model)
 
-    EPOCHS = 4
 
     neptune_logger = NeptuneLogger(
         api_key=NEPTUNE_API,

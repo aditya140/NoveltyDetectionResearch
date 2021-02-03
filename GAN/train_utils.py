@@ -60,7 +60,7 @@ class MetricsCallback(Callback):
         self.metrics.append(trainer.callback_metrics)
 
 
-class Novelty_CNN_model(pl.LightningModule):
+class Novelty_model(pl.LightningModule):
     def __init__(self, model, conf, hparams, trial_set=None):
         super().__init__()
         self.conf = conf

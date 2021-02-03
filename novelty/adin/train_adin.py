@@ -41,9 +41,7 @@ if __name__ == "__main__":
     parser.add_argument("--N", type=int, help="N")
     parser.add_argument("--k", type=int, help="k")
     parser.add_argument("--num_layers", type=int, help="num_layers")
-    parser.add_argument(
-        "--scheduler", type=str, help="scheduler type (lambda or constant or plateau)"
-    )
+
 
     args = parser.parse_args()
 
@@ -65,11 +63,25 @@ if __name__ == "__main__":
 
     params = {
         "encoder_dim": encoder.conf.hidden_size,
-        "optim": "adamw",
-        "weight_decay": 0.1,
-        "lr": 0.00010869262115700171,
-        "scheduler": "lambda",
     }
+
+
+
+    hparams = {
+        "optimizer_base":{
+            "optim": "adamw",
+            "lr": 0.00010869262115700171,
+            "scheduler": "const"
+            },
+        "optimizer_tune":{
+            "optim": "adam",
+            "lr": 0.00010039910781394373,
+            "weight_decay": 0.1,
+            "scheduler": "constant"
+        },
+        "switch_epoch":5,
+    }
+
     if args.hidden_size != None:
         params["hidden_size"] = args.hidden_size
 
@@ -82,11 +94,8 @@ if __name__ == "__main__":
     if args.num_layers != None:
         params["num_layers"] = args.num_layers
 
-    if args.scheduler != None:
-        params["scheduler"] = args.scheduler
-
     model_conf = ADIN_conf(100, encoder, **params)
-    model = Novelty_CNN_model(ADIN, model_conf, params)
+    model = Novelty_model(ADIN, model_conf, hparams)
 
     if args.epochs != None:
         EPOCHS = args.epochs
@@ -119,7 +128,7 @@ if __name__ == "__main__":
         progress_bar_refresh_rate=10,
         profiler=False,
         auto_lr_find=False,
-        callbacks=[lr_logger],
+        callbacks=[lr_logger,SwitchOptim()],
         logger=loggers,
         row_log_interval=2,
     )

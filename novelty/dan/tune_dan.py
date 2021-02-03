@@ -41,7 +41,23 @@ data_module = webis_data_module(Lang)
 DIR = os.getcwd()
 MODEL_DIR = os.path.join(DIR, "result")
 EPOCHS = 2
-hparams = {"optim": "adam", "lr": 1e-3}  # "momentum":0.9}
+
+
+
+hparams = {
+    "optimizer_base":{
+        "optim": "adamw",
+        "lr": 0.0010039910781394373,
+        "scheduler": "const"
+        },
+    "optimizer_tune":{
+        "optim": "adam",
+        "lr": 0.00010039910781394373,
+        "weight_decay": 0.1,
+        "scheduler": "lambda"
+    },
+    "switch_epoch":3,
+}  # "momentum":0.9}
 
 
 def trial_init(self, trial):
@@ -121,7 +137,7 @@ def objective(trial):
 
     model_conf = Novelty_CNN_conf(100, encoder)
 
-    model = Novelty_CNN_model(DeepNoveltyCNN, model_conf, params)
+    model = Novelty_model(DeepNoveltyCNN, model_conf, params)
 
     neptune_logger.experiment.log_text("params", json.dumps(trial.params))
 

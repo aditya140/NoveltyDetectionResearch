@@ -111,19 +111,31 @@ if __name__ == "__main__":
     neptune.log_text("Use NLTK", str(use_nltk))
 
     params = {
-        "optim": "adamw",
-        "weight_decay": 0.1,
-        "lr": 0.00010869262115700171,
-        "scheduler": "lambda",
-        "activation": "tanh",
         "analysis": args.analysis,
         "analysisFile": "temp.csv",
     }
+    
+    hparams = {
+        "optimizer_base":{
+            "optim": "adamw",
+            "lr": 0.0010039910781394373,
+            "scheduler": "const"
+            },
+        "optimizer_tune":{
+            "optim": "adam",
+            "lr": 0.00010039910781394373,
+            "weight_decay": 0.1,
+            "scheduler": "lambda"
+        },
+        "switch_epoch":3,
+    }
+
+
     neptune.log_text("params", params.__str__())
     neptune.log_text("epochs", str(args.epochs))
 
     model_conf = HAN_CNN_conf(100, encoder, **params)
-    model = Novelty_CNN_model(HAN_CNN, model_conf, params)
+    model = Novelty_model(HAN_CNN, model_conf, hparams)
 
     if args.reset:
         print("Reinitializing weights")

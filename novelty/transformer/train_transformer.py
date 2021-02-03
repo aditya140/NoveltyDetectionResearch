@@ -64,15 +64,26 @@ if __name__ == "__main__":
         "encoder_dim": encoder.conf.hidden_size,
         "dropout": 0.3,
         "activation": "tanh",
-        "optim": "adamw",
-        "weight_decay": 0.1,
-        "lr": 0.00010869262115700171,
-        "scheduler": "lambda",
-        }
+    }
+
+    hparams = {
+        "optimizer_base":{
+            "optim": "adamw",
+            "lr": 0.0010039910781394373,
+            "scheduler": "const"
+            },
+        "optimizer_tune":{
+            "optim": "adam",
+            "lr": 0.00010039910781394373,
+            "weight_decay": 0.1,
+            "scheduler": "lambda"
+        },
+        "switch_epoch":3,
+    }
 
 
     model_conf = Transformer_conf(100, encoder, **params)
-    model = Novelty_CNN_model(Transformer_novelty, model_conf, params)
+    model = Novelty_model(Transformer_novelty, model_conf, hparams)
 
     EPOCHS = 10
 

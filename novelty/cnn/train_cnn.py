@@ -68,14 +68,27 @@ if __name__ == "__main__":
         "filter_sizes": [4, 6, 9],
         "freeze_embedding": False,
         "activation": "tanh",
-        "optim": "adamw",
-        "weight_decay": 0.1,
-        "lr": 0.00010869262115700171,
-        "scheduler": "lambda",
+    }
+
+
+
+    hparams = {
+        "optimizer_base":{
+            "optim": "adamw",
+            "lr": 0.0010039910781394373,
+            "scheduler": "const"
+            },
+        "optimizer_tune":{
+            "optim": "adam",
+            "lr": 0.00010039910781394373,
+            "weight_decay": 0.1,
+            "scheduler": "lambda"
+        },
+        "switch_epoch":3,
     }
 
     model_conf = Novelty_CNN_conf(100, encoder, **params)
-    model = Novelty_CNN_model(DeepNoveltyCNN, model_conf, params)
+    model = Novelty_model(DeepNoveltyCNN, model_conf, hparams)
 
     EPOCHS = 5
 

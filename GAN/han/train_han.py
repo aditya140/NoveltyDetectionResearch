@@ -52,7 +52,7 @@ if __name__ == "__main__":
     }
 
     model_conf = HAN_Novelty_conf(encoder, **params)
-    model = Novelty_CNN_model(HAN_Novelty, model_conf, params)
+    model = Novelty_model(HAN_Novelty, model_conf, params)
 
     if args.reset:
         print("Reinitializing weights")

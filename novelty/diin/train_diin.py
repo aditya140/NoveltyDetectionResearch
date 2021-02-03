@@ -56,17 +56,30 @@ if __name__ == "__main__":
     data_module.batch_size = args.batch_size
 
     params = {
-        "optim": "adamw",
-        "lr": 0.00060869262115700171,
-        "weight_decay": 0.01,
-        "scheduler": "constant",
         "encoder_type": args.encoder,
         "batch_size": args.batch_size,
         "embedding_dim": encoder.conf.hidden_size,
     }
 
+
+
+    hparams = {
+        "optimizer_base":{
+            "optim": "adamw",
+            "lr": 0.0010039910781394373,
+            "scheduler": "const"
+            },
+        "optimizer_tune":{
+            "optim": "adam",
+            "lr": 0.00010039910781394373,
+            "weight_decay": 0.1,
+            "scheduler": "lambda"
+        },
+        "switch_epoch":3,
+    }
+
     model_conf = DIIN_conf(100, encoder, **params)
-    model = Novelty_CNN_model(DIIN, model_conf, params)
+    model = Novelty_model(DIIN, model_conf, hparams)
 
     EPOCHS = 8
 

@@ -90,7 +90,7 @@ class MetricsCallback(Callback):
         self.metrics.append(trainer.callback_metrics)
 
 
-class Novelty_CNN_model(pl.LightningModule):
+class Novelty_model(pl.LightningModule):
     def __init__(self, model, conf, hparams, trial_set=None):
         super().__init__()
         self.conf = conf
@@ -109,6 +109,8 @@ class Novelty_CNN_model(pl.LightningModule):
         else:
             self.analysisFile = "analysisfile.csv"
 
+        self.set_optim("base")
+
     def forward(self, x0, x1):
         res = self.model.forward(x0, x1)
         return res
@@ -118,44 +120,57 @@ class Novelty_CNN_model(pl.LightningModule):
             trial_set["trial"], self.conf, self.hparams
         )
 
+    def set_optim(self, mode):
+        if mode == "base":
+            self.optimizer_conf = self.hparams.optimizer_base
+        else:
+            self.optimizer_conf = self.hparams.optimizer_tune
+
     def configure_optimizers(self):
-        if self.hparams.optim.lower() == "AdamW".lower():
+        # Configure optimizer
+        if self.optimizer_conf["optim"].lower() == "AdamW".lower():
             optimizer = optim.AdamW(
                 self.parameters(),
-                lr=self.hparams.lr,
-                weight_decay=self.hparams.weight_decay,
+                lr=self.optimizer_conf["lr"],
             )
-        if self.hparams.optim.lower() == "Adam".lower():
+        if self.optimizer_conf["optim"].lower() == "Adam".lower():
             optimizer = optim.Adam(
                 self.parameters(),
-                lr=self.hparams.lr,
-                weight_decay=self.hparams.weight_decay,
+                lr=self.optimizer_conf["lr"],
+                weight_decay=self.optimizer_conf["weight_decay"],
             )
-        if self.hparams.optim.lower() == "sgd".lower():
+        if self.optimizer_conf["optim"].lower() == "sgd".lower():
             optimizer = optim.SGD(
                 self.parameters(),
-                lr=self.hparams.lr,
-                momentum=self.hparams.momentum,
-                weight_decay=self.hparams.weight_decay,
+                lr=self.optimizer_conf["lr"],
+                momentum=self.optimizer_conf["momentum"],
+                weight_decay=self.optimizer_conf["weight_decay"],
             )
-        if self.hparams.scheduler == "plateau":
-            lr_scheduler = optim.lr_scheduler.ReduceLROnPlateau(
-                optimizer, patience=2, factor=0.1
+        if self.optimizer_conf["optim"].lower() == "adadelta":
+            optimizer = optim.Adadelta(
+                self.parameters(),
+                lr=self.optimizer_conf["lr"],
+                rho=self.optimizer_conf["rho"],
+                eps=self.optimizer_conf["eps"],
+                weight_decay=self.optimizer_conf["weight_decay"],
             )
+
+        # Configure Scheduler
+        if self.optimizer_conf["scheduler"] == "plateau":
+            lr_scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer)
             scheduler = {
                 "scheduler": lr_scheduler,
                 "reduce_on_plateau": True,
                 "monitor": "val_checkpoint_on",
             }
             return [optimizer], [scheduler]
-        elif self.hparams.scheduler == "lambda":
+        elif self.optimizer_conf["scheduler"] == "lambda":
             scheduler = optim.lr_scheduler.LambdaLR(
                 optimizer, lr_lambda=lambda x: 10 ** ((-1) * (x // 6))
             )
             return [optimizer], [scheduler]
         else:
-            return optimizer
-
+            return [optimizer]
     def training_step(self, batch, batch_idx):
         x0, x1, y, id_ = batch
         opt = self(x0, x1).squeeze(1)
@@ -526,3 +541,21 @@ class Novelty_longformer(pl.LightningModule):
                         logger.experiment.log_image("precision-recall curve", fig)
                         plt.close(fig)
         return result
+
+
+
+
+class SwitchOptim(Callback):
+    def on_train_epoch_start(self, trainer, pl_module):
+
+        if trainer.current_epoch == pl_module.hparams.switch_epoch:
+            pl_module.set_optim("tune")
+            print("Switching Optimizer at epoch:", trainer.current_epoch)
+            optimizers_schedulers = pl_module.configure_optimizers()
+            if len(optimizers_schedulers) == 1:
+                optimizers = optimizers_schedulers
+                trainer.optimizers = optimizers
+            else:
+                optimizers, schedulers = optimizers_schedulers
+                trainer.optimizers = optimizers
+                trainer.lr_schedulers = trainer.configure_schedulers(schedulers)

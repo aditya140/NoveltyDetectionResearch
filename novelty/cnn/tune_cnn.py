@@ -122,7 +122,7 @@ def objective(trial):
 
     model_conf = Novelty_CNN_conf(100, encoder)
 
-    model = Novelty_CNN_model(DeepNoveltyCNN, model_conf, params)
+    model = Novelty_model(DeepNoveltyCNN, model_conf, params)
 
     neptune_logger.experiment.log_text("params", json.dumps(trial.params))
 

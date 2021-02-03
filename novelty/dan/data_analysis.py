@@ -75,7 +75,7 @@ if __name__ == "__main__":
     }
 
     model_conf = DAN_conf(100, encoder, **params)
-    model = Novelty_CNN_model(DAN, model_conf, params)
+    model = Novelty_model(DAN, model_conf, params)
 
     EPOCHS = 3
 

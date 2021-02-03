@@ -67,14 +67,14 @@ if __name__ == "__main__":
             "weight_decay": 0.1,
             "scheduler": "lambda",
         },
-        "switch_epoch": 5,
+        "switch_epoch": 6,
     }
 
     model_conf = Attn_Encoder_conf(Lang, embedding_matrix, **conf_kwargs)
 
     model = SNLI_char_emb(Attn_encoder_snli, model_conf, hparams)
 
-    EPOCHS = 5
+    EPOCHS = 6
 
     neptune_logger = NeptuneLogger(
         api_key=NEPTUNE_API,

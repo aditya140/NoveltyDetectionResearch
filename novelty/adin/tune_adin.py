@@ -100,7 +100,7 @@ def objective(trial):
     }
     trial_set = {"trial_func": trial_init, "trial": trial}
 
-    model = Novelty_CNN_model(ADIN, model_conf, params, trial_set)
+    model = Novelty_model(ADIN, model_conf, params, trial_set)
 
     neptune_logger.experiment.log_text("trial_params", json.dumps(trial.params))
     neptune_logger.experiment.log_text("params", json.dumps(vars(model_conf)))

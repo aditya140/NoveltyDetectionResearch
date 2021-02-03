@@ -65,7 +65,7 @@ def train_model(args):
     }
 
     model_conf = Novelty_CNN_conf(100, encoder, **params)
-    model = Novelty_CNN_model(DeepNoveltyCNN, model_conf, params)
+    model = Novelty_model(DeepNoveltyCNN, model_conf, params)
 
     EPOCHS = args.epochs
 

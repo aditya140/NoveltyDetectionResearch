@@ -125,17 +125,25 @@ if __name__ == "__main__":
     params = {}
 
     hparams = {
-        "optim": "adamw",
-        "weight_decay": 0.1,
-        "lr": 0.00010869262115700171,
-        "scheduler": "lambda",
+        "optimizer_base":{
+            "optim": "adamw",
+            "lr": 0.0010039910781394373,
+            "scheduler": "const"
+            },
+        "optimizer_tune":{
+            "optim": "adam",
+            "lr": 0.00010039910781394373,
+            "weight_decay": 0.1,
+            "scheduler": "lambda"
+        },
+        "switch_epoch":3,
     }
 
     neptune.log_text("hparams", hparams.__str__())
     neptune.log_text("params", params.__str__())
 
-    model_conf = HAN_Novelty_conf(encoder, **hparams)
-    model = Novelty_CNN_model(HAN_Novelty, model_conf, hparams)
+    model_conf = HAN_Novelty_conf(encoder, **pparams)
+    model = Novelty_model(HAN_Novelty, model_conf, hparams)
 
     if args.reset:
         print("Reinitializing weights")
@@ -159,7 +167,7 @@ if __name__ == "__main__":
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
         model_conf = HAN_Novelty_conf(encoder, **hparams)
-        model = Novelty_CNN_model(HAN_Novelty, model_conf, params)
+        model = Novelty_model(HAN_Novelty, model_conf, params)
 
         optimizer = optim.AdamW(model.parameters(), lr=hparams["lr"])
         model.load_state_dict(init_state)

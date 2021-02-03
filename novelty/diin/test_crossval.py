@@ -107,7 +107,7 @@ if __name__ == "__main__":
     neptune.log_text("epochs", str(args.epochs))
 
     model_conf = DIIN_conf(100, encoder, **params)
-    model = Novelty_CNN_model(DIIN, model_conf, params)
+    model = Novelty_model(DIIN, model_conf, params)
 
     init_state = copy.deepcopy(model.model.state_dict())
     EPOCHS = args.epochs

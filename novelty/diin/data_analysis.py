@@ -72,7 +72,7 @@ if __name__ == "__main__":
     }
 
     model_conf = DIIN_conf(100, encoder, **params)
-    model = Novelty_CNN_model(DIIN, model_conf, params)
+    model = Novelty_model(DIIN, model_conf, params)
 
     EPOCHS = 3
 
