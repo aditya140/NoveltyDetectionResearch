@@ -38,10 +38,17 @@ class WebisDataModule(pl.LightningDataModule):
             self.folds.append((train_index, test_index))
 
     def prepare_data(
-        self, lang, num_sent, train_size=0.8, test_size=0.1, train_samples=None, seed=42, use_nltk = False
+        self,
+        lang,
+        num_sent,
+        train_size=0.8,
+        test_size=0.1,
+        train_samples=None,
+        seed=42,
+        use_nltk=False,
     ):
         self.webis_data = WebisDataset()
-        self.webis_data.encode_lang(lang,use_nltk=use_nltk)
+        self.webis_data.encode_lang(lang, use_nltk=use_nltk)
         self.webis_data.pad_to(num_sent)
         if self.cross_val:
             self.k_fold_split()
@@ -114,10 +121,18 @@ class DLNDDataModule(pl.LightningDataModule):
             self.folds.append((train_index, test_index))
 
     def prepare_data(
-        self, lang, num_sent, train_size=0.8, test_size=0.1, train_samples=None, seed=42, use_nltk=False, combine= False
+        self,
+        lang,
+        num_sent,
+        train_size=0.8,
+        test_size=0.1,
+        train_samples=None,
+        seed=42,
+        use_nltk=False,
+        combine=False,
     ):
         self.DLND_data = DLNDDataset()
-        self.DLND_data.encode_lang(lang,use_nltk=use_nltk,combine = combine)
+        self.DLND_data.encode_lang(lang, use_nltk=use_nltk, combine=combine)
         if not combine:
             self.DLND_data.pad_to(num_sent)
         if self.cross_val:
@@ -189,10 +204,17 @@ class APWSJDataModule(pl.LightningDataModule):
             self.folds.append((train_index, test_index))
 
     def prepare_data(
-        self, lang, num_sent, train_size=0.8, test_size=0.1, train_samples=None, seed=42, use_nltk=False
+        self,
+        lang,
+        num_sent,
+        train_size=0.8,
+        test_size=0.1,
+        train_samples=None,
+        seed=42,
+        use_nltk=False,
     ):
         self.APWSJ_data = APWSJDataset()
-        self.APWSJ_data.encode_lang(lang,use_nltk=use_nltk)
+        self.APWSJ_data.encode_lang(lang, use_nltk=use_nltk)
         self.APWSJ_data.pad_to(num_sent)
         if self.cross_val:
             self.k_fold_split()
@@ -248,8 +270,6 @@ class SNLIDataModule(pl.LightningDataModule):
     def __init__(self, batch_size=32):
         super().__init__()
         self.batch_size = batch_size
-
-    def prepare_data(self, lang, lang_conf, combine=False):
         self.snli_data_train = SNLIDataset("train")
         self.snli_data_test = SNLIDataset("test")
         self.snli_data_val = SNLIDataset("dev")
@@ -261,12 +281,10 @@ class SNLIDataModule(pl.LightningDataModule):
             ),
             axis=0,
         )
-        if lang_conf == "glove":
-            self.lang_conf = GloveLangConf(vocab_size=200000)
-            self.Lang = LanguageIndex(text=self.lang_text, config=self.lang_conf)
-        else:
-            self.lang_conf = lang_conf
-            self.Lang = lang
+
+    def prepare_data(self, lang, lang_conf, combine=False):
+        self.lang_conf = lang_conf
+        self.Lang = lang
 
         self.snli_data_train.encode_lang(self.Lang, combine=combine)
         self.snli_data_test.encode_lang(self.Lang, combine=combine)
@@ -301,7 +319,7 @@ class IMDBDataModule(pl.LightningDataModule):
 
     def prepare_data(self, lang, num_sent, use_nltk=False):
         self.IMDB_data = IMDBDataset()
-        self.IMDB_data.encode_lang(lang,use_nltk=use_nltk)
+        self.IMDB_data.encode_lang(lang, use_nltk=use_nltk)
         self.IMDB_data.pad_to(num_sent)
 
         data_size = len(self.IMDB_data)
@@ -342,7 +360,7 @@ class YelpDataModule(pl.LightningDataModule):
         super().__init__()
         self.batch_size = batch_size
 
-    def prepare_data(self, lang, num_sent,use_nltk=False):
+    def prepare_data(self, lang, num_sent, use_nltk=False):
         self.Yelp_data = YelpDataset()
         self.Yelp_data.encode_lang(lang, use_nltk=use_nltk)
         self.Yelp_data.pad_to(num_sent)

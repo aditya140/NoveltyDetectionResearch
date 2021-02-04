@@ -10,6 +10,7 @@ from transformers import DistilBertTokenizer
 import pickle
 from utils.statics import CHAR_LIST
 import nltk
+from tqdm import tqdm
 
 
 char_to_ind = {CHAR_LIST[j]: j for j in range(len(CHAR_LIST))}
@@ -199,7 +200,7 @@ class LanguageIndex:
         """
         if self.char_emb:
             return (
-                self.lang_encode(input_, special_tokens=special_tokens),
+                np.array(self.lang_encode(input_, special_tokens=special_tokens)),
                 self.char_embedd(nltk.word_tokenize(input_.lower())),
             )
         else:
@@ -249,14 +250,14 @@ class LanguageIndex:
                 np.array(
                     [
                         self.encoder_pair(s1, s2, special_tokens=special_tokens)
-                        for s1, s2 in zip(*batch)
+                        for s1, s2 in tqdm(zip(*batch))
                     ]
                 )
             )
         else:
             return np.array(
                 np.array(
-                    [self.encode(obj, special_tokens=special_tokens) for obj in batch]
+                    [self.encode(obj, special_tokens=special_tokens) for obj in tqdm(batch)]
                 )
             )
 
@@ -347,7 +348,7 @@ class LanguageIndex:
 
         padding = [[0] * self.char_emb_max_len] * (self.max_len - len(token_list))
         sent_vec += padding
-        return sent_vec
+        return sent_vec[: self.max_len]
 
     def vocab_size_final(self):
         if self.tokenizer_ == "BERT" or self.tokenizer_ == "Distil_BERT":
@@ -428,6 +429,9 @@ class GloveLangConf(LangConf):
     init_token = "<SOS>"
     eos_token = "<EOS>"
     unk_token = "<UNK>"
+    char_emb = True
+    max_char_len = 9
+    max_len = 30
 
     def __init__(self, vocab_size, **kwargs):
         super(GloveLangConf, self).__init__(vocab_size, **kwargs)

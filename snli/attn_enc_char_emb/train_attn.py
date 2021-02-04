@@ -30,15 +30,22 @@ from utils.save_models import save_model, save_model_neptune
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="SNLI Attention BiLSTM Training")
     parser.add_argument("--tag", type=str)
+    parser.add_argument("--glove", action="store_true", help="Glove model")
     parser.add_argument("--save", action="store_true", help="Save model")
+    parser.add_argument("--max_len", type=int, help="max_len")
     args = parser.parse_args()
 
     seed_torch()
     print(args)
 
-    data_module = snli_bert_data_module(128, char_emb=True)
-    Lang = data_module.Lang
-    embedding_matrix = None
+    if args.glove:
+        data_module = snli_glove_data_module(128, char_emb=True,max_len = args.max_len)
+        Lang = data_module.Lang
+        embedding_matrix = read_embedding_file(Lang)
+    else:
+        data_module = snli_bert_data_module(128, char_emb=True,max_len = args.max_len)
+        Lang = data_module.Lang
+        embedding_matrix = None
 
     conf_kwargs = {
         "num_layers": 2,
@@ -52,7 +59,7 @@ if __name__ == "__main__":
         "fcs": 1,
         "glove": False,
         "batch_size": 128,
-        "max_len": 100,
+        "max_len": 30,
     }
 
     hparams = {
@@ -80,7 +87,12 @@ if __name__ == "__main__":
         api_key=NEPTUNE_API,
         project_name="aparkhi/SNLI",
         experiment_name="Evaluation",
-        tags=["Attention", "char_emb", args.tag],
+        tags=[
+            "Attention",
+            "char_emb",
+            args.tag,
+            ("Glove" if args.glove else "BertTok"),
+        ],
     )
     expt_id = neptune_logger.experiment.id
     tensorboard_logger = TensorBoardLogger("lightning_logs")

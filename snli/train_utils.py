@@ -32,7 +32,7 @@ memory = Memory(location, verbose=0)
 
 @memory.cache
 def snli_bert_data_module(
-    batch_size=128, combine=False, tokenizer=None, char_emb=False
+    batch_size=128, combine=False, tokenizer=None, char_emb=False, max_len=100
 ):
     if tokenizer == None:
         tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
@@ -41,18 +41,22 @@ def snli_bert_data_module(
         if tokenizer == "distilbert-base-uncased":
             tokenizer = DistilBertTokenizer.from_pretrained("distilbert-base-uncased")
 
-    bert_lang_conf = BertLangConf(100000, **{"char_emb": char_emb})
+    bert_lang_conf = BertLangConf(100000, **{"char_emb": char_emb,"max_len":max_len})
     Lang = LanguageIndex(None, bert_lang_conf)
     Lang.load_tokenizer(tokenizer)
-    data_module = SNLIDataModule(128)
+    data_module = SNLIDataModule(batch_size)
     data_module.prepare_data(Lang, bert_lang_conf, combine=combine)
     return data_module
 
 
 @memory.cache
-def snli_glove_data_module(batch_size=128):
+def snli_glove_data_module(batch_size=128, char_emb=False, max_len=100):
     data_module = SNLIDataModule(batch_size)
-    data_module.prepare_data(None, "glove")
+    lang_conf = GloveLangConf(
+        vocab_size=200000, **{"char_emb": char_emb, "max_len": max_len}
+    )
+    Lang = LanguageIndex(text=data_module.lang_text, config=lang_conf)
+    data_module.prepare_data(Lang, lang_conf, combine=False)
     return data_module
 
 
@@ -76,15 +80,15 @@ class SNLI_base(pl.LightningModule):
         if trial_set != None:
             self.trial_setup(trial_set)
         self.model = model(self.conf)
-        if (
-            self.conf.batch_size != None
-            and self.conf.max_len != None
-            and self.conf.char_emb != True
-        ):
-            self.example_input_array = (
-                torch.randint(0, 10000, (self.conf.batch_size, self.conf.max_len)),
-                torch.randint(0, 10000, (self.conf.batch_size, self.conf.max_len)),
-            )
+        # if (
+        #     self.conf.batch_size != None
+        #     and self.conf.max_len != None
+        #     and self.conf.char_emb != True
+        # ):
+        #     self.example_input_array = (
+        #         torch.randint(0, 10000, (self.conf.batch_size, self.conf.max_len)),
+        #         torch.randint(0, 10000, (self.conf.batch_size, self.conf.max_len)),
+        #     )
         self.set_optim("base")
 
     def set_optim(self, mode):

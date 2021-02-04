@@ -16,10 +16,15 @@ import joblib
 import shutil
 import argparse
 from lang import *
-from snli.train_utils import SNLI_model, snli_glove_data_module, snli_bert_data_module,SwitchOptim
+from snli.train_utils import (
+    SNLI_model,
+    snli_glove_data_module,
+    snli_bert_data_module,
+    SwitchOptim,
+)
 from utils.keys import NEPTUNE_API
 from utils.helpers import seed_torch
-from utils.save_models import save_model,save_model_neptune
+from utils.save_models import save_model, save_model_neptune
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="SNLI Attention BiLSTM Training")
@@ -42,9 +47,9 @@ if __name__ == "__main__":
     conf_kwargs = {
         "num_layers": 2,
         "dropout": 0.10018262692246818,
-        "embedding_dim":300,
+        "embedding_dim": 300,
         "hidden_size": 400,
-        "attention_layer_param":250,
+        "attention_layer_param": 250,
         "bidirectional": True,
         "freeze_embedding": False,
         "activation": "tanh",
@@ -55,20 +60,19 @@ if __name__ == "__main__":
     }
 
     hparams = {
-        "optimizer_base":{
+        "optimizer_base": {
             "optim": "adamw",
             "lr": 0.0010039910781394373,
-            "scheduler": "const"
-            },
-        "optimizer_tune":{
+            "scheduler": "const",
+        },
+        "optimizer_tune": {
             "optim": "adam",
             "lr": 0.0010039910781394373,
             "weight_decay": 0.1,
-            "scheduler": "lambda"
+            "scheduler": "lambda",
         },
-        "switch_epoch":5,
+        "switch_epoch": 5,
     }
-
 
     model_conf = Attn_Encoder_conf(Lang, embedding_matrix, **conf_kwargs)
     model = SNLI_model(Attn_encoder_snli, model_conf, hparams)
@@ -79,7 +83,7 @@ if __name__ == "__main__":
         api_key=NEPTUNE_API,
         project_name="aparkhi/SNLI",
         experiment_name="Evaluation",
-        tags=["Attention", args.tag ],
+        tags=["Attention", args.tag],
     )
     expt_id = neptune_logger.experiment.id
     tensorboard_logger = TensorBoardLogger("lightning_logs")
@@ -92,13 +96,19 @@ if __name__ == "__main__":
         progress_bar_refresh_rate=10,
         profiler=False,
         auto_lr_find=False,
-        callbacks=[lr_logger,SwitchOptim()],
+        callbacks=[lr_logger, SwitchOptim()],
         logger=[neptune_logger, tensorboard_logger],
         row_log_interval=2,
     )
     trainer.fit(model, data_module)
     trainer.test(model, datamodule=data_module)
 
-    model_data={"model":model.model.encoder, "model_conf":model_conf, "Lang":Lang}
-    save_path = save_model("attn_encoder",expt_id,model_data)
-    save_model_neptune(save_path,neptune_logger)
+    if args.save:
+    
+        model_data = {
+            "model": model.model.encoder,
+            "model_conf": model_conf,
+            "Lang": Lang,
+        }
+        save_path = save_model("attn_encoder", expt_id, model_data)
+        save_model_neptune(save_path, neptune_logger)

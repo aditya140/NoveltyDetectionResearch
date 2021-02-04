@@ -16,7 +16,7 @@ class Attn_Encoder_conf:
     attn_type = "dot"
     attention_layer_param = 100
     activation = "tanh"
-    freeze_embedding = False
+    freeze_embedding = True
 
     def __init__(self, lang, embedding_matrix=None, **kwargs):
         self.embedding_matrix = None
