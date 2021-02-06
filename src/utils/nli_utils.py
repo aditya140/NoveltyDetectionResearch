@@ -11,7 +11,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 
 
-class SNLI_base(pl.LightningModule):
+class NLI_base(pl.LightningModule):
     def __init__(self, model, conf, hparams, trial_set=None):
         super().__init__()
         self.conf = conf
@@ -24,12 +24,14 @@ class SNLI_base(pl.LightningModule):
             self.optimizer_conf = self.hparams["optimizer_base"]
         else:
             self.optimizer_conf = self.hparams["optimizer_tune"]
+        self.ce_reduction = self.hparams["loss_agg"]
 
     def forward(self, x0, x1):
         res = self.model.forward(x0, x1)
         return res
 
     def configure_optimizers(self):
+
         # Configure optimizer
         if self.optimizer_conf["optim"].lower() == "AdamW".lower():
             optimizer = optim.AdamW(
@@ -40,22 +42,20 @@ class SNLI_base(pl.LightningModule):
             optimizer = optim.Adam(
                 self.parameters(),
                 lr=self.optimizer_conf["lr"],
-                weight_decay=self.optimizer_conf["weight_decay"],
+                weight_decay=0.1,
             )
         if self.optimizer_conf["optim"].lower() == "sgd".lower():
             optimizer = optim.SGD(
                 self.parameters(),
                 lr=self.optimizer_conf["lr"],
-                momentum=self.optimizer_conf["momentum"],
-                weight_decay=self.optimizer_conf["weight_decay"],
+                momentum=0.5,
+                weight_decay=0.1,
             )
         if self.optimizer_conf["optim"].lower() == "adadelta":
             optimizer = optim.Adadelta(
                 self.parameters(),
                 lr=self.optimizer_conf["lr"],
-                rho=self.optimizer_conf["rho"],
-                eps=self.optimizer_conf["eps"],
-                weight_decay=self.optimizer_conf["weight_decay"],
+                weight_decay=0.1,
             )
 
         # Configure Scheduler
@@ -67,16 +67,22 @@ class SNLI_base(pl.LightningModule):
                 "monitor": "val_checkpoint_on",
             }
             return [optimizer], [scheduler]
+
+        elif self.optimizer_conf["scheduler"] == "step":
+            scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.5)
+            return [optimizer], [scheduler]
+
         elif self.optimizer_conf["scheduler"] == "lambda":
             scheduler = optim.lr_scheduler.LambdaLR(
                 optimizer, lr_lambda=lambda x: 10 ** ((-1) * (x // 6))
             )
             return [optimizer], [scheduler]
+
         else:
             return [optimizer]
 
 
-class SNLI_model(SNLI_base):
+class NLI_model(NLI_base):
     def __init__(self, model, conf, hparams, trial_set=None):
         super().__init__(model, conf, hparams, trial_set=None)
 
@@ -87,7 +93,7 @@ class SNLI_model(SNLI_base):
     def training_step(self, batch, batch_idx):
         x0, x1, y = batch.premise, batch.hypothesis, batch.label
         opt = self(x0, x1).squeeze(0)
-        train_loss = F.cross_entropy(opt, y)
+        train_loss = F.cross_entropy(opt, y, reduction=self.ce_reduction)
         result = pl.TrainResult(train_loss)
         result.log("training_loss", train_loss)
         return result
@@ -95,7 +101,7 @@ class SNLI_model(SNLI_base):
     def validation_step(self, batch, batch_idx):
         x0, x1, y = batch.premise, batch.hypothesis, batch.label
         opt = self(x0, x1).squeeze(0)
-        val_loss = F.cross_entropy(opt, y)
+        val_loss = F.cross_entropy(opt, y, reduction=self.ce_reduction)
         result = pl.EvalResult(checkpoint_on=val_loss)
         metric = Accuracy(num_classes=3)
         pred = F.softmax(opt)
@@ -107,7 +113,7 @@ class SNLI_model(SNLI_base):
     def test_step(self, batch, batch_idx):
         x0, x1, y = batch.premise, batch.hypothesis, batch.label
         opt = self(x0, x1).squeeze(0)
-        test_loss = F.cross_entropy(opt, y)
+        test_loss = F.cross_entropy(opt, y, reduction=self.ce_reduction)
         result = pl.EvalResult()
         metric = Accuracy(num_classes=3)
         pred = F.softmax(opt)
