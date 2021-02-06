@@ -4,16 +4,18 @@ import sys
 import torch
 from transformers import BertTokenizer, DistilBertTokenizer
 from torch.utils.data import Dataset, DataLoader
-from torchtext.data import Field, Iterator, TabularDataset, LabelField, BucketIterator
+from torchtext.data import Field, Iterator, TabularDataset, LabelField
 from torchtext import datasets
 from utils.path_utils import makedirs
 import pytorch_lightning as pl
+
+
 from pdb import set_trace
 
-# __all__ = ["snli", "SNLIDataModule"]
+# __all__ = ["mnli", "MNLIDataModule"]
 
 
-class SNLI:
+class MNLI:
     def __init__(self, options):
         self.options = options
         self.tokenizer = options["tokenizer"]
@@ -29,27 +31,21 @@ class SNLI:
             pad_token=options["pad_token"],
             unk_token=options["unk_token"],
         )
-        self.LABEL = LabelField(dtype=torch.long)
+        self.LABEL = LabelField(dtype=torch.float)
 
-        self.train, self.dev, self.test = datasets.SNLI.splits(self.TEXT, self.LABEL)
+        self.train, self.dev, self.test = datasets.MNLI.splits(self.TEXT, self.LABEL)
         if options["use_vocab"]:
             self.TEXT.build_vocab(self.train, self.dev)
         self.LABEL.build_vocab(self.train)
 
         if options["use_vocab"]:
-            vector_cache_loc = ".vector_cache/snli_vectors.pt"
+            vector_cache_loc = ".vector_cache/mnli_vectors.pt"
             if os.path.isfile(vector_cache_loc):
                 self.TEXT.vocab.vectors = torch.load(vector_cache_loc)
             else:
                 self.TEXT.vocab.load_vectors("glove.840B.300d")
                 makedirs(os.path.dirname(vector_cache_loc))
                 torch.save(self.TEXT.vocab.vectors, vector_cache_loc)
-
-        self.train_iter, self.val_iter, self.test_iter = BucketIterator.splits(
-            (self.train, self.dev, self.test),
-            batch_size=options["batch_size"],
-            device=options["device"],
-        )
 
     def vocab_size(self):
         if self.options["use_vocab"]:
@@ -70,7 +66,7 @@ class SNLI:
         return self.LABEL.vocab.stoi
 
 
-def snli(options):
+def mnli(options):
     if options["tokenizer"] == "bert":
         tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
 
@@ -111,26 +107,40 @@ def snli(options):
     if options.get("lower", None) == None:
         options["lower"] = True
 
-    return SNLI(options)
+    return MNLI(options)
 
 
-class SNLIDataModule(pl.LightningDataModule):
+class MNLIDataModule(pl.LightningDataModule):
     def __init__(self, conf):
-        super().__init__()
         self.conf = conf
         self.batch_size = conf["batch_size"]
 
     def prepare_data(self):
-        self.data = snli(self.conf)
+        self.data = mnli(self.conf)
 
     def train_dataloader(self):
-        return self.data.train_iter
+        return DataLoader(
+            self.data.train,
+            batch_size=self.batch_size,
+            shuffle=False,
+            num_workers=6,
+        )
 
     def val_dataloader(self):
-        return self.data.val_iter
+        return DataLoader(
+            self.data.val,
+            batch_size=self.batch_size,
+            shuffle=False,
+            num_workers=6,
+        )
 
     def test_dataloader(self):
-        return self.data.test_iter
+        return DataLoader(
+            self.data.test,
+            batch_size=self.batch_size,
+            shuffle=False,
+            num_workers=6,
+        )
 
     def vocab_size(self):
         return self.data.vocab_size()

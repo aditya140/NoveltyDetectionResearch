@@ -205,7 +205,7 @@ class SNLI_model(SNLI_base):
         return res
 
     def training_step(self, batch, batch_idx):
-        x0, x1, y = batch
+        x0, x1, y = batch.premise,
         opt = self(x0, x1).squeeze(0)
         train_loss = F.cross_entropy(opt, y)
         result = pl.TrainResult(train_loss)
