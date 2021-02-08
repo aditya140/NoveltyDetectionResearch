@@ -38,6 +38,8 @@ class Train:
             self.model = attn_bilstm_snli(model_conf)
         elif model_type == "bilstm":
             self.model = bilstm_snli(model_conf)
+        elif model_type == "struc_attn":
+            self.model = struc_attn_snli(model_conf)
 
         self.model.to(self.device)
 
@@ -66,7 +68,7 @@ class Train:
         if hparams["optimizer"]["scheduler"] == "step":
             self.scheduler = optim.lr_scheduler.StepLR(self.opt, step_size=5, gamma=0.5)
 
-        if hparams["optimizer"]["scheduler"] == "cosine":
+        elif hparams["optimizer"]["scheduler"] == "cosine":
             self.scheduler = optim.lr_scheduler.CosineAnnealingLR(self.opt, T_max=10)
 
         else:

@@ -36,6 +36,10 @@ def parse_nli_conf():
     parser_bilstm = subparsers.add_parser("bilstm")
     bilstm_model_params(parser_bilstm)
 
+    # model_conf
+    parser_struc_attn = subparsers.add_parser("struc_attn")
+    struc_attn_model_params(parser_struc_attn)
+
     parser.add_argument("--results_dir", type=str, default="results")
     return check_args(parser.parse_args())
 
@@ -108,6 +112,10 @@ def parse_nli_pl_conf():
     parser_bilstm = subparsers.add_parser("bilstm")
     bilstm_model_params(parser_bilstm)
 
+    # model_conf
+    parser_struc_attn = subparsers.add_parser("struc_attn")
+    struc_attn_model_params(parser_struc_attn)
+
     parser.add_argument("--results_dir", type=str, default="results")
     return check_args(parser.parse_args())
 
@@ -128,6 +136,20 @@ def bilstm_model_params(parser_dump):
     parser_dump.add_argument("--dropout", type=float, default=0.3)
     parser_dump.add_argument("--use_glove", type=bool, default=True)
     parser_dump.add_argument("--num_layers", type=int, default=1)
+
+
+def struc_attn_model_params(parser_dump):
+    parser_dump.add_argument("--hidden_size", type=int, default=400)
+    parser_dump.add_argument("--embedding_dim", type=int, default=300)
+    parser_dump.add_argument("--dropout", type=float, default=0.3)
+    parser_dump.add_argument("--use_glove", type=bool, default=False)
+    parser_dump.add_argument("--num_layers", type=int, default=1)
+    parser_dump.add_argument("--fcs", type=int, default=1)
+    parser_dump.add_argument("--r", type=int, default=3)
+    parser_dump.add_argument("--attention_layer_param", type=int, default=200)
+    parser_dump.add_argument("--gated_embedding_dim", type=int, default=150)
+    parser_dump.add_argument("--gated", type=bool, default=False)
+    parser_dump.add_argument("--pool_strategy", type=str, default="max")
 
 
 def check_args(args):
