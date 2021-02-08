@@ -135,3 +135,7 @@ cachedir
 models
 Evaluation_default
 .csv
+.data/
+.vector_cache/
+results/
+default_Training/

@@ -1,3 +1,5 @@
+import datetime
+
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import LearningRateLogger
 from pytorch_lightning.loggers import NeptuneLogger, TensorBoardLogger
@@ -5,10 +7,12 @@ from pytorch_lightning.profiler import AdvancedProfiler
 from pytorch_lightning.metrics import Accuracy
 from pytorch_lightning import Callback
 
-
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
+
+from ..defaults import get_logger
 
 
 class NLI_base(pl.LightningModule):
@@ -24,7 +28,7 @@ class NLI_base(pl.LightningModule):
             self.optimizer_conf = self.hparams["optimizer_base"]
         else:
             self.optimizer_conf = self.hparams["optimizer_tune"]
-        self.ce_reduction = self.hparams["loss_agg"]
+        self.criterion = nn.CrossEntropyLoss(reduction=self.hparams["loss_agg"])
 
     def forward(self, x0, x1):
         res = self.model.forward(x0, x1)
@@ -92,16 +96,16 @@ class NLI_model(NLI_base):
 
     def training_step(self, batch, batch_idx):
         x0, x1, y = batch.premise, batch.hypothesis, batch.label
-        opt = self(x0, x1).squeeze(0)
-        train_loss = F.cross_entropy(opt, y, reduction=self.ce_reduction)
+        opt = self(x0, x1)
+        train_loss = self.criterion(opt, y)
         result = pl.TrainResult(train_loss)
         result.log("training_loss", train_loss)
         return result
 
     def validation_step(self, batch, batch_idx):
         x0, x1, y = batch.premise, batch.hypothesis, batch.label
-        opt = self(x0, x1).squeeze(0)
-        val_loss = F.cross_entropy(opt, y, reduction=self.ce_reduction)
+        opt = self(x0, x1)
+        val_loss = self.criterion(opt, y)
         result = pl.EvalResult(checkpoint_on=val_loss)
         metric = Accuracy(num_classes=3)
         pred = F.softmax(opt)
@@ -112,8 +116,8 @@ class NLI_model(NLI_base):
 
     def test_step(self, batch, batch_idx):
         x0, x1, y = batch.premise, batch.hypothesis, batch.label
-        opt = self(x0, x1).squeeze(0)
-        test_loss = F.cross_entropy(opt, y, reduction=self.ce_reduction)
+        opt = self(x0, x1)
+        test_loss = self.criterion(opt, y)
         result = pl.EvalResult()
         metric = Accuracy(num_classes=3)
         pred = F.softmax(opt)
