@@ -134,7 +134,7 @@ def bilstm_model_params(parser_dump):
     parser_dump.add_argument("--hidden_size", type=int, default=400)
     parser_dump.add_argument("--embedding_dim", type=int, default=300)
     parser_dump.add_argument("--dropout", type=float, default=0.3)
-    parser_dump.add_argument("--use_glove", type=bool, default=True)
+    parser_dump.add_argument("--use_glove", type=bool, default=False)
     parser_dump.add_argument("--num_layers", type=int, default=1)
 
 
@@ -145,7 +145,7 @@ def struc_attn_model_params(parser_dump):
     parser_dump.add_argument("--use_glove", type=bool, default=False)
     parser_dump.add_argument("--num_layers", type=int, default=1)
     parser_dump.add_argument("--fcs", type=int, default=1)
-    parser_dump.add_argument("--r", type=int, default=3)
+    parser_dump.add_argument("--r", type=int, default=5)
     parser_dump.add_argument("--attention_layer_param", type=int, default=200)
     parser_dump.add_argument("--gated_embedding_dim", type=int, default=150)
     parser_dump.add_argument("--gated", type=bool, default=False)

@@ -1,7 +1,7 @@
 import os
 from snli.bilstm.bilstm import Bi_LSTM_Encoder_conf, Bi_LSTM_Encoder
 from snli.attn_enc.attn_enc import Attn_Encoder_conf, Attn_Encoder
-from snli.attn_char_enc.attn_enc import Attn_Char_Encoder_conf,Attn_Encoder_char_emb
+from snli.attn_enc_char_emb.attn_enc import Attn_Char_Encoder_conf,Attn_Encoder_char_emb
 from novelty.han.han_novelty import HAN_Novelty, HAN_Novelty_conf
 from document.han.han import HAN_conf, HAN
 from lang import BertLangConf, GloveLangConf, LanguageIndex

@@ -22,6 +22,7 @@ class SNLI:
         self.TEXT = Field(
             batch_first=True,
             use_vocab=options["use_vocab"],
+            lower=options["lower"],
             preprocessing=options["preprocessing"],
             tokenize=options["tokenize"],
             fix_length=options["max_len"],
@@ -158,6 +159,7 @@ class MNLI:
         self.TEXT = Field(
             batch_first=True,
             use_vocab=options["use_vocab"],
+            lower=options["lower"],
             preprocessing=options["preprocessing"],
             tokenize=options["tokenize"],
             fix_length=options["max_len"],
@@ -182,7 +184,6 @@ class MNLI:
                 makedirs(os.path.dirname(vector_cache_loc))
                 torch.save(self.TEXT.vocab.vectors, vector_cache_loc)
 
-        
         self.train_iter, self.val_iter, self.test_iter = BucketIterator.splits(
             (self.train, self.dev, self.test),
             batch_size=options["batch_size"],

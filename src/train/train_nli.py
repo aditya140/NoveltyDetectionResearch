@@ -12,24 +12,39 @@ import time
 from src.defaults import *
 from src.model.nli_models import *
 from src.datasets.nli import *
+import neptune
 
 
 class Train:
     def __init__(self, args, dataset_conf, model_conf, hparams, model_type):
         print("program execution start: {}".format(datetime.datetime.now()))
+
+        neptune.init(
+            project_qualified_name="aparkhi/NLI",
+            api_token=NEPTUNE_API,
+        )
+        neptune.create_experiment()
         self.args = args
         self.device = get_device(0)
         self.logger = get_logger(self.args, "train")
+
         self.logger.info("Dataset Conf: {}".format(dataset_conf))
+        neptune.log_text("Dataset Conf", str(dataset_conf))
+
         self.logger.info("Model Conf: {}".format(model_conf))
+        neptune.log_text("Model Conf", str(model_conf))
         self.model_conf = model_conf
+
         self.logger.info("Hparams Conf: {}".format(hparams))
+        neptune.log_text("Hparams", str(hparams))
+
         if dataset_conf["dataset"] == "snli":
             self.dataset = snli_module(dataset_conf)
         elif dataset_conf["dataset"] == "mnli":
             self.dataset = mnli_module(dataset_conf)
         self.dataset.prepare_data()
         self.dataset = self.dataset.data
+        neptune.append_tag([dataset_conf["dataset"], model_type])
 
         model_conf["vocab_size"] = self.dataset.vocab_size()
         model_conf["padding_idx"] = self.dataset.padding_idx()
@@ -117,10 +132,13 @@ class Train:
             )
             n_total += batch.batch_size
             n_loss += loss.item()
+            neptune.log_metric("Train Loss", loss.item())
             loss.backward()
             self.opt.step()
         train_loss = n_loss / n_total
         train_acc = 100.0 * n_correct / n_total
+        neptune.log_metric("Train Avg Loss", train_loss)
+        neptune.log_metric("Train accuracy", train_acc)
         return train_loss, train_acc
 
     def validate(self):
@@ -142,9 +160,46 @@ class Train:
                 )
                 n_total += batch.batch_size
                 n_loss += loss.item()
+                neptune.log_metric("Val Loss", loss.item())
             val_loss = n_loss / n_total
             val_acc = 100.0 * n_correct / n_total
+            neptune.log_metric("Val Avg Loss", val_loss)
+            neptune.log_metric("Val Accuracy", val_acc)
             return val_loss, val_acc
+
+    def test(self):
+        PATH = "{}/{}/{}/best-{}-{}-params.pt".format(
+            self.args.results_dir,
+            self.args.model_type,
+            self.args.dataset,
+            self.args.model_type,
+            self.args.dataset,
+        )
+        model_data = torch.load(PATH)
+        self.model.load_state_dict(model_data["model_dict"])
+        self.model.eval()
+        self.dataset.test_iter.init_epoch()
+        n_correct, n_total, n_loss = 0, 0, 0
+
+        with torch.no_grad():
+            for batch_idx, batch in enumerate(self.dataset.test_iter):
+                answer = self.model(batch.premise, batch.hypothesis)
+                loss = self.criterion(answer, batch.label)
+                n_correct += (
+                    (
+                        torch.max(self.softmax(answer), 1)[1].view(batch.label.size())
+                        == batch.label
+                    )
+                    .sum()
+                    .item()
+                )
+                n_total += batch.batch_size
+                n_loss += loss.item()
+            test_loss = n_loss / n_total
+            test_acc = 100.0 * n_correct / n_total
+            neptune.log_metric("Test Avg Loss", test_loss)
+            neptune.log_metric("Test Accuracy", test_acc)
+            return test_loss, test_acc
 
     def execute(self):
         print(" [*] Training starts!")
@@ -167,6 +222,21 @@ class Train:
                     epoch, train_loss, train_acc, val_loss, val_acc, took
                 )
             )
+        test_loss, test_acc = self.test()
+        print(
+            "| Epoch {:3d} | test loss {:5.2f}  |  test acc {:5.2f} |                |               |               |".format(
+                0,
+                test_loss,
+                test_acc,
+            )
+        )
+        self.logger.info(
+            "| Epoch {:3d} | test loss {:5.2f}  |  test acc {:5.2f} |                |               |               |".format(
+                0,
+                test_loss,
+                test_acc,
+            )
+        )
         self.finish()
 
     def finish(self):
