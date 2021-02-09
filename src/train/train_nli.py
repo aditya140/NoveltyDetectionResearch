@@ -57,6 +57,11 @@ class Train:
             self.model = struc_attn_snli(model_conf)
 
         self.model.to(self.device)
+        model_size = self.count_parameters()
+        print(" [*] Model size : {}".format(model_size))
+
+        self.logger.info(" [*] Model size : {}".format(model_size))
+        neptune.log_text("Model size", str(model_size))
 
         self.criterion = nn.CrossEntropyLoss(reduction=hparams["loss_agg"])
         self.softmax = nn.Softmax(dim=1)
@@ -244,6 +249,9 @@ class Train:
         print("-" * 99)
         print(" [*] Training finished!")
         print(" [*] Please find the saved model and training log in results_dir")
+
+    def count_parameters(self):
+        return sum(p.numel() for p in self.model.parameters() if p.requires_grad)
 
 
 if __name__ == "__main__":
