@@ -10,7 +10,6 @@ from utils.path_utils import makedirs
 import pytorch_lightning as pl
 from pdb import set_trace
 
-
 __all__ = ["snli_module", "mnli_module"]
 
 
@@ -53,6 +52,39 @@ class SNLI:
             device=options["device"],
         )
 
+        if options["use_char_emb"]:
+            if options["tokenize"] == "spacy":
+                self.max_word_len = options["max_word_len"]
+                self.char_vocab = {"": 0}
+                self.characterized_words = [
+                    [0] * self.max_word_len,
+                    [0] * self.max_word_len,
+                ]
+                self.build_char_vocab()
+            else:
+                raise Exception("Can use char embeddings only with spacy tokenizer")
+
+    def build_char_vocab(self):
+        # for normal words
+        for word in self.TEXT.vocab.itos[2:]:
+            chars = []
+            for c in list(word)[:self.max_word_len]:
+                if c not in self.char_vocab:
+                    self.char_vocab[c] = len(self.char_vocab)
+
+                chars.append(self.char_vocab[c])
+
+            chars.extend([0] * (self.max_word_len - len(word)))
+            self.characterized_words.append(chars)
+
+    def characterize(self, batch):
+        """
+        :param batch: Pytorch Variable with shape (batch, seq_len)
+        :return: Pytorch Variable with shape (batch, seq_len, max_word_len)
+        """
+        batch = batch.data.cpu().numpy().astype(int).tolist()
+        return [[self.characterized_words[w] for w in words] for words in batch]
+
     def vocab_size(self):
         if self.options["use_vocab"]:
             return len(self.TEXT.vocab)
@@ -67,6 +99,12 @@ class SNLI:
 
     def out_dim(self):
         return len(self.LABEL.vocab)
+
+    def char_vocab_size(self):
+        return len(self.char_vocab)
+
+    def char_word_len(self):
+        return self.max_word_len
 
     def labels(self):
         return self.LABEL.vocab.stoi
@@ -136,6 +174,12 @@ class SNLIDataModule(pl.LightningDataModule):
 
     def vocab_size(self):
         return self.data.vocab_size()
+
+    def char_vocab_size(self):
+        return self.data.char_vocab_size()
+
+    def char_word_len(self):
+        return self.data.char_word_len()
 
     def padding_idx(self):
         return self.data.padding_idx()

@@ -17,6 +17,8 @@ def parse_nli_conf():
     parser.add_argument("--tokenizer", type=str, default="bert")
     parser.add_argument("--max_len", type=int, default=50)
     parser.add_argument("--batch_size", type=int, default=128)
+    parser.add_argument("--use_char_emb", type=bool, default=False)
+    parser.add_argument("--max_word_len", type=int, default=10)
     parser.add_argument("--device", type=str, default="cuda")
 
     # optimizer_conf
@@ -59,9 +61,11 @@ def get_nli_conf(args):
     dataset_conf = {}
     dataset_conf["dataset"] = args.dataset
     dataset_conf["tokenizer"] = args.tokenizer
+    dataset_conf["use_char_emb"] = args.use_char_emb
     dataset_conf["max_len"] = args.max_len
     dataset_conf["batch_size"] = args.batch_size
     dataset_conf["device"] = args.device
+    dataset_conf["max_word_len"] = args.max_word_len
 
     used_keys = [
         "tokenizer",
@@ -73,6 +77,7 @@ def get_nli_conf(args):
         "loss_agg",
         "scheduler",
         "model_type",
+        "max_word_len"
     ]
 
     model_type = args.model_type
@@ -89,6 +94,7 @@ def parse_nli_pl_conf():
     # language
     parser.add_argument("--tokenizer", type=str, default="bert")
     parser.add_argument("--max_len", type=int, default=50)
+    parser.add_argument("--use_char_emb", type=bool, default=False)
     parser.add_argument("--batch_size", type=int, default=128)
     parser.add_argument("--device", type=str, default="cuda")
 
@@ -123,6 +129,7 @@ def parse_nli_pl_conf():
 def attention_model_params(parser_dump):
     parser_dump.add_argument("--hidden_size", type=int, default=400)
     parser_dump.add_argument("--embedding_dim", type=int, default=300)
+    parser_dump.add_argument("--char_embedding_dim", type=int, default=100)
     parser_dump.add_argument("--dropout", type=float, default=0.3)
     parser_dump.add_argument("--use_glove", type=bool, default=False)
     parser_dump.add_argument("--num_layers", type=int, default=1)
@@ -133,6 +140,7 @@ def attention_model_params(parser_dump):
 def bilstm_model_params(parser_dump):
     parser_dump.add_argument("--hidden_size", type=int, default=400)
     parser_dump.add_argument("--embedding_dim", type=int, default=300)
+    parser_dump.add_argument("--char_embedding_dim", type=int, default=100)
     parser_dump.add_argument("--dropout", type=float, default=0.3)
     parser_dump.add_argument("--use_glove", type=bool, default=False)
     parser_dump.add_argument("--num_layers", type=int, default=1)
@@ -141,6 +149,7 @@ def bilstm_model_params(parser_dump):
 def struc_attn_model_params(parser_dump):
     parser_dump.add_argument("--hidden_size", type=int, default=400)
     parser_dump.add_argument("--embedding_dim", type=int, default=300)
+    parser_dump.add_argument("--char_embedding_dim", type=int, default=100)
     parser_dump.add_argument("--dropout", type=float, default=0.3)
     parser_dump.add_argument("--use_glove", type=bool, default=False)
     parser_dump.add_argument("--num_layers", type=int, default=1)
@@ -191,6 +200,7 @@ def get_nli_conf_pl(args):
     dataset_conf["tokenizer"] = args.tokenizer
     dataset_conf["max_len"] = args.max_len
     dataset_conf["batch_size"] = args.batch_size
+    dataset_cong["use_char_emb"] = args.use_char_emb
     dataset_conf["device"] = args.device
 
     used_keys = [

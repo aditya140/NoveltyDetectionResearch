@@ -11,7 +11,6 @@ BiLSTM + Attention based SNLI model
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 """
 
-
 class Attention(nn.Module):
     def __init__(self, conf):
         super(Attention, self).__init__()
@@ -38,13 +37,34 @@ class Attn_Encoder(nn.Module):
             embedding_dim=conf["embedding_dim"],
             padding_idx=conf["padding_idx"],
         )
-        self.translate = nn.Linear(conf["embedding_dim"], conf["hidden_size"])
+        self.translate = nn.Linear(
+            (
+                conf["embedding_dim"]
+                + int(conf["use_char_emb"]) * conf["char_embedding_dim"]
+            ),
+            conf["hidden_size"],
+        )
         self.relu = nn.ReLU()
         self.dropout = nn.Dropout(p=conf["dropout"])
 
         if conf["use_glove"]:
             self.embedding = nn.Embedding.from_pretrained(
                 torch.load(".vector_cache/{}_vectors.pt".format(conf["dataset"]))
+            )
+
+        if conf["use_char_emb"]:
+            self.char_embedding = nn.Embedding(
+                num_embeddings=conf["char_vocab_size"],
+                embedding_dim=conf["char_embedding_dim"],
+                padding_idx=0,
+            )
+            self.char_cnn = nn.Conv2d(
+                conf["max_word_len"],
+                conf["char_embedding_dim"],
+                (1, 6),
+                stride=(1, 1),
+                padding=0,
+                bias=True,
             )
         self.lstm_layer = nn.LSTM(
             input_size=conf["hidden_size"],
@@ -56,9 +76,23 @@ class Attn_Encoder(nn.Module):
         )
         self.attention = Attention(conf)
 
-    def forward(self, inp):
+    def char_embedding_forward(self, x):
+        # X - [batch_size, seq_len, char_emb_size])
+        batch_size, seq_len, char_emb_size = x.shape
+        x = x.view(-1, char_emb_size)
+        x = self.char_embedding(x)  # (batch_size * seq_len, char_emb_size, emb_size)
+        x = x.view(batch_size, -1, seq_len, char_emb_size)
+        x = x.permute(0, 3, 2, 1)
+        x = self.char_cnn(x)
+        x = torch.max(F.relu(x), 3)[0]
+        return x.view(batch_size, seq_len, -1)
+
+    def forward(self, inp, char_vec):
         batch_size = inp.shape[0]
         embedded = self.embedding(inp)
+        if char_vec != None:
+            char_emb = self.char_embedding_forward(char_vec)
+            embedded = torch.cat([embedded, char_emb], dim=2)
         embedded = self.relu(self.translate(embedded))
         all_, (_, _) = self.lstm_layer(embedded)
         attn = self.attention(all_)
@@ -87,9 +121,11 @@ class AttnBiLSTM_snli(nn.Module):
         self.softmax = nn.Softmax(dim=2)
         self.dropout = nn.Dropout(p=self.conf["dropout"])
 
-    def forward(self, x0, x1):
-        x0_enc = self.encoder(x0)
-        x1_enc = self.encoder(x1)
+    def forward(self, x0, x1,**kwargs):
+        char_vec_x0 = kwargs.get("char_premise",None)
+        char_vec_x1 = kwargs.get("char_hypothesis",None)
+        x0_enc = self.encoder(x0,char_vec_x0)
+        x1_enc = self.encoder(x1,char_vec_x1)
         cont = torch.cat(
             [x0_enc, x1_enc, torch.abs(x0_enc - x1_enc), x0_enc * x1_enc], dim=1
         )
@@ -103,6 +139,7 @@ class AttnBiLSTM_snli(nn.Module):
 
 def attn_bilstm_snli(options):
     return AttnBiLSTM_snli(options)
+
 
 
 """

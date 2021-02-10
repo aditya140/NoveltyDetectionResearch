@@ -6,6 +6,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
+from torch.autograd import Variable
 import datetime
 import time
 
@@ -48,6 +49,10 @@ class Train:
 
         model_conf["vocab_size"] = self.dataset.vocab_size()
         model_conf["padding_idx"] = self.dataset.padding_idx()
+
+        if args.use_char_emb:
+            model_conf["char_vocab_size"] = self.dataset.char_vocab_size()
+            model_conf["max_word_len"] = self.dataset.char_word_len()
 
         if model_type == "attention":
             self.model = attn_bilstm_snli(model_conf)
@@ -124,8 +129,23 @@ class Train:
         self.dataset.train_iter.init_epoch()
         n_correct, n_total, n_loss = 0, 0, 0
         for batch_idx, batch in enumerate(self.dataset.train_iter):
+            kwargs = {}
+            if args.use_char_emb:
+                char_premise = Variable(
+                    torch.LongTensor(self.dataset.characterize(batch.premise))
+                )
+                char_hypothesis = Variable(
+                    torch.LongTensor(self.dataset.characterize(batch.hypothesis))
+                )
+
+                char_premise = char_premise.to(self.device)
+                char_hypothesis = char_hypothesis.to(self.device)
+
+                kwargs["char_premise"] = char_premise
+                kwargs["char_hypothesis"] = char_hypothesis
+
             self.opt.zero_grad()
-            answer = self.model(batch.premise, batch.hypothesis)
+            answer = self.model(batch.premise, batch.hypothesis, **kwargs)
             loss = self.criterion(answer, batch.label)
             n_correct += (
                 (
@@ -153,7 +173,22 @@ class Train:
 
         with torch.no_grad():
             for batch_idx, batch in enumerate(self.dataset.val_iter):
-                answer = self.model(batch.premise, batch.hypothesis)
+                kwargs = {}
+                if args.use_char_emb:
+                    char_premise = Variable(
+                        torch.LongTensor(self.dataset.characterize(batch.premise))
+                    )
+                    char_hypothesis = Variable(
+                        torch.LongTensor(self.dataset.characterize(batch.hypothesis))
+                    )
+
+                    char_premise = char_premise.to(self.device)
+                    char_hypothesis = char_hypothesis.to(self.device)
+
+                    kwargs["char_premise"] = char_premise
+                    kwargs["char_hypothesis"] = char_hypothesis
+
+                answer = self.model(batch.premise, batch.hypothesis, **kwargs)
                 loss = self.criterion(answer, batch.label)
                 n_correct += (
                     (
@@ -188,7 +223,22 @@ class Train:
 
         with torch.no_grad():
             for batch_idx, batch in enumerate(self.dataset.test_iter):
-                answer = self.model(batch.premise, batch.hypothesis)
+                kwargs = {}
+                if args.use_char_emb:
+                    char_premise = Variable(
+                        torch.LongTensor(self.dataset.characterize(batch.premise))
+                    )
+                    char_hypothesis = Variable(
+                        torch.LongTensor(self.dataset.characterize(batch.hypothesis))
+                    )
+
+                    char_premise = char_premise.to(self.device)
+                    char_hypothesis = char_hypothesis.to(self.device)
+
+                    kwargs["char_premise"] = char_premise
+                    kwargs["char_hypothesis"] = char_hypothesis
+
+                answer = self.model(batch.premise, batch.hypothesis, **kwargs)
                 loss = self.criterion(answer, batch.label)
                 n_correct += (
                     (
