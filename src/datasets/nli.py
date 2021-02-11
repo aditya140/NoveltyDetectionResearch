@@ -4,7 +4,14 @@ import sys
 import torch
 from transformers import BertTokenizer, DistilBertTokenizer
 from torch.utils.data import Dataset, DataLoader
-from torchtext.data import Field, Iterator, TabularDataset, LabelField, BucketIterator
+from torchtext.data import (
+    Field,
+    Iterator,
+    TabularDataset,
+    LabelField,
+    BucketIterator,
+    NestedField,
+)
 from torchtext import datasets
 from utils.path_utils import makedirs
 import pytorch_lightning as pl
@@ -33,8 +40,26 @@ class SNLI:
         self.LABEL = LabelField(dtype=torch.long)
 
         self.train, self.dev, self.test = datasets.SNLI.splits(self.TEXT, self.LABEL)
+        if options["use_char_emb"]:
+            self.CHAR_TEXT = NestedField(
+                Field(
+                    pad_token="<p>",
+                    tokenize=list,
+                    init_token="<s>",
+                    eos_token="<e>",
+                    batch_first=True,
+                    fix_length=options["max_word_len"],
+                ),
+                fix_length=options["max_len"],
+            )
+            self.train_char, self.dev_char, self.test_char = datasets.SNLI.splits(
+                self.CHAR_TEXT, self.LABEL
+            )
+            self.CHAR_TEXT.build_vocab(self.train_char)
+
         if options["use_vocab"]:
             self.TEXT.build_vocab(self.train, self.dev)
+
         self.LABEL.build_vocab(self.train)
 
         if options["use_vocab"]:
@@ -46,44 +71,27 @@ class SNLI:
                 makedirs(os.path.dirname(vector_cache_loc))
                 torch.save(self.TEXT.vocab.vectors, vector_cache_loc)
 
+        if options["use_char_emb"]:
+            self.train = self.merge_char_dataset(self.train, self.train_char)
+            self.dev = self.merge_char_dataset(self.dev, self.dev_char)
+            self.test = self.merge_char_dataset(self.test, self.test_char)
+
         self.train_iter, self.val_iter, self.test_iter = BucketIterator.splits(
             (self.train, self.dev, self.test),
             batch_size=options["batch_size"],
             device=options["device"],
         )
 
-        if options["use_char_emb"]:
-            if options["tokenize"] == "spacy":
-                self.max_word_len = options["max_word_len"]
-                self.char_vocab = {"": 0}
-                self.characterized_words = [
-                    [0] * self.max_word_len,
-                    [0] * self.max_word_len,
-                ]
-                self.build_char_vocab()
-            else:
-                raise Exception("Can use char embeddings only with spacy tokenizer")
-
-    def build_char_vocab(self):
-        # for normal words
-        for word in self.TEXT.vocab.itos[2:]:
-            chars = []
-            for c in list(word)[:self.max_word_len]:
-                if c not in self.char_vocab:
-                    self.char_vocab[c] = len(self.char_vocab)
-
-                chars.append(self.char_vocab[c])
-
-            chars.extend([0] * (self.max_word_len - len(word)))
-            self.characterized_words.append(chars)
-
-    def characterize(self, batch):
-        """
-        :param batch: Pytorch Variable with shape (batch, seq_len)
-        :return: Pytorch Variable with shape (batch, seq_len, max_word_len)
-        """
-        batch = batch.data.cpu().numpy().astype(int).tolist()
-        return [[self.characterized_words[w] for w in words] for words in batch]
+    def merge_char_dataset(self, word_dataset, char_dataset):
+        assert len(word_dataset) == len(char_dataset)
+        for id in range(len(word_dataset)):
+            word_ex = word_dataset.examples[id]
+            char_ex = char_dataset.examples[id]
+            setattr(word_ex, "premise_char", char_ex.premise)
+            setattr(word_ex, "hypothesis_char", char_ex.hypothesis)
+            word_dataset.fields["premise_char"] = char_dataset.fields["premise"]
+            word_dataset.fields["hypothesis_char"] = char_dataset.fields["hypothesis"]
+        return word_dataset
 
     def vocab_size(self):
         if self.options["use_vocab"]:
@@ -97,14 +105,20 @@ class SNLI:
         else:
             return self.options["pad_token"]
 
+    def char_padding_idx(self):
+        if self.options["use_char_emb"]:
+            return self.CHAR_TEXT.vocab.stoi["<p>"]
+        else:
+            return None
+
     def out_dim(self):
         return len(self.LABEL.vocab)
 
     def char_vocab_size(self):
-        return len(self.char_vocab)
-
-    def char_word_len(self):
-        return self.max_word_len
+        if self.options["use_char_emb"]:
+            return len(self.CHAR_TEXT.vocab)
+        else:
+            return None
 
     def labels(self):
         return self.LABEL.vocab.stoi
@@ -178,11 +192,11 @@ class SNLIDataModule(pl.LightningDataModule):
     def char_vocab_size(self):
         return self.data.char_vocab_size()
 
-    def char_word_len(self):
-        return self.data.char_word_len()
-
     def padding_idx(self):
         return self.data.padding_idx()
+
+    def charpadding_idx(self):
+        return self.data.char_padding_idx()
 
     def out_dim(self):
         return self.data.out_dim()

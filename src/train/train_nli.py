@@ -52,7 +52,6 @@ class Train:
 
         if args.use_char_emb:
             model_conf["char_vocab_size"] = self.dataset.char_vocab_size()
-            model_conf["max_word_len"] = self.dataset.char_word_len()
 
         if model_type == "attention":
             self.model = attn_bilstm_snli(model_conf)
@@ -131,18 +130,8 @@ class Train:
         for batch_idx, batch in enumerate(self.dataset.train_iter):
             kwargs = {}
             if args.use_char_emb:
-                char_premise = Variable(
-                    torch.LongTensor(self.dataset.characterize(batch.premise))
-                )
-                char_hypothesis = Variable(
-                    torch.LongTensor(self.dataset.characterize(batch.hypothesis))
-                )
-
-                char_premise = char_premise.to(self.device)
-                char_hypothesis = char_hypothesis.to(self.device)
-
-                kwargs["char_premise"] = char_premise
-                kwargs["char_hypothesis"] = char_hypothesis
+                kwargs["char_premise"] = batch.premise_char
+                kwargs["char_hypothesis"] = batch.hypothesis_char
 
             self.opt.zero_grad()
             answer = self.model(batch.premise, batch.hypothesis, **kwargs)
@@ -175,18 +164,8 @@ class Train:
             for batch_idx, batch in enumerate(self.dataset.val_iter):
                 kwargs = {}
                 if args.use_char_emb:
-                    char_premise = Variable(
-                        torch.LongTensor(self.dataset.characterize(batch.premise))
-                    )
-                    char_hypothesis = Variable(
-                        torch.LongTensor(self.dataset.characterize(batch.hypothesis))
-                    )
-
-                    char_premise = char_premise.to(self.device)
-                    char_hypothesis = char_hypothesis.to(self.device)
-
-                    kwargs["char_premise"] = char_premise
-                    kwargs["char_hypothesis"] = char_hypothesis
+                    kwargs["char_premise"] = batch.premise_char
+                    kwargs["char_hypothesis"] = batch.hypothesis_char
 
                 answer = self.model(batch.premise, batch.hypothesis, **kwargs)
                 loss = self.criterion(answer, batch.label)
@@ -225,18 +204,8 @@ class Train:
             for batch_idx, batch in enumerate(self.dataset.test_iter):
                 kwargs = {}
                 if args.use_char_emb:
-                    char_premise = Variable(
-                        torch.LongTensor(self.dataset.characterize(batch.premise))
-                    )
-                    char_hypothesis = Variable(
-                        torch.LongTensor(self.dataset.characterize(batch.hypothesis))
-                    )
-
-                    char_premise = char_premise.to(self.device)
-                    char_hypothesis = char_hypothesis.to(self.device)
-
-                    kwargs["char_premise"] = char_premise
-                    kwargs["char_hypothesis"] = char_hypothesis
+                    kwargs["char_premise"] = batch.premise_char
+                    kwargs["char_hypothesis"] = batch.hypothesis_char
 
                 answer = self.model(batch.premise, batch.hypothesis, **kwargs)
                 loss = self.criterion(answer, batch.label)

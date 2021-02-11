@@ -77,7 +77,6 @@ def get_nli_conf(args):
         "loss_agg",
         "scheduler",
         "model_type",
-        "max_word_len"
     ]
 
     model_type = args.model_type
