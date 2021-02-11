@@ -1,4 +1,5 @@
 import datetime
+import dill
 
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import LearningRateLogger

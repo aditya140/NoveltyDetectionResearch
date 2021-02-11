@@ -5,6 +5,8 @@ import numpy as np
 import torch
 import logging
 import time
+import dill
+
 
 NEPTUNE_API = "eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vdWkubmVwdHVuZS5haSIsImFwaV91cmwiOiJodHRwczovL3VpLm5lcHR1bmUuYWkiLCJhcGlfa2V5IjoiMTg3MzU5NjQtMmIxZC00Njg0LTgzYzMtN2UwYjVlYzVhNDg5In0="
 
@@ -239,13 +241,15 @@ def seed_torch(seed=1029):
     torch.backends.cudnn.deterministic = True
 
 
-def get_logger(args, phase):
+def get_logger(args, phase, expt_id):
+    check_folder(os.path.join(args.results_dir, args.model_type, args.dataset, expt_id))
     logging.basicConfig(
         level=logging.INFO,
-        filename="{}/{}/{}/{}_{}.log".format(
+        filename="{}/{}/{}/{}/{}_{}.log".format(
             args.results_dir,
             args.model_type,
             args.dataset,
+            expt_id,
             phase,
             time.strftime("%H:%M:%S", time.gmtime(time.time())),
         ),
@@ -277,7 +281,15 @@ def makedirs(name):
             raise
 
 
-def check_folder(log_dir):
-    if not os.path.exists(log_dir):
-        os.makedirs(log_dir)
-    return log_dir
+def get_vocabs(dataset):
+    text_field = dataset.TEXT
+    if dataset.options["use_char_emb"]:
+        char_field = dataset.CHAR_TEXT
+    else:
+        char_field = None
+    return (text_field, char_field)
+
+
+def save_field(path, field):
+    with open(path, "wb") as f:
+        dill.dump(field, f)

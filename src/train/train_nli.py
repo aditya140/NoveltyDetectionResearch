@@ -24,10 +24,12 @@ class Train:
             project_qualified_name="aparkhi/NLI",
             api_token=NEPTUNE_API,
         )
-        neptune.create_experiment()
+        self.exp = neptune.create_experiment()
+        self.exp_id = self.exp.id
+
         self.args = args
         self.device = get_device(0)
-        self.logger = get_logger(self.args, "train")
+        self.logger = get_logger(self.args, "train", self.exp_id)
 
         self.logger.info("Dataset Conf: {}".format(dataset_conf))
         neptune.log_text("Dataset Conf", str(dataset_conf))
@@ -35,6 +37,7 @@ class Train:
         self.logger.info("Model Conf: {}".format(model_conf))
         neptune.log_text("Model Conf", str(model_conf))
         self.model_conf = model_conf
+        self.dataset_conf = dataset_conf
 
         self.logger.info("Hparams Conf: {}".format(hparams))
         neptune.log_text("Hparams", str(hparams))
@@ -108,15 +111,16 @@ class Train:
                     "accuracy": self.best_val_acc,
                     "options": self.model_conf,
                     "model_dict": self.model.state_dict(),
+                    "dataset_conf": self.dataset_conf,
                 },
-                "{}/{}/{}/best-{}-{}-params.pt".format(
+                "{}/{}/{}/{}/model.pt".format(
                     self.args.results_dir,
                     self.args.model_type,
                     self.args.dataset,
-                    self.args.model_type,
-                    self.args.dataset,
+                    self.exp_id,
                 ),
             )
+
         self.logger.info(
             "| Epoch {:3d} | train loss {:5.2f} | train acc {:5.2f} | val loss {:5.2f} | val acc {:5.2f} | time: {:5.2f}s |".format(
                 epoch, train_loss, train_acc, val_loss, val_acc, took
@@ -186,11 +190,36 @@ class Train:
             neptune.log_metric("Val Accuracy", val_acc)
             return val_loss, val_acc
 
+    def save_lang(self):
+        text_field, char_field = get_vocabs(self.dataset)
+        save_field(
+            os.path.join(
+                self.args.results_dir,
+                self.args.model_type,
+                self.args.dataset,
+                self.exp_id,
+                "text_field",
+            ),
+            text_field,
+        )
+        if char_field != None:
+            save_field(
+                os.path.join(
+                    self.args.results_dir,
+                    self.args.model_type,
+                    self.args.dataset,
+                    self.exp_id,
+                    "char_field",
+                ),
+                char_field,
+            )
+
     def test(self):
-        PATH = "{}/{}/{}/best-{}-{}-params.pt".format(
+        PATH = "{}/{}/{}/{}/model.pt".format(
             self.args.results_dir,
             self.args.model_type,
             self.args.dataset,
+            self.exp_id,
             self.args.model_type,
             self.args.dataset,
         )
@@ -199,6 +228,7 @@ class Train:
         self.model.eval()
         self.dataset.test_iter.init_epoch()
         n_correct, n_total, n_loss = 0, 0, 0
+        self.save_lang()
 
         with torch.no_grad():
             for batch_idx, batch in enumerate(self.dataset.test_iter):
