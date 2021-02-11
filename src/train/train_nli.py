@@ -9,11 +9,12 @@ import torch.optim as optim
 from torch.autograd import Variable
 import datetime
 import time
+import shutil
+import neptune
 
 from src.defaults import *
 from src.model.nli_models import *
 from src.datasets.nli import *
-import neptune
 
 
 class Train:
@@ -21,7 +22,7 @@ class Train:
         print("program execution start: {}".format(datetime.datetime.now()))
 
         neptune.init(
-            project_qualified_name="aparkhi/NLI",
+            project_qualified_name=NEPTUNE_PROJECT,
             api_token=NEPTUNE_API,
         )
         self.exp = neptune.create_experiment()
@@ -214,14 +215,37 @@ class Train:
                 char_field,
             )
 
+    def save_to_neptune(self):
+        shutil.make_archive(
+            os.path.join(
+                self.args.results_dir,
+                self.args.model_type,
+                self.args.dataset,
+                self.exp_id,
+            ),
+            "zip",
+            os.path.join(
+                self.args.results_dir,
+                self.args.model_type,
+                self.args.dataset,
+                self.exp_id,
+            ),
+        )
+        neptune.log_artifact(
+            os.path.join(
+                self.args.results_dir,
+                self.args.model_type,
+                self.args.dataset,
+                self.exp_id + ".zip",
+            )
+        )
+
     def test(self):
         PATH = "{}/{}/{}/{}/model.pt".format(
             self.args.results_dir,
             self.args.model_type,
             self.args.dataset,
             self.exp_id,
-            self.args.model_type,
-            self.args.dataset,
         )
         model_data = torch.load(PATH)
         self.model.load_state_dict(model_data["model_dict"])
@@ -229,6 +253,7 @@ class Train:
         self.dataset.test_iter.init_epoch()
         n_correct, n_total, n_loss = 0, 0, 0
         self.save_lang()
+        self.save_to_neptune()
 
         with torch.no_grad():
             for batch_idx, batch in enumerate(self.dataset.test_iter):
