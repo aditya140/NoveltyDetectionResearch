@@ -446,7 +446,7 @@ class Struc_Attn_encoder_snli(nn.Module):
         ) ** 2
         return penalty
 
-    def forward(self, x0, x1, **kwarg):
+    def forward(self, x0, x1, **kwargs):
 
         char_vec_x0 = kwargs.get("char_premise", None)
         char_vec_x1 = kwargs.get("char_hypothesis", None)
