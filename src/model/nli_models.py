@@ -208,11 +208,11 @@ class BiLSTM_encoder(nn.Module):
 
     def forward(self, x, char_vec):
         batch_size = x.shape[0]
-        embed = self.embedding(x)
+        embedded = self.embedding(x)
         if char_vec != None:
             char_emb = self.char_embedding_forward(char_vec)
             embedded = torch.cat([embedded, char_emb], dim=2)
-        proj = self.relu(self.projection(embed))
+        proj = self.relu(self.projection(embedded))
         _, (hid, _) = self.lstm(proj)
         hid = hid[-2:].transpose(0, 1).contiguous().view(batch_size, -1)
         return hid
