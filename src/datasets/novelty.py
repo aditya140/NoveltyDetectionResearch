@@ -1,4 +1,5 @@
 from torchtext import data
+from torchtext.data import Field, NestedField, LabelField
 import os
 import six
 import requests
@@ -14,7 +15,7 @@ import xml.etree.ElementTree as ET
 import glob
 import json
 
-from src.utils.download_utils import download_from_url
+from ..utils.download_utils import download_from_url
 
 
 class NoveltyDataset(data.TabularDataset):
@@ -22,9 +23,9 @@ class NoveltyDataset(data.TabularDataset):
     dirname = ""
     name = "novelty"
 
-    # @classmethod
-    # def create_jsonl(cls, path):
-    #     raise NotImplementedError("Must override with your own create jsonl")
+    @classmethod
+    def create_jsonl(cls, path):
+        cls.process_data(path)
 
     @staticmethod
     def sort_key(ex):
@@ -32,7 +33,7 @@ class NoveltyDataset(data.TabularDataset):
 
     @classmethod
     def download(cls, root, check=None):
-        """Download and unzip an online archive (.zip, .gz, or .tgz).
+        """Download and unzip an online archive (.z ip, .gz, or .tgz).
 
         Arguments:
             root (str): Folder to download data to.
@@ -44,6 +45,7 @@ class NoveltyDataset(data.TabularDataset):
             str: Path to extracted dataset.
         """
         path = os.path.join(root, cls.name)
+        print(path)
         check = path if check is None else check
         if not os.path.isdir(check):
             for url in cls.urls:
@@ -134,13 +136,16 @@ class NoveltyDataset(data.TabularDataset):
 
 class DLND(NoveltyDataset):
     urls = [
-        "https://drive.google.com/file/d/1q-P3ReGf-yWnKrhb6XQAuMGo39hXlhYG/view?usp=sharing"
+        (
+            "https://drive.google.com/file/d/1q-P3ReGf-yWnKrhb6XQAuMGo39hXlhYG/view?usp=sharing",
+            "TAP-DLND-1.0_LREC2018_modified.zip",
+        )
     ]
-    dirname = "dlnd_1.0"
+    dirname = "TAP-DLND-1.0_LREC2018_modified"
     name = "dlnd"
 
     @classmethod
-    def create_json(cls, path):
+    def process_data(cls, path):
         def get_sources(source):
             source_meta = [
                 "/".join(i.split("/")[:-1])
@@ -199,7 +204,7 @@ class DLND(NoveltyDataset):
                 )
             return data
 
-        categories = glob.glob(os.path.join(path, "TAP-DLND-1.0_LREC2018_modified/*"))
+        categories = glob.glob(os.path.join(path, "*"))
         sources = []
         targets = []
         for cat in categories:
@@ -234,9 +239,17 @@ class DLND(NoveltyDataset):
                     "DLA": target_set[target]["DLA"],
                 }
                 i += 1
+        for id_ in dataset.keys():
+            dataset[id_]["source"] = "\n".join(dataset[id_]["source"])
+
+        if not os.path.exists(path):
+            os.makedirs(path)
 
         with open(os.path.join(path, "dlnd.jsonl"), "w") as f:
-            json.dump(list(dataset.values()), f)
+            f.writelines([json.dumps(i) + "\n" for i in dataset.values()])
+
+        # with open(os.path.join(path, "dlnd.jsonl"), "w") as f:
+        #     json.dump(list(dataset.values()), f)
 
     @classmethod
     def splits(
@@ -258,3 +271,8 @@ class DLND(NoveltyDataset):
             validation=validation,
             test=test,
         )
+
+
+class Novelty:
+    def __init__(self):
+        self.field = NestedField(Field(), tokenize=lambda x: nltk.sentence_tokenize(x))

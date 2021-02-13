@@ -56,5 +56,6 @@ def download_from_url(url, path):
 
     print("downloading from Google Drive; may take a few minutes")
     id_ = url.split("/")[-2]
+    print("downloading to ",path)
     download_file_from_google_drive(id_, destination=path)
     return
