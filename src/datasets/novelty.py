@@ -1,19 +1,19 @@
-from torchtext import data
-from torchtext.data import Field, NestedField, LabelField
-import os
+import io, os, glob, shutil
 import six
 import requests
-import csv
+import random
+
 from tqdm import tqdm
-import io
-import zipfile
-import tarfile
-import gzip
-import shutil
+import tarfile, zipfile, gzip
 from functools import partial
 import xml.etree.ElementTree as ET
-import glob
-import json
+import json, csv
+
+import torch
+from torchtext import data
+from torchtext.data import Field, NestedField, LabelField, BucketIterator
+from transformers import BertTokenizer, DistilBertTokenizer
+import nltk, spacy
 
 from ..utils.download_utils import download_from_url
 
@@ -173,6 +173,17 @@ class DLND(NoveltyDataset):
                 )
             return data
 
+        def filter_labels(x):
+            mapping = {
+                "Non-Novel": "Non-Novel",
+                "Non-Novelvel": "Non-Novel",
+                "NovNon-Novelel": "Non-Novel",
+                "Novel": "Novel",
+                "non-novel": "Non-Novel",
+                "novel": "Novel",
+            }
+            return mapping[x]
+
         def get_targets(target):
             target_meta = [
                 "/".join(i.split("/")[:-1])
@@ -236,7 +247,7 @@ class DLND(NoveltyDataset):
                 dataset[i] = {
                     "target_text": target_set[target]["target_text"],
                     "source": source_text,
-                    "DLA": target_set[target]["DLA"],
+                    "DLA": filter_labels(target_set[target]["DLA"]),
                 }
                 i += 1
         for id_ in dataset.keys():
@@ -274,5 +285,129 @@ class DLND(NoveltyDataset):
 
 
 class Novelty:
-    def __init__(self):
-        self.field = NestedField(Field(), tokenize=lambda x: nltk.sentence_tokenize(x))
+    def __init__(
+        self,
+        options,
+        sentence_field=None,
+    ):
+        if sentence_field == None:
+            self.sentence_field = Field(
+                batch_first=True,
+                use_vocab=options["use_vocab"],
+                lower=options["lower"],
+                preprocessing=options["preprocessing"],
+                tokenize=options["tokenize"],
+                fix_length=options["max_len"],
+                init_token=options["init_token"],
+                eos_token=options["eos_token"],
+                pad_token=options["pad_token"],
+                unk_token=options["unk_token"],
+            )
+            build_vocab = True
+        else:
+            self.sentence_field = sentence_field
+            build_vocab = False
+
+        if options["sent_tokenizer"] == "spacy":
+            import spacy
+            from spacy.lang.en import English
+
+            nlp = English()
+            nlp.add_pipe(nlp.create_pipe("sentencizer"))
+
+            def sent_tokenize(raw_text):
+                doc = nlp(raw_text)
+                sentences = [sent.string.strip() for sent in doc.sents]
+                return sentences
+
+            self.sent_tok = lambda x: sent_tokenize(x)
+        else:
+            self.sent_tok = lambda x: nltk.sent_tokenize(x)
+
+        self.TEXT_FIELD = NestedField(
+            sentence_field,
+            tokenize=self.sent_tok,
+            fix_length=options["max_num_sent"],  #
+        )
+        self.LABEL = LabelField(dtype=torch.long)
+
+        if options["dataset"] == 'dlnd':
+            dataset = DLND
+
+        (self.data,) = dataset.splits(self.TEXT_FIELD, self.LABEL)
+        self.train, self.dev, self.test = self.data.split(
+            split_ratio=[0.8, 0.1, 0.1], stratified=True, random_state=random.getstate()
+        )
+
+        self.LABEL.build_vocab(self.train)
+        if build_vocab:
+            self.TEXT_FIELD.build_vocab(self.train, self.dev)
+
+        self.train_iter, self.val_iter, self.test_iter = BucketIterator.splits(
+            (self.train, self.dev, self.test),
+            batch_size=options["batch_size"],
+            device=options["device"],
+        )
+
+    def vocab_size(self):
+        if self.options["use_vocab"]:
+            return len(self.TEXT_FIELD.nesting_field.vocab)
+        else:
+            return self.tokenizer.vocab_size
+
+    def padding_idx(self):
+        if self.options["use_vocab"]:
+            return self.TEXT_FIELD.nesting_field.vocab.stoi[self.options["pad_token"]]
+        else:
+            return self.options["pad_token"]
+
+    def out_dim(self):
+        return len(self.LABEL.vocab)
+
+    def labels(self):
+        return self.LABEL.vocab.stoi
+
+
+def dlnd(options, sentence_field=None):
+    if sentence_field == None:
+        if options["tokenizer"] == "bert":
+            tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
+
+            def tokenize_and_cut(sentence):
+                tokens = tokenizer.tokenize(sentence)
+                tokens = tokens[: options["max_len"] - 2]
+                return tokens
+
+            sepcial_tokens = tokenizer.special_tokens_map
+            options["init_token"] = tokenizer.convert_tokens_to_ids(
+                sepcial_tokens["cls_token"]
+            )
+            options["pad_token"] = tokenizer.convert_tokens_to_ids(
+                sepcial_tokens["pad_token"]
+            )
+            options["unk_token"] = tokenizer.convert_tokens_to_ids(
+                sepcial_tokens["unk_token"]
+            )
+            options["eos_token"] = tokenizer.convert_tokens_to_ids(
+                sepcial_tokens["sep_token"]
+            )
+            options["use_vocab"] = False
+
+            options["preprocessing"] = tokenizer.convert_tokens_to_ids
+
+            options["tokenize"] = tokenize_and_cut
+            options["tokenizer"] = tokenizer
+
+        if options["tokenizer"] == "spacy":
+            options["tokenize"] = "spacy"
+            options["init_token"] = "<sos>"
+            options["unk_token"] = "<unk>"
+            options["pad_token"] = "<pad>"
+            options["eos_token"] = "<eos>"
+            options["use_vocab"] = True
+            options["preprocessing"] = None
+
+        if options.get("lower", None) == None:
+            options["lower"] = True
+
+    return Novelty(options, sentence_field=sentence_field)
