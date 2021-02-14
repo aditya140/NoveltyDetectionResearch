@@ -325,13 +325,13 @@ class Novelty:
             self.sent_tok = lambda x: nltk.sent_tokenize(x)
 
         self.TEXT_FIELD = NestedField(
-            sentence_field,
+            self.sentence_field,
             tokenize=self.sent_tok,
-            fix_length=options["max_num_sent"],  #
+            fix_length=options["max_num_sent"],
         )
         self.LABEL = LabelField(dtype=torch.long)
 
-        if options["dataset"] == 'dlnd':
+        if options["dataset"] == "dlnd":
             dataset = DLND
 
         (self.data,) = dataset.splits(self.TEXT_FIELD, self.LABEL)
