@@ -18,27 +18,21 @@ class DAN_conf:
             setattr(self, k, v)
 
 class DAN(nn.Module):
-    def __init__(self,conf):
+    def __init__(self,conf,encoder):
         super(DAN,self).__init__()
         self.conf = conf
-        self.sent_len = conf.sent_len
-        self.num_sent = conf.num_sent
+        self.sent_len = conf["max_len"]
+        self.num_sent = conf["max_num_sent"]
         self.encoder = conf.encoder
-        del self.conf.encoder
-        self.translate = nn.Linear(2 * self.conf.encoder_dim, self.conf.hidden_size)
+        self.translate = nn.Linear(2 * self.conf["encoder_dim"], self.conf["hidden_size"])
         self.template = nn.Parameter(torch.zeros((1)), requires_grad=True)
-        if self.conf.activation.lower() == "relu".lower():
-            self.act = nn.ReLU()
-        elif self.conf.activation.lower() == "tanh".lower():
-            self.act = nn.Tanh()
-        elif self.conf.activation.lower() == "leakyrelu".lower():
-            self.act = nn.LeakyReLU()
-        self.dropout = nn.Dropout(conf.dropout)
+        self.act = nn.ReLU()
+        self.dropout = nn.Dropout(conf["dropout"])
 
-        self.mlp_f = nn.Linear(self.conf.hidden_size, self.conf.hidden_size)
-        self.mlp_g = nn.Linear(2*self.conf.hidden_size, self.conf.hidden_size)
-        self.mlp_h = nn.Linear(2*self.conf.hidden_size, self.conf.hidden_size)
-        self.linear = nn.Linear(self.conf.hidden_size,2)
+        self.mlp_f = nn.Linear(self.conf["hidden_size"], self.conf["hidden_size"])
+        self.mlp_g = nn.Linear(2*self.conf["hidden_size"], self.conf["hidden_size"])
+        self.mlp_h = nn.Linear(2*self.conf["hidden_size"], self.conf["hidden_size"])
+        self.linear = nn.Linear(self.conf["hidden_size"],2)
 
     def encode_sent(self,inp):
         batch_size,_,_ = inp.shape

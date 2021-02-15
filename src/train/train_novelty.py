@@ -6,24 +6,38 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
+from torch.autograd import Variable
 import datetime
 import time
 import shutil
 import neptune
 
 from src.defaults import *
+from src.model.novelty_models import *
+from src.datasets.novelty import *
 from src.model.nli_models import *
-from src.datasets.nli import *
 
 
 class Train:
-    def __init__(self, args, dataset_conf, model_conf, hparams, model_type):
-        print("program execution start: {}".format(datetime.datetime.now()))
+    def __init__(
+        self,
+        args,
+        dataset_conf,
+        model_conf,
+        hparams,
+        model_type,
+        sentence_field,
+    ):
 
+        ### Basic setup
+        ###################################################
+
+        print("program execution start: {}".format(datetime.datetime.now()))
         neptune.init(
-            project_qualified_name=NLI_NEPTUNE_PROJECT,
+            project_qualified_name=NOVELTY_NEPTUNE_PROJECT,
             api_token=NEPTUNE_API,
         )
+
         self.exp = neptune.create_experiment()
         self.exp_id = self.exp.id
 
@@ -42,26 +56,23 @@ class Train:
         self.logger.info("Hparams Conf: {}".format(hparams))
         neptune.log_text("Hparams", str(hparams))
 
-        if dataset_conf["dataset"] == "snli":
-            self.dataset = snli_module(dataset_conf)
-        elif dataset_conf["dataset"] == "mnli":
-            self.dataset = mnli_module(dataset_conf)
-        self.dataset.prepare_data()
-        self.dataset = self.dataset.data
+        ### Load Dataset
+        ###################################################
+
+        if dataset_conf["dataset"] == "dlnd":
+            self.dataset = dlnd(dataset_conf, sentence_field=sentence_field)
+
         neptune.append_tag([dataset_conf["dataset"], model_type])
 
-        model_conf["vocab_size"] = self.dataset.vocab_size()
-        model_conf["padding_idx"] = self.dataset.padding_idx()
+        ### Load Model
+        ###################################################
 
-        if args.use_char_emb:
-            model_conf["char_vocab_size"] = self.dataset.char_vocab_size()
+        nli_model_data = load_encoder_data(args.load_nli)
+        encoder = self.load_encoder(nli_model_data).encoder
+        model_conf["encoder_dim"] = nli_model_data["options"]["hidden_size"]
 
-        if model_type == "attention":
-            self.model = attn_bilstm_snli(model_conf)
-        elif model_type == "bilstm":
-            self.model = bilstm_snli(model_conf)
-        elif model_type == "struc_attn":
-            self.model = struc_attn_snli(model_conf)
+        if model_type == "dan":
+            self.model = DAN(model_conf, encoder)
 
         self.model.to(self.device)
         model_size = self.count_parameters()
@@ -69,6 +80,9 @@ class Train:
 
         self.logger.info(" [*] Model size : {}".format(model_size))
         neptune.log_text("Model size", str(model_size))
+
+        ### Optimizer setup
+        ###################################################
 
         self.criterion = nn.CrossEntropyLoss(reduction=hparams["loss_agg"])
         self.softmax = nn.Softmax(dim=1)
@@ -130,13 +144,9 @@ class Train:
         self.dataset.train_iter.init_epoch()
         n_correct, n_total, n_loss = 0, 0, 0
         for batch_idx, batch in enumerate(self.dataset.train_iter):
-            kwargs = {}
-            if args.use_char_emb:
-                kwargs["char_premise"] = batch.premise_char
-                kwargs["char_hypothesis"] = batch.hypothesis_char
 
             self.opt.zero_grad()
-            answer = self.model(batch.premise, batch.hypothesis, **kwargs)
+            answer = self.model(batch.source, batch.target)
             loss = self.criterion(answer, batch.label)
             n_correct += (
                 (
@@ -164,12 +174,8 @@ class Train:
 
         with torch.no_grad():
             for batch_idx, batch in enumerate(self.dataset.val_iter):
-                kwargs = {}
-                if args.use_char_emb:
-                    kwargs["char_premise"] = batch.premise_char
-                    kwargs["char_hypothesis"] = batch.hypothesis_char
 
-                answer = self.model(batch.premise, batch.hypothesis, **kwargs)
+                answer = self.model(batch.source, batch.target)
                 loss = self.criterion(answer, batch.label)
                 n_correct += (
                     (
@@ -188,45 +194,6 @@ class Train:
             neptune.log_metric("Val Accuracy", val_acc)
             return val_loss, val_acc
 
-    def save_lang(self):
-        text_field, char_field = get_vocabs(self.dataset)
-        save_field(
-            os.path.join(
-                self.args.results_dir,
-                self.exp_id,
-                "text_field",
-            ),
-            text_field,
-        )
-        if char_field != None:
-            save_field(
-                os.path.join(
-                    self.args.results_dir,
-                    self.exp_id,
-                    "char_field",
-                ),
-                char_field,
-            )
-
-    def save_to_neptune(self):
-        shutil.make_archive(
-            os.path.join(
-                self.args.results_dir,
-                self.exp_id,
-            ),
-            "zip",
-            os.path.join(
-                self.args.results_dir,
-                self.exp_id,
-            ),
-        )
-        neptune.log_artifact(
-            os.path.join(
-                self.args.results_dir,
-                self.exp_id + ".zip",
-            )
-        )
-
     def test(self):
         PATH = "{}/{}/model.pt".format(
             self.args.results_dir,
@@ -237,17 +204,11 @@ class Train:
         self.model.eval()
         self.dataset.test_iter.init_epoch()
         n_correct, n_total, n_loss = 0, 0, 0
-        self.save_lang()
-        self.save_to_neptune()
 
         with torch.no_grad():
             for batch_idx, batch in enumerate(self.dataset.test_iter):
-                kwargs = {}
-                if args.use_char_emb:
-                    kwargs["char_premise"] = batch.premise_char
-                    kwargs["char_hypothesis"] = batch.hypothesis_char
 
-                answer = self.model(batch.premise, batch.hypothesis, **kwargs)
+                answer = self.model(batch.source, batch.target)
                 loss = self.criterion(answer, batch.label)
                 n_correct += (
                     (
@@ -307,14 +268,29 @@ class Train:
         self.logger.info("[*] Training finished!\n\n")
         print("-" * 99)
         print(" [*] Training finished!")
-        print(" [*] Please find the saved model and training log in results_dir")
+        print(" [*] Please find the training log in results_dir")
 
     def count_parameters(self):
         return sum(p.numel() for p in self.model.parameters() if p.requires_grad)
 
+    @staticmethod
+    def load_encoder(enc_data):
+        if enc_data["options"].get("attention_layer_param", 0) == 0:
+            model = bilstm_snli(enc_data["options"])
+        elif enc_data["options"].get("r", 0) == 0:
+            model = attn_bilstm_snli(enc_data["options"])
+        else:
+            model = struc_attn_snli(enc_data["options"])
+        model.load_state_dict(enc_data["model_dict"])
+        return model
+
 
 if __name__ == "__main__":
-    args = parse_nli_conf()
-    dataset_conf, optim_conf, model_type, model_conf = get_nli_conf(args)
-    trainer = Train(args, dataset_conf, model_conf, optim_conf, model_type)
+    args = parse_novelty_conf()
+    dataset_conf, optim_conf, model_type, model_conf, sentence_field = get_novelty_conf(
+        args
+    )
+    trainer = Train(
+        args, dataset_conf, model_conf, optim_conf, model_type, sentence_field
+    )
     trainer.execute()

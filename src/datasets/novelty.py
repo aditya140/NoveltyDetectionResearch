@@ -45,7 +45,6 @@ class NoveltyDataset(data.TabularDataset):
             str: Path to extracted dataset.
         """
         path = os.path.join(root, cls.name)
-        print(path)
         check = path if check is None else check
         if not os.path.isdir(check):
             for url in cls.urls:
@@ -290,6 +289,7 @@ class Novelty:
         options,
         sentence_field=None,
     ):
+        self.options = options
         if sentence_field == None:
             self.sentence_field = Field(
                 batch_first=True,
@@ -369,6 +369,7 @@ class Novelty:
 
 
 def dlnd(options, sentence_field=None):
+    options["use_vocab"] = True
     if sentence_field == None:
         if options["tokenizer"] == "bert":
             tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")

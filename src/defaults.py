@@ -6,10 +6,19 @@ import torch
 import logging
 import time
 import dill
+import neptune
+import shutil
+import dill
 
 
 NEPTUNE_API = "eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vdWkubmVwdHVuZS5haSIsImFwaV91cmwiOiJodHRwczovL3VpLm5lcHR1bmUuYWkiLCJhcGlfa2V5IjoiMTg3MzU5NjQtMmIxZC00Njg0LTgzYzMtN2UwYjVlYzVhNDg5In0="
-NEPTUNE_PROJECT = "aparkhi/NLI"
+NLI_NEPTUNE_PROJECT = "aparkhi/NLI"
+NOVELTY_NEPTUNE_PROJECT = "aparkhi/Novelty"
+
+
+"""
+Argument Parser
+"""
 
 
 def parse_nli_conf():
@@ -164,7 +173,7 @@ def struc_attn_model_params(parser_dump):
 
 
 def check_args(args):
-    check_folder(os.path.join(args.results_dir, args.model_type, args.dataset))
+    check_folder(os.path.join(args.results_dir))
     # --epoch
     try:
         assert args.epochs >= 1
@@ -227,6 +236,124 @@ def get_nli_conf_pl(args):
     return dataset_conf, hparams, model_type, model_conf
 
 
+def parse_novelty_conf():
+    parser = ArgumentParser(description="PyTorch/torchtext Novelty Training")
+    parser.add_argument("--dataset", "-d", type=str, default="dlnd")
+
+    # language
+    parser.add_argument("--load_nli", type=str, default="None")
+    parser.add_argument("--max_num_sent", type=int, default=50)
+    parser.add_argument("--device", type=str, default="cuda")
+    parser.add_argument("--batch_size", type=int, default=32)
+    parser.add_argument("--tokenizer", type=str, default="None")
+    parser.add_argument("--max_len", type=int, default=0)
+    parser.add_argument("--sent_tokenizer", type=str, default="spacy")
+
+    # optimizer_conf
+    parser.add_argument("--epochs", type=int, default=20)
+    parser.add_argument("--lr", type=float, default=0.001)
+    parser.add_argument("--optim", type=str, default="adamw")
+    parser.add_argument("--loss_agg", type=str, default="sum")
+    parser.add_argument("--scheduler", type=str, default="step")
+
+    subparsers = parser.add_subparsers(dest="model_type")
+
+    # model_conf
+    parser_dan = subparsers.add_parser("dan")
+    dan_model_parameters(parser_dan)
+
+    # model_conf
+    parser_han = subparsers.add_parser("han")
+    han_model_parameters(parser_han)
+
+    parser.add_argument("--results_dir", type=str, default="results")
+    return check_args(parser.parse_args())
+
+
+def get_novelty_conf(args):
+    # hparams
+    hparams = {}
+    hparams["optimizer"] = {
+        "optim": args.optim,
+        "lr": args.lr,
+        "scheduler": args.scheduler,
+    }
+    hparams["epochs"] = args.epochs
+    hparams["loss_agg"] = args.loss_agg
+
+    # dataset config
+    dataset_conf = {}
+    dataset_conf["dataset"] = args.dataset
+    dataset_conf["max_num_sent"] = args.max_num_sent
+    dataset_conf["sent_tokenizer"] = args.sent_tokenizer
+    dataset_conf["batch_size"] = args.batch_size
+    dataset_conf["device"] = args.device
+
+    if args.load_nli == "None":
+        assert args.tokenizer != "None"
+        assert args.max_len != 0
+
+        dataset_conf["tokenizer"] = args.tokenizer
+        dataset_conf["max_len"] = args.max_len
+        sentence_field = None
+
+    else:
+        check_model(args.load_nli)
+        sentence_field = load_field(args.load_nli)
+
+    used_keys = [
+        "tokenizer",
+        "max_len",
+        "batch_size",
+        "epochs",
+        "lr",
+        "optim",
+        "loss_agg",
+        "scheduler",
+        "model_type",
+    ]
+
+    model_type = args.model_type
+    model_conf = {
+        k: args.__dict__[k] for k in set(list(args.__dict__.keys())) - set(used_keys)
+    }
+    return dataset_conf, hparams, model_type, model_conf, sentence_field
+
+
+def dan_model_parameters(parser_dump):
+    parser_dump.add_argument("--hidden_size", type=int, default=400)
+    parser_dump.add_argument("--dropout", type=float, default=0.3)
+    parser_dump.add_argument("--use_glove", type=bool, default=False)
+
+
+def han_model_parameters(parser_dump):
+    pass
+
+
+"""
+Utils
+"""
+
+
+def load_field(_id, field_type="text"):
+    results_path = "./results"
+    if field_type == "text":
+        with open(os.path.join(results_path, _id, "text_field"), "rb") as f:
+            field = dill.load(f)
+
+    return field
+
+
+def check_model(_id):
+    model_path = "./results"
+    if os.path.exists(os.path.join(model_path, _id)):
+        return
+    else:
+        print(f"Downloading {_id} from neptune")
+        download_models_from_neptune(_id)
+        return
+
+
 def check_folder(log_dir):
     if not os.path.exists(log_dir):
         os.makedirs(log_dir)
@@ -243,13 +370,11 @@ def seed_torch(seed=1029):
 
 
 def get_logger(args, phase, expt_id):
-    check_folder(os.path.join(args.results_dir, args.model_type, args.dataset, expt_id))
+    check_folder(os.path.join(args.results_dir, expt_id))
     logging.basicConfig(
         level=logging.INFO,
-        filename="{}/{}/{}/{}/{}_{}.log".format(
+        filename="{}/{}/{}_{}.log".format(
             args.results_dir,
-            args.model_type,
-            args.dataset,
             expt_id,
             phase,
             time.strftime("%H:%M:%S", time.gmtime(time.time())),
@@ -294,3 +419,30 @@ def get_vocabs(dataset):
 def save_field(path, field):
     with open(path, "wb") as f:
         dill.dump(field, f)
+
+
+def download_models_from_neptune(_id):
+    if _id.split("-")[0] == "NLI":
+        download_model(NLI_NEPTUNE_PROJECT, _id)
+
+
+def download_model(project, _id):
+    model_folder_path = "./results"
+    model_path = os.path.join(model_folder_path, _id)
+    if not os.path.exists(model_path):
+        os.makedirs(model_path)
+
+    project = neptune.init(project, api_token=NEPTUNE_API)
+    experiment = project.get_experiments(id=_id)[0]
+    experiment.download_artifact(_id + ".zip", model_folder_path)
+
+    shutil.unpack_archive(
+        os.path.join(model_folder_path, _id + ".zip"),
+        extract_dir=model_path,
+    )
+
+
+def load_encoder_data(_id):
+    model_path = os.path.join("./results/", _id, "model.pt")
+    model_data = torch.load(model_path)
+    return model_data
