@@ -29,7 +29,7 @@ class NoveltyDataset(data.TabularDataset):
 
     @staticmethod
     def sort_key(ex):
-        return data.interleave_keys(len(ex.premise), len(ex.hypothesis))
+        return data.interleave_keys(len(ex.source), len(ex.target))
 
     @classmethod
     def download(cls, root, check=None):

@@ -68,7 +68,9 @@ class Train:
         ###################################################
 
         nli_model_data = load_encoder_data(args.load_nli)
+
         encoder = self.load_encoder(nli_model_data).encoder
+
         model_conf["encoder_dim"] = nli_model_data["options"]["hidden_size"]
 
         if model_type == "dan":
@@ -97,7 +99,7 @@ class Train:
                 self.model.parameters(), lr=hparams["optimizer"]["lr"]
             )
 
-        if hparams["optimizer"]["optim"] == "adamw":
+        if hparams["optimizer"]["optim"] == "sgd":
             self.opt = optim.SGD(
                 self.model.parameters(),
                 lr=hparams["optimizer"]["lr"],
@@ -276,10 +278,13 @@ class Train:
     @staticmethod
     def load_encoder(enc_data):
         if enc_data["options"].get("attention_layer_param", 0) == 0:
+            enc_data['options']["use_glove"] = False
             model = bilstm_snli(enc_data["options"])
         elif enc_data["options"].get("r", 0) == 0:
+            enc_data['options']["use_glove"] = False
             model = attn_bilstm_snli(enc_data["options"])
         else:
+            enc_data['options']["use_glove"] = False
             model = struc_attn_snli(enc_data["options"])
         model.load_state_dict(enc_data["model_dict"])
         return model
