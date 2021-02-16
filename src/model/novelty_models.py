@@ -271,12 +271,12 @@ class HAN_DOC(nn.Module):
 
 
 class HAN(nn.Module):
-    def __init__(self, conf, sent_enc, doc_enc=None):
+    def __init__(self, conf, encoder, doc_enc=None):
         super(HAN, self).__init__()
         self.conf = conf
         if doc_enc == None:
-            self.encoder = HAN_DOC(conf, sent_enc)
-        elif sent_enc == None:
+            self.encoder = HAN_DOC(conf, encoder)
+        elif encoder == None:
             self.encoder = doc_enc
         self.act = nn.ReLU()
         self.dropout = nn.Dropout(conf["dropout"])
