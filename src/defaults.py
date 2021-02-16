@@ -17,7 +17,7 @@ NOVELTY_NEPTUNE_PROJECT = "aparkhi/Novelty"
 
 
 """
-Argument Parser
+NLI Argument Parser
 """
 
 
@@ -137,57 +137,6 @@ def parse_nli_pl_conf():
     return check_args(parser.parse_args())
 
 
-def attention_model_params(parser_dump):
-    parser_dump.add_argument("--hidden_size", type=int, default=400)
-    parser_dump.add_argument("--embedding_dim", type=int, default=300)
-    parser_dump.add_argument("--char_embedding_dim", type=int, default=100)
-    parser_dump.add_argument("--dropout", type=float, default=0.3)
-    parser_dump.add_argument("--use_glove", type=bool, default=False)
-    parser_dump.add_argument("--num_layers", type=int, default=1)
-    parser_dump.add_argument("--fcs", type=int, default=1)
-    parser_dump.add_argument("--attention_layer_param", type=int, default=200)
-
-
-def bilstm_model_params(parser_dump):
-    parser_dump.add_argument("--hidden_size", type=int, default=400)
-    parser_dump.add_argument("--embedding_dim", type=int, default=300)
-    parser_dump.add_argument("--char_embedding_dim", type=int, default=100)
-    parser_dump.add_argument("--dropout", type=float, default=0.3)
-    parser_dump.add_argument("--use_glove", type=bool, default=False)
-    parser_dump.add_argument("--num_layers", type=int, default=1)
-
-
-def struc_attn_model_params(parser_dump):
-    parser_dump.add_argument("--hidden_size", type=int, default=400)
-    parser_dump.add_argument("--embedding_dim", type=int, default=300)
-    parser_dump.add_argument("--char_embedding_dim", type=int, default=100)
-    parser_dump.add_argument("--dropout", type=float, default=0.3)
-    parser_dump.add_argument("--use_glove", type=bool, default=False)
-    parser_dump.add_argument("--num_layers", type=int, default=1)
-    parser_dump.add_argument("--fcs", type=int, default=1)
-    parser_dump.add_argument("--r", type=int, default=5)
-    parser_dump.add_argument("--attention_layer_param", type=int, default=200)
-    parser_dump.add_argument("--gated_embedding_dim", type=int, default=150)
-    parser_dump.add_argument("--gated", type=bool, default=False)
-    parser_dump.add_argument("--pool_strategy", type=str, default="max")
-
-
-def check_args(args):
-    check_folder(os.path.join(args.results_dir))
-    # --epoch
-    try:
-        assert args.epochs >= 1
-    except:
-        print("number of epochs must be larger than or equal to one")
-
-    # --batch_size
-    try:
-        assert args.batch_size >= 1
-    except:
-        print("batch size must be larger than or equal to one")
-    return args
-
-
 def get_nli_conf_pl(args):
     # hparams
     hparams = {}
@@ -236,6 +185,51 @@ def get_nli_conf_pl(args):
     return dataset_conf, hparams, model_type, model_conf
 
 
+"""
+NLI Model Configurations
+"""
+
+
+def attention_model_params(parser_dump):
+    parser_dump.add_argument("--hidden_size", type=int, default=400)
+    parser_dump.add_argument("--embedding_dim", type=int, default=300)
+    parser_dump.add_argument("--char_embedding_dim", type=int, default=100)
+    parser_dump.add_argument("--dropout", type=float, default=0.3)
+    parser_dump.add_argument("--use_glove", type=bool, default=False)
+    parser_dump.add_argument("--num_layers", type=int, default=1)
+    parser_dump.add_argument("--fcs", type=int, default=1)
+    parser_dump.add_argument("--attention_layer_param", type=int, default=200)
+
+
+def bilstm_model_params(parser_dump):
+    parser_dump.add_argument("--hidden_size", type=int, default=400)
+    parser_dump.add_argument("--embedding_dim", type=int, default=300)
+    parser_dump.add_argument("--char_embedding_dim", type=int, default=100)
+    parser_dump.add_argument("--dropout", type=float, default=0.3)
+    parser_dump.add_argument("--use_glove", type=bool, default=False)
+    parser_dump.add_argument("--num_layers", type=int, default=1)
+
+
+def struc_attn_model_params(parser_dump):
+    parser_dump.add_argument("--hidden_size", type=int, default=400)
+    parser_dump.add_argument("--embedding_dim", type=int, default=300)
+    parser_dump.add_argument("--char_embedding_dim", type=int, default=100)
+    parser_dump.add_argument("--dropout", type=float, default=0.3)
+    parser_dump.add_argument("--use_glove", type=bool, default=False)
+    parser_dump.add_argument("--num_layers", type=int, default=1)
+    parser_dump.add_argument("--fcs", type=int, default=1)
+    parser_dump.add_argument("--r", type=int, default=5)
+    parser_dump.add_argument("--attention_layer_param", type=int, default=200)
+    parser_dump.add_argument("--gated_embedding_dim", type=int, default=150)
+    parser_dump.add_argument("--gated", type=bool, default=False)
+    parser_dump.add_argument("--pool_strategy", type=str, default="max")
+
+
+"""
+Novelty Argument Parser
+"""
+
+
 def parse_novelty_conf():
     parser = ArgumentParser(description="PyTorch/torchtext Novelty Training")
     parser.add_argument("--dataset", "-d", type=str, default="dlnd")
@@ -261,6 +255,10 @@ def parse_novelty_conf():
     # model_conf
     parser_dan = subparsers.add_parser("dan")
     dan_model_parameters(parser_dan)
+
+    # model_conf
+    parser_adin = subparsers.add_parser("adin")
+    adin_model_parameters(parser_adin)
 
     # model_conf
     parser_han = subparsers.add_parser("han")
@@ -320,6 +318,11 @@ def get_novelty_conf(args):
     return dataset_conf, hparams, model_type, model_conf, sentence_field
 
 
+"""
+Novelty Detection Model Configurations
+"""
+
+
 def dan_model_parameters(parser_dump):
     parser_dump.add_argument("--hidden_size", type=int, default=400)
     parser_dump.add_argument("--dropout", type=float, default=0.3)
@@ -327,12 +330,41 @@ def dan_model_parameters(parser_dump):
 
 
 def han_model_parameters(parser_dump):
-    pass
+    parser_dump.add_argument("--hidden_size", type=int, default=400)
+    parser_dump.add_argument("--dropout", type=float, default=0.3)
+    parser_dump.add_argument("--num_layers", type=int, default=1)
+    parser_dump.add_argument("--use_glove", type=bool, default=False)
+    parser_dump.add_argument("--attention_layer_param",type=int, default = 200)
+
+
+def adin_model_parameters(parser_dump):
+    parser_dump.add_argument("--hidden_size", type=int, default=400)
+    parser_dump.add_argument("--dropout", type=float, default=0.3)
+    parser_dump.add_argument("--use_glove", type=bool, default=False)
+    parser_dump.add_argument("--k", type=int, default=200)
+    parser_dump.add_argument("--num_layers", type=int, default=1)
+    parser_dump.add_argument("--N", type=int, default=1)
 
 
 """
 Utils
 """
+
+
+def check_args(args):
+    check_folder(os.path.join(args.results_dir))
+    # --epoch
+    try:
+        assert args.epochs >= 1
+    except:
+        print("number of epochs must be larger than or equal to one")
+
+    # --batch_size
+    try:
+        assert args.batch_size >= 1
+    except:
+        print("batch size must be larger than or equal to one")
+    return args
 
 
 def load_field(_id, field_type="text"):

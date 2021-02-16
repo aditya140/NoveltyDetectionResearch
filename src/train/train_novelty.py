@@ -75,6 +75,10 @@ class Train:
 
         if model_type == "dan":
             self.model = DAN(model_conf, encoder)
+        if model_type == 'adin':
+            self.model = ADIN(model_conf,encoder)
+        if model_type == 'han':
+            self.model = HAN(model_conf,encoder)
 
         self.model.to(self.device)
         model_size = self.count_parameters()
