@@ -77,6 +77,7 @@ class Train:
         else:
             enc_data["options"]["use_glove"] = False
             model = struc_attn_snli(enc_data["options"])
+            
         model.load_state_dict(enc_data["model_dict"])
         return model
 
