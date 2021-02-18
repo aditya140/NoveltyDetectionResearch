@@ -9,6 +9,8 @@ import torch.optim as optim
 
 from src.defaults import *
 
+seed_torch()
+
 
 class Trainer(abc.ABC):
     def __init__(
@@ -76,11 +78,11 @@ class Trainer(abc.ABC):
         Implementation on the process of loading schedulers.
         """
 
-    @abc.abstractmethod
     def save(self):
         """
         Implementation on the process of saving model
         """
+        pass
 
     def finish(self):
         self.logger.info("[*] Training finished!\n\n")
