@@ -6,7 +6,9 @@ from src.model.nli_models import *
 
 
 """
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 Decomposable Attention Network
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 """
 
 
@@ -57,14 +59,14 @@ class DAN(nn.Module):
         f2 = self.act(self.dropout(self.mlp_f(x1_enc)))
 
         score1 = torch.bmm(f1, torch.transpose(f2, 1, 2))
-        prob1 = F.softmax(score1.view(-1, self.num_sent)).view(
+        prob1 = F.softmax(score1.view(-1, self.num_sent),dim=1).view(
             -1, self.num_sent, self.num_sent
         )
 
         score2 = torch.transpose(score1.contiguous(), 1, 2)
         score2 = score2.contiguous()
 
-        prob2 = F.softmax(score2.view(-1, self.num_sent)).view(
+        prob2 = F.softmax(score2.view(-1, self.num_sent),dim=1).view(
             -1, self.num_sent, self.num_sent
         )
 
@@ -90,7 +92,9 @@ class DAN(nn.Module):
 
 
 """
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 Asynchronous Deep Interactive Network
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 """
 
 
@@ -103,7 +107,7 @@ class InferentialModule(nn.Module):
         self.LayerNorm = nn.LayerNorm(conf["hidden_size"])
 
     def forward(self, ha, hb):
-        e = F.softmax(self.P(F.tanh(self.W(ha * hb))))
+        e = F.softmax(self.P(torch.tanh(self.W(ha * hb))))
         hb_d = ha * e
         hb_dd = torch.cat([hb, hb_d, hb - hb_d, hb * hb_d], dim=2)
         hb_b = self.LayerNorm(F.relu(self.Wb(hb_dd)))
@@ -200,7 +204,9 @@ class ADIN(nn.Module):
 
 
 """
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 Hierarchical Attention Network
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 """
 
 
@@ -216,7 +222,7 @@ class Attention(nn.Module):
 
     def forward(self, hid):
         opt = self.Ws(hid)
-        opt = F.tanh(opt)
+        opt = torch.tanh(opt)
         opt = self.Wa(opt)
         opt = F.softmax(opt, dim=1)
         return opt
@@ -300,7 +306,9 @@ class HAN(nn.Module):
 
 
 """
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 Relative Document Vector CNN
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 """
 
 
@@ -400,5 +408,7 @@ class DeepNoveltyCNN(nn.Module):
 
 
 """
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 Deep Interactive Inference Network
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 """

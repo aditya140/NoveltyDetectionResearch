@@ -4,6 +4,8 @@ import torch.nn.functional as F
 import torch.optim as optim
 import numpy as np
 
+from transformers import BertModel, DistilBertModel
+
 
 """
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -272,12 +274,6 @@ Structured Self attention based SNLI model
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 """
 
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-import torch.optim as optim
-import numpy as np
-
 
 class Struc_Attention(nn.Module):
     def __init__(self, conf):
@@ -493,9 +489,6 @@ def struc_attn_snli(options):
 BERT based SNLI model
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 """
-
-from transformers import BertModel, DistilBertModel
-
 
 class Bert_Encoder(nn.Module):
     def __init__(self, conf):
