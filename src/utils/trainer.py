@@ -47,6 +47,7 @@ class Trainer(abc.ABC):
 
         self.model_conf = model_conf
         self.dataset_conf = dataset_conf
+        self.hparams = hparams
         self.load_dataset(dataset_conf, **kwargs)
         self.load_model(model_conf, **kwargs)
         self.set_optimizers(hparams, **kwargs)
@@ -316,6 +317,11 @@ class Trainer(abc.ABC):
         fold_no = 0
         fold_acc = []
         for train_iter, val_iter in self.dataset.iter_folds():
+
+            self.load_model(self.model_conf, **kwargs)
+            self.set_optimizers(self.hparams, **kwargs)
+            self.set_schedulers(self.hparams, **kwargs)
+
             fold_no += 1
             start = time.time()
             train_acc_list, test_acc_list, train_loss_list, test_loss_list = (
