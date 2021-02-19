@@ -49,9 +49,10 @@ class Trainer(abc.ABC):
         self.dataset_conf = dataset_conf
         self.hparams = hparams
         self.load_dataset(dataset_conf, **kwargs)
-        self.load_model(model_conf, **kwargs)
-        self.set_optimizers(hparams, **kwargs)
-        self.set_schedulers(hparams, **kwargs)
+        if not args.folds:
+            self.load_model(model_conf, **kwargs)
+            self.set_optimizers(hparams, **kwargs)
+            self.set_schedulers(hparams, **kwargs)
         print("resource preparation done: {}".format(datetime.datetime.now()))
 
     @abc.abstractmethod
