@@ -35,6 +35,7 @@ def parse_nli_conf():
 
     # optimizer_conf
     parser.add_argument("--epochs", type=int, default=20)
+    parser.add_argument("--seed", type=int, default=-1)
     parser.add_argument("--lr", type=float, default=0.001)
     parser.add_argument("--optim", type=str, default="adamw")
     parser.add_argument("--loss_agg", type=str, default="sum")
@@ -246,6 +247,7 @@ def parse_novelty_conf():
     # optimizer_conf
     parser.add_argument("--epochs", type=int, default=20)
     parser.add_argument("--lr", type=float, default=0.001)
+    parser.add_argument("--seed", type=int, default=-1)
     parser.add_argument("--optim", type=str, default="adamw")
     parser.add_argument("--loss_agg", type=str, default="sum")
     parser.add_argument("--scheduler", type=str, default="step")
@@ -263,6 +265,10 @@ def parse_novelty_conf():
     # model_conf
     parser_han = subparsers.add_parser("han")
     han_model_parameters(parser_han)
+
+    # model_conf
+    parser_rdv = subparsers.add_parser("rdv_cnn")
+    rdv_cnn_model_parameters(parser_rdv)
 
     parser.add_argument("--results_dir", type=str, default="results")
     return check_args(parser.parse_args())
@@ -326,24 +332,27 @@ Novelty Detection Model Configurations
 def dan_model_parameters(parser_dump):
     parser_dump.add_argument("--hidden_size", type=int, default=400)
     parser_dump.add_argument("--dropout", type=float, default=0.3)
-    parser_dump.add_argument("--use_glove", type=bool, default=False)
 
 
 def han_model_parameters(parser_dump):
     parser_dump.add_argument("--hidden_size", type=int, default=400)
     parser_dump.add_argument("--dropout", type=float, default=0.3)
     parser_dump.add_argument("--num_layers", type=int, default=1)
-    parser_dump.add_argument("--use_glove", type=bool, default=False)
     parser_dump.add_argument("--attention_layer_param", type=int, default=200)
 
 
 def adin_model_parameters(parser_dump):
     parser_dump.add_argument("--hidden_size", type=int, default=400)
     parser_dump.add_argument("--dropout", type=float, default=0.3)
-    parser_dump.add_argument("--use_glove", type=bool, default=False)
     parser_dump.add_argument("--k", type=int, default=200)
     parser_dump.add_argument("--num_layers", type=int, default=1)
     parser_dump.add_argument("--N", type=int, default=1)
+
+
+def rdv_cnn_model_parameters(parser_dump):
+    parser_dump.add_argument("--dropout", type=float, default=0.3)
+    parser_dump.add_argument("--num_filters", type=int, default=95)
+    parser_dump.add_argument("--filter_sizes", type=int, nargs="+", default=[3, 5, 6])
 
 
 """
@@ -364,6 +373,11 @@ def check_args(args):
         assert args.batch_size >= 1
     except:
         print("batch size must be larger than or equal to one")
+
+    # --seed
+    if args.seed != -1:
+        seed_torch(args.seed)
+
     return args
 
 
@@ -393,12 +407,17 @@ def check_folder(log_dir):
 
 
 def seed_torch(seed=1029):
-    random.seed(seed)
     os.environ["PYTHONHASHSEED"] = str(seed)
+    random.seed(seed)
     np.random.seed(seed)
+    np.random.RandomState(seed)
+
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)  # seed all gpus
     torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.enabled = False
+    torch.backends.cudnn.benchmark = False
 
 
 def get_logger(args, phase, expt_id):
@@ -478,3 +497,50 @@ def load_encoder_data(_id):
     model_path = os.path.join("./results/", _id, "model.pt")
     model_data = torch.load(model_path)
     return model_data
+
+
+def init_weights(m):
+    classname = m.__class__.__name__
+    if classname.find("Linear") != -1 or classname.find("Bilinear") != -1:
+        nn.init.kaiming_uniform_(
+            a=2, mode="fan_in", nonlinearity="leaky_relu", tensor=m.weight
+        )
+        if m.bias:
+            nn.init.zeros(tensor=m.bias)
+
+    elif classname.find("Conv") != -1:
+        nn.init.kaiming_uniform_(
+            a=2, mode="fan_in", nonlinearity="leaky_relu", tensor=m.weight
+        )
+        if m.bias:
+            nn.init.zeros(tensor=m.bias)
+
+    elif (
+        classname.find("BatchNorm") != -1
+        or classname.find("GroupNorm") != -1
+        or classname.find("LayerNorm") != -1
+    ):
+        nn.init.uniform_(a=0, b=1, tensor=m.weight)
+        nn.init.zeros(tensor=m.bias)
+
+    elif classname.find("Cell") != -1:
+        nn.init.xavier_uniform_(gain=1, tensor=m.weight_hh)
+        nn.init.xavier_uniform_(gain=1, tensor=m.weight_ih)
+        nn.init.ones_(tensor=m.bias_hh)
+        nn.init.ones_(tensor=m.bias_ih)
+
+    elif (
+        classname.find("RNN") != -1
+        or classname.find("LSTM") != -1
+        or classname.find("GRU") != -1
+    ):
+        for w in m.all_weights:
+            nn.init.xavier_uniform_(gain=1, tensor=w[2].data)
+            nn.init.xavier_uniform_(gain=1, tensor=w[3].data)
+            nn.init.ones_(tensor=w[0].data)
+            nn.init.ones_(tensor=w[1].data)
+
+    if classname.find("Embedding") != -1:
+        nn.init.kaiming_uniform_(
+            a=2, mode="fan_in", nonlinearity="leaky_relu", tensor=m.weight
+        )

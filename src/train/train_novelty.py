@@ -54,6 +54,8 @@ class Train_novelty(Trainer):
             self.model = ADIN(model_conf, encoder)
         if kwargs["model_type"] == "han":
             self.model = HAN(model_conf, encoder)
+        if kwargs["model_type"] == "rdv_cnn":
+            self.model = RDV_CNN(model_conf, encoder)
 
         self.model.to(self.device)
         model_size = self.count_parameters(self.model)

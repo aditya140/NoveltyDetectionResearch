@@ -9,8 +9,6 @@ import torch.optim as optim
 
 from src.defaults import *
 
-seed_torch()
-
 
 class Trainer(abc.ABC):
     def __init__(

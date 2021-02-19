@@ -312,6 +312,7 @@ Relative Document Vector CNN
 """
 
 
+
 class Accumulator(nn.Module):
     def __init__(self, conf, encoder):
         super(Accumulator, self).__init__()
@@ -320,7 +321,7 @@ class Accumulator(nn.Module):
         self.template = nn.Parameter(torch.zeros((1)), requires_grad=True)
 
     def forward(self, src, trg):
-        batch_size, num_sent, max_len = src
+        batch_size, num_sent, max_len = src.shape
 
         x = src.view(-1, max_len)
         y = trg.view(-1, max_len)
@@ -379,11 +380,11 @@ class Accumulator(nn.Module):
         return rdv
 
 
-class DeepNoveltyCNN(nn.Module):
-    def __init__(self, conf):
-        super(DeepNoveltyCNN, self).__init__()
-        self.accumulator = Accumulator(conf)
-        self.linear = nn.Linear(conf.num_filters * len(conf.filter_sizes), 2)
+class RDV_CNN(nn.Module):
+    def __init__(self, conf,encoder):
+        super(RDV_CNN, self).__init__()
+        self.accumulator = Accumulator(conf,encoder)
+        self.linear = nn.Linear(conf["num_filters"] * len(conf["filter_sizes"]), 2)
         self.convs1 = nn.ModuleList(
             [
                 nn.Conv2d(
@@ -405,8 +406,6 @@ class DeepNoveltyCNN(nn.Module):
         opt = self.act(opt)
         opt = self.linear(opt)
         return opt
-
-
 """
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 Deep Interactive Inference Network
