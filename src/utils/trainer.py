@@ -353,7 +353,7 @@ class Trainer(abc.ABC):
                     neptune.log_metric("train acc", train_acc)
 
             took = time.time() - start
-            fold_acc.append(max(val_acc))
+            fold_acc.append(max(test_acc_list))
 
             print(
                 "| Fold {:3d}  | train loss {:5.2f} | train acc {:5.2f} | test loss {:5.2f} | test acc {:5.2f} | time: {:5.2f}s |".format(
