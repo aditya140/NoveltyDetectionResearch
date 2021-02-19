@@ -127,7 +127,7 @@ if __name__ == "__main__":
     )
     if args.folds:
         trainer.test_folds(
-            **{"batch_attr": {"model_inp": ["source", "target"], "label": "label"}}
+            **{"model_type":model_type,"batch_attr": {"model_inp": ["source", "target"], "label": "label"}}
         )
     else:
         trainer.fit(
