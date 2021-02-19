@@ -56,6 +56,8 @@ class Train_novelty(Trainer):
             self.model = HAN(model_conf, encoder)
         if kwargs["model_type"] == "rdv_cnn":
             self.model = RDV_CNN(model_conf, encoder)
+        if kwargs["model_type"] == "diin":
+            self.model = DIIN(model_conf, encoder)
 
         self.model.to(self.device)
         model_size = self.count_parameters(self.model)
@@ -123,4 +125,11 @@ if __name__ == "__main__":
     trainer = Train_novelty(
         args, dataset_conf, model_conf, optim_conf, model_type, sentence_field
     )
-    trainer.fit(**{"batch_attr": {"model_inp": ["source", "target"], "label": "label"}})
+    if args.folds:
+        trainer.test_folds(
+            **{"batch_attr": {"model_inp": ["source", "target"], "label": "label"}}
+        )
+    else:
+        trainer.fit(
+            **{"batch_attr": {"model_inp": ["source", "target"], "label": "label"}}
+        )

@@ -1,6 +1,7 @@
 import abc
 import neptune
 import datetime
+import time
 
 import torch
 import torch.nn as nn
@@ -88,7 +89,7 @@ class Trainer(abc.ABC):
         print(" [*] Training finished!")
         print(" [*] Please find the training log in results_dir")
 
-    def train(self, model, optimizer, criterion, train_iterator, **kwargs):
+    def train(self, model, optimizer, criterion, train_iterator, log_neptune, **kwargs):
         model.train()
 
         if hasattr(train_iterator, "init_epoch") and callable(
@@ -122,18 +123,20 @@ class Trainer(abc.ABC):
             )
             n_total += batch_size
             n_loss += loss.item()
-            if self.log_neptune:
+            if log_neptune:
                 neptune.log_metric("Train Loss", loss.item())
             loss.backward()
             optimizer.step()
         train_loss = n_loss / n_total
         train_acc = 100.0 * n_correct / n_total
-        if self.log_neptune:
+        if log_neptune:
             neptune.log_metric("Train Avg Loss", train_loss)
             neptune.log_metric("Train accuracy", train_acc)
         return train_loss, train_acc
 
-    def validate(self, model, optimizer, criterion, val_iterator, **kwargs):
+    def validate(
+        self, model, optimizer, criterion, val_iterator, log_neptune, **kwargs
+    ):
         model.eval()
         if hasattr(val_iterator, "init_epoch") and callable(val_iterator.init_epoch):
             val_iterator.init_epoch()
@@ -176,7 +179,7 @@ class Trainer(abc.ABC):
                 neptune.log_metric("Val Accuracy", val_acc)
             return val_loss, val_acc
 
-    def test(self, model, optimizer, criterion, test_iterator, **kwargs):
+    def test(self, model, optimizer, criterion, test_iterator, log_neptune, **kwargs):
         if hasattr(test_iterator, "init_epoch") and callable(test_iterator.init_epoch):
             test_iterator.init_epoch()
 
@@ -257,6 +260,7 @@ class Trainer(abc.ABC):
                 self.optimizer,
                 self.criterion,
                 self.dataset.train_iter,
+                self.log_neptune,
                 **kwargs
             )
             val_loss, val_acc = self.validate(
@@ -264,6 +268,7 @@ class Trainer(abc.ABC):
                 self.optimizer,
                 self.criterion,
                 self.dataset.val_iter,
+                self.log_neptune,
                 **kwargs
             )
             if self.scheduler != None:
@@ -286,6 +291,7 @@ class Trainer(abc.ABC):
                 self.optimizer,
                 self.criterion,
                 self.dataset.test_iter,
+                self.log_neptune,
                 **kwargs
             )
             print(
@@ -302,4 +308,80 @@ class Trainer(abc.ABC):
                     test_acc,
                 )
             )
+        self.finish()
+
+    def test_folds(self, **kwargs):
+        print(" [*] Training starts!")
+        print("-" * 99)
+        fold_no = 0
+        fold_acc = []
+        for train_iter, val_iter in self.dataset.iter_folds():
+            fold_no += 1
+            start = time.time()
+            train_acc_list, test_acc_list, train_loss_list, test_loss_list = (
+                [],
+                [],
+                [],
+                [],
+            )
+            for epoch in range(1, self.args.epochs + 1):
+                train_loss, train_acc = self.train(
+                    self.model,
+                    self.optimizer,
+                    self.criterion,
+                    self.dataset.train_iter,
+                    False,
+                    **kwargs
+                )
+                val_loss, val_acc = self.validate(
+                    self.model,
+                    self.optimizer,
+                    self.criterion,
+                    self.dataset.val_iter,
+                    False,
+                    **kwargs
+                )
+                test_acc_list.append(val_acc)
+                test_loss_list.append(val_loss)
+                train_acc_list.append(train_acc)
+                train_loss_list.append(train_loss)
+
+                if self.scheduler != None:
+                    self.scheduler.step()
+
+                if self.log_neptune:
+                    neptune.log_metric("train acc", train_acc)
+
+            took = time.time() - start
+            fold_acc.append(max(val_acc))
+
+            print(
+                "| Fold {:3d}  | train loss {:5.2f} | train acc {:5.2f} | test loss {:5.2f} | test acc {:5.2f} | time: {:5.2f}s |".format(
+                    fold_no,
+                    min(train_loss_list),
+                    max(train_acc_list),
+                    min(test_loss_list),
+                    max(test_acc_list),
+                    took,
+                )
+            )
+
+            if self.log_neptune:
+                neptune.log_metric("Fold Accuracy", max(test_acc_list))
+
+        print(
+            "| Fold {:3d}  |                | final acc {:5.2f} |                |               |               |".format(
+                0,
+                sum(fold_acc) / len(fold_acc),
+            )
+        )
+        if self.log_neptune:
+            neptune.log_metric("Final Accuracy", sum(fold_acc) / len(fold_acc))
+
+        self.logger.info(
+            "| Fold {:3d}  |                | final acc {:5.2f} |                |               |               |".format(
+                0,
+                sum(fold_acc) / len(fold_acc),
+            )
+        )
         self.finish()

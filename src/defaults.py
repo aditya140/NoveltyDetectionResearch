@@ -239,6 +239,7 @@ def parse_novelty_conf():
     parser.add_argument("--load_nli", type=str, default="None")
     parser.add_argument("--max_num_sent", type=int, default=50)
     parser.add_argument("--device", type=str, default="cuda")
+    parser.add_argument("--folds", type=bool, default=False)
     parser.add_argument("--batch_size", type=int, default=32)
     parser.add_argument("--tokenizer", type=str, default="None")
     parser.add_argument("--max_len", type=int, default=0)
@@ -269,6 +270,10 @@ def parse_novelty_conf():
     # model_conf
     parser_rdv = subparsers.add_parser("rdv_cnn")
     rdv_cnn_model_parameters(parser_rdv)
+
+    # model_conf
+    parser_diin = subparsers.add_parser("diin")
+    diin_model_parameters(parser_diin)
 
     parser.add_argument("--results_dir", type=str, default="results")
     return check_args(parser.parse_args())
@@ -353,6 +358,23 @@ def rdv_cnn_model_parameters(parser_dump):
     parser_dump.add_argument("--dropout", type=float, default=0.3)
     parser_dump.add_argument("--num_filters", type=int, default=95)
     parser_dump.add_argument("--filter_sizes", type=int, nargs="+", default=[3, 5, 6])
+
+
+def diin_model_parameters(parser_dump):
+    parser_dump.add_argument("--hidden_size", type=int, default=400)
+    parser_dump.add_argument(
+        "--dropout", type=float, nargs="+", default=[0.3, 0.3, 0.3, 0.3, 0.3]
+    )
+    parser_dump.add_argument(
+        "--dense_net_first_scale_down_ratio", type=float, default=0.3
+    )
+    parser_dump.add_argument("--dense_net_channels", type=int, default=100)
+    parser_dump.add_argument("--dense_net_kernel_size", type=int, default=3)
+    parser_dump.add_argument("--dense_net_transition_rate", type=float, default=0.2)
+    parser_dump.add_argument("--first_scale_down_kernel", type=int, default=1)
+    parser_dump.add_argument("--num_layers", type=int, default=2)
+    parser_dump.add_argument("--dense_net_layers", type=int, default=3)
+    parser_dump.add_argument("--dense_net_growth_rate", type=int, default=20)
 
 
 """

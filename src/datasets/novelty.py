@@ -2,6 +2,7 @@ import io, os, glob, shutil
 import six
 import requests
 import random
+import numpy as np
 
 from tqdm import tqdm
 import tarfile, zipfile, gzip
@@ -13,6 +14,7 @@ import torch
 from torchtext import data
 from torchtext.data import Field, NestedField, LabelField, BucketIterator
 from transformers import BertTokenizer, DistilBertTokenizer
+from sklearn.model_selection import KFold, StratifiedKFold
 import nltk, spacy
 
 from ..utils.download_utils import download_from_url
@@ -348,6 +350,25 @@ class Novelty:
             batch_size=options["batch_size"],
             device=options["device"],
         )
+
+    def iter_folds(self):
+        kf = StratifiedKFold(n_splits=10, shuffle=True, random_state=1029)
+        train_exs_arr = np.array(self.data.examples)
+        labels = np.array([i.label for i in self.data.examples])
+        fields = self.data.fields
+        for train_idx, test_idx in kf.split(train_exs_arr, y=labels):
+            yield (
+                BucketIterator(
+                    data.Dataset(train_exs_arr[train_idx], fields),
+                    batch_size=self.options["batch_size"],
+                    device=self.options["device"],
+                ),
+                BucketIterator(
+                    data.Dataset(train_exs_arr[test_idx], fields),
+                    batch_size=self.options["batch_size"],
+                    device=self.options["device"],
+                ),
+            )
 
     def vocab_size(self):
         if self.options["use_vocab"]:
