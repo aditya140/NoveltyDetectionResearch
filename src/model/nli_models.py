@@ -490,6 +490,7 @@ BERT based SNLI model
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 """
 
+
 class Bert_Encoder(nn.Module):
     def __init__(self, conf):
         super(Bert_Encoder, self).__init__()
@@ -502,3 +503,147 @@ class Bert_Encoder(nn.Module):
         opt = self.fc(enc)
         opt = opt.unsqueeze(0)
         return opt
+
+
+"""
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Multiway Attention Network
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+"""
+
+
+# class MwAN(nn.Module):
+#     def __init__(self, conf):
+#         super().__init__()
+#         self.dropout = conf["dropout"]
+#         self.embedding = nn.Embedding(
+#             num_embeddings=conf["vocab_size"],
+#             embedding_dim=conf["embedding_dim"],
+#             padding_idx=conf["padding_idx"],
+#         )
+#         if conf["use_glove"]:
+#             self.embedding = nn.Embedding.from_pretrained(
+#                 torch.load(".vector_cache/{}_vectors.pt".format(conf["dataset"]))
+#             )
+
+#         if conf["use_char_emb"]:
+#             self.char_embedding = nn.Embedding(
+#                 num_embeddings=conf["char_vocab_size"],
+#                 embedding_dim=conf["char_embedding_dim"],
+#                 padding_idx=0,
+#             )
+#             self.char_cnn = nn.Conv2d(
+#                 conf["max_word_len"],
+#                 conf["char_embedding_dim"],
+#                 (1, 6),
+#                 stride=(1, 1),
+#                 padding=0,
+#                 bias=True,
+#             )
+
+#         self.projection = nn.Linear(
+#             (
+#                 conf["embedding_dim"]
+#                 + int(conf["use_char_emb"]) * conf["char_embedding_dim"]
+#             ),
+#             conf["hidden_size"],
+#         )
+
+#         self.gru = nn.GRU(
+#             input_size=conf["hidden_size"],
+#             hidden_size=conf["hidden_size"],
+#             batch_first=True,
+#             bidirectional=True,
+#         )
+
+#         self.a_attention = nn.Linear(conf["hidden_size"], 1, bias=False)
+#         # Concat Attention
+#         self.Wc1 = nn.Linear(2 * conf["hidden_size"], conf["hidden_size"], bias=False)
+#         self.Wc2 = nn.Linear(2 * conf["hidden_size"], conf["hidden_size"], bias=False)
+#         self.vc = nn.Linear(conf["hidden_size"], 1, bias=False)
+#         # Bilinear Attention
+#         self.Wb = nn.Linear(
+#             2 * conf["hidden_size"], 2 * conf["hidden_size"], bias=False
+#         )
+#         # Dot Attention :
+#         self.Wd = nn.Linear(2 * conf["hidden_size"], conf["hidden_size"], bias=False)
+#         self.vd = nn.Linear(conf["hidden_size"], 1, bias=False)
+#         # Minus Attention :
+#         self.Wm = nn.Linear(2 * conf["hidden_size"], conf["hidden_size"], bias=False)
+#         self.vm = nn.Linear(conf["hidden_size"], 1, bias=False)
+
+#         self.Ws = nn.Linear(2 * conf["hidden_size"], conf["hidden_size"], bias=False)
+#         self.vs = nn.Linear(conf["hidden_size"], 1, bias=False)
+
+#         self.gru_agg = nn.GRU(
+#             12 * conf["hidden_size"],
+#             conf["hidden_size"],
+#             batch_first=True,
+#             bidirectional=True,
+#         )
+
+#         self.Wq = nn.Linear(2 * conf["hidden_size"], conf["hidden_size"], bias=False)
+#         self.vq = nn.Linear(conf["hidden_size"], 1, bias=False)
+#         self.Wp1 = nn.Linear(2 * conf["hidden_size"], conf["hidden_size"], bias=False)
+#         self.Wp2 = nn.Linear(2 * conf["hidden_size"], conf["hidden_size"], bias=False)
+#         self.vp = nn.Linear(conf["hidden_size"], 1, bias=False)
+#         self.prediction = nn.Linear(2 * conf["hidden_size"], 2, bias=False)
+
+#     def forward(self, premise, hypothesis):
+#         q_emb = self.embedding(premise)
+#         h_emb = self.embedding(hypothesis)
+
+#         a_embedding, _ = self.a_encoder(
+#             a_embeddings.view(-1, a_embeddings.size(2), a_embeddings.size(3))
+#         )
+#         a_score = F.softmax(self.a_attention(a_embedding), 1)  ### 32*50*1
+#         a_output = (
+#             a_score.transpose(2, 1).bmm(a_embedding).squeeze()
+#         )  ### 32*1*50 32*50*128 => 32*50*128
+#         a_embedding = a_output.view(a_embeddings.size(0), 3, -1)
+
+#         hq, _ = self.q_encoder(p_embedding)
+#         hq = F.dropout(hq, self.drop_out)
+
+#         hp, _ = self.p_encoder(q_embedding)
+#         hp = F.dropout(hp, self.drop_out)
+
+#         _s1 = self.Wc1(hq).unsqueeze(1)
+#         _s2 = self.Wc2(hp).unsqueeze(2)
+#         sjt = self.vc(torch.tanh(_s1 + _s2)).squeeze()
+#         ait = F.softmax(sjt, 2)
+#         qtc = ait.bmm(hq)
+#         _s1 = self.Wb(hq).transpose(2, 1)
+#         sjt = hp.bmm(_s1)
+#         ait = F.softmax(sjt, 2)
+#         qtb = ait.bmm(hq)
+#         _s1 = hq.unsqueeze(1)
+#         _s2 = hp.unsqueeze(2)
+#         sjt = self.vd(torch.tanh(self.Wd(_s1 * _s2))).squeeze()
+#         ait = F.softmax(sjt, 2)
+#         qtd = ait.bmm(hq)
+#         sjt = self.vm(torch.tanh(self.Wm(_s1 - _s2))).squeeze()
+#         ait = F.softmax(sjt, 2)
+#         qtm = ait.bmm(hq)
+#         _s1 = hp.unsqueeze(1)
+#         _s2 = hp.unsqueeze(2)
+#         sjt = self.vs(torch.tanh(self.Ws(_s1 * _s2))).squeeze()
+#         ait = F.softmax(sjt, 2)
+#         qts = ait.bmm(hp)
+#         aggregation = torch.cat([hp, qts, qtc, qtd, qtb, qtm], 2)
+#         aggregation_representation, _ = self.gru_agg(aggregation)
+#         sj = self.vq(torch.tanh(self.Wq(hq))).transpose(2, 1)
+#         rq = F.softmax(sj, 2).bmm(hq)
+#         sj = F.softmax(
+#             self.vp(self.Wp1(aggregation_representation) + self.Wp2(rq)).transpose(
+#                 2, 1
+#             ),
+#             2,
+#         )
+#         rp = sj.bmm(aggregation_representation)
+#         encoder_output = F.dropout(F.leaky_relu(self.prediction(rp)), self.drop_out)
+#         score = F.softmax(a_embedding.bmm(encoder_output.transpose(2, 1)).squeeze(), 1)
+#         if not is_train:
+#             return score.argmax(1)
+#         loss = -torch.log(score[:, 0]).mean()
+#         return loss
