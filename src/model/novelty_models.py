@@ -741,6 +741,164 @@ Multiway Attention Network
 """
 
 
+class concat_attention(nn.Module):
+    def __init__(self, hidden_size):
+        super().__init__()
+        self.Wc1 = nn.Linear(2 * hidden_size, hidden_size, bias=False)
+        self.Wc2 = nn.Linear(2 * hidden_size, hidden_size, bias=False)
+        self.vc = nn.Linear(hidden_size, 1, bias=False)
+
+    def forward(self, x, y):
+        _s1 = self.Wc1(x).unsqueeze(1)
+        _s2 = self.Wc2(y).unsqueeze(2)
+        sjt = self.vc(torch.tanh(_s1 + _s2)).squeeze()
+        ait = F.softmax(sjt, 2)
+        qtc = ait.bmm(x)
+        return qtc
+
+
+class bilinear_attention(nn.Module):
+    def __init__(self, hidden_size):
+        super().__init__()
+        self.Wb = nn.Linear(2 * hidden_size, 2 * hidden_size, bias=False)
+
+    def forward(self, x, y):
+        _s1 = self.Wb(x).transpose(2, 1)
+        sjt = y.bmm(_s1)
+        ait = F.softmax(sjt, 2)
+        qtb = ait.bmm(x)
+        return qtb
+
+
+class dot_attention(nn.Module):
+    def __init__(self, hidden_size):
+        super().__init__()
+        self.Wd = nn.Linear(2 * hidden_size, hidden_size, bias=False)
+        self.vd = nn.Linear(hidden_size, 1, bias=False)
+
+    def forward(self, x, y):
+        _s1 = x.unsqueeze(1)
+        _s2 = y.unsqueeze(2)
+        sjt = self.vd(torch.tanh(self.Wd(_s1 * _s2))).squeeze()
+        ait = F.softmax(sjt, 2)
+        qtd = ait.bmm(x)
+        return qtd
+
+
+class minus_attention(nn.Module):
+    def __init__(self, hidden_size):
+        super().__init__()
+        self.Wm = nn.Linear(2 * hidden_size, hidden_size, bias=False)
+        self.vm = nn.Linear(hidden_size, 1, bias=False)
+
+        self.Ws = nn.Linear(2 * hidden_size, hidden_size, bias=False)
+        self.vs = nn.Linear(hidden_size, 1, bias=False)
+
+    def forward(self, x, y):
+        _s1 = x.unsqueeze(1)
+        _s2 = y.unsqueeze(2)
+        sjt = self.vm(torch.tanh(self.Wm(_s1 - _s2))).squeeze()
+        ait = F.softmax(sjt, 2)
+        qtm = ait.bmm(x)
+        return qtm
+
+
+class MwAN(nn.Module):
+    def __init__(self, conf, encoder):
+        super().__init__()
+        self.conf = conf
+        self.dropout = nn.Dropout(conf["dropout"])
+        self.encoder = encoder
+        self.template = nn.Parameter(torch.zeros((1)), requires_grad=True)
+        self.prem_gru = nn.GRU(
+            input_size=2 * self.conf["encoder_dim"],
+            hidden_size=self.conf["hidden_size"],
+            batch_first=True,
+            bidirectional=True,
+        )
+
+        self.hypo_gru = nn.GRU(
+            input_size=2 * self.conf["encoder_dim"],
+            hidden_size=conf["hidden_size"],
+            batch_first=True,
+            bidirectional=True,
+        )
+
+        # Concat Attention
+        self.concat_attn = concat_attention(conf["hidden_size"])
+        # Bilinear Attention
+        self.bilinear_attn = bilinear_attention(conf["hidden_size"])
+        # Dot Attention :
+        self.dot_attn_1 = dot_attention(conf["hidden_size"])
+        self.dot_attn_2 = dot_attention(conf["hidden_size"])
+        # Minus Attention :
+        self.minus_attn = minus_attention(conf["hidden_size"])
+
+        self.gru_agg = nn.GRU(
+            12 * conf["hidden_size"],
+            conf["hidden_size"],
+            batch_first=True,
+            bidirectional=True,
+        )
+
+        self.Wq = nn.Linear(2 * conf["hidden_size"], conf["hidden_size"], bias=False)
+        self.vq = nn.Linear(conf["hidden_size"], 1, bias=False)
+
+        self.Wp1 = nn.Linear(2 * conf["hidden_size"], conf["hidden_size"], bias=False)
+        self.Wp2 = nn.Linear(2 * conf["hidden_size"], conf["hidden_size"], bias=False)
+        self.vp = nn.Linear(conf["hidden_size"], 1, bias=False)
+
+        self.prediction = nn.Linear(2 * conf["hidden_size"], 2, bias=False)
+
+    def encode_sent(self, inp):
+        batch_size, num_sent, max_len = inp.shape
+        x = inp.view(-1, max_len)
+
+        x_padded_idx = x.sum(dim=1) != 0
+        x_enc = []
+        for sub_batch in x[x_padded_idx].split(64):
+            x_enc.append(self.encoder(sub_batch, None))
+        x_enc = torch.cat(x_enc, dim=0)
+
+        x_enc_t = torch.zeros((batch_size * num_sent, x_enc.size(1))).to(
+            self.template.device
+        )
+
+        x_enc_t[x_padded_idx] = x_enc
+        x_enc_t = x_enc_t.view(batch_size, num_sent, -1)
+
+        return x_enc_t
+
+    def forward(self, x0, x1):
+        x0_enc = self.encode_sent(x0)
+        x1_enc = self.encode_sent(x1)
+
+        x0_enc, _ = self.prem_gru(x0_enc)
+        x1_enc, _ = self.hypo_gru(x1_enc)
+
+        qtc = self.concat_attn(x0_enc, x1_enc)
+        qtb = self.bilinear_attn(x0_enc, x1_enc)
+        qts = self.dot_attn_1(x0_enc, x1_enc)
+        qtd = self.dot_attn_2(x1_enc, x0_enc)
+        qtm = self.minus_attn(x0_enc, x1_enc)
+
+        aggregation = torch.cat([x1_enc, qts, qtc, qtd, qtb, qtm], 2)
+        aggregation_representation, _ = self.gru_agg(aggregation)
+
+        sj = self.vq(torch.tanh(self.Wq(x0_enc))).transpose(2, 1)
+        rq = F.softmax(sj, 2).bmm(x0_enc)
+        sj = F.softmax(
+            self.vp(self.Wp1(aggregation_representation) + self.Wp2(rq)).transpose(
+                2, 1
+            ),
+            2,
+        )
+        rp = sj.bmm(aggregation_representation)
+        encoder_output = self.dropout(F.relu(self.prediction(rp)))
+        encoder_output = encoder_output.squeeze(1)
+        return encoder_output
+
+
 """
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 Hierarchical Attention Network + CNN

@@ -512,51 +512,73 @@ Multiway Attention Network
 """
 
 
+class MwAN_Encoder(nn.Module):
+    def __init__(self, conf):
+        super().__init__()
+        self.dropout = nn.Dropout(conf["dropout"])
+        self.embedding = nn.Embedding(
+            num_embeddings=conf["vocab_size"],
+            embedding_dim=conf["embedding_dim"],
+            padding_idx=conf["padding_idx"],
+        )
+
+        if conf["use_glove"]:
+            self.embedding = nn.Embedding.from_pretrained(
+                torch.load(".vector_cache/{}_vectors.pt".format(conf["dataset"]))
+            )
+
+        if conf["use_char_emb"]:
+            self.char_embedding = nn.Embedding(
+                num_embeddings=conf["char_vocab_size"],
+                embedding_dim=conf["char_embedding_dim"],
+                padding_idx=0,
+            )
+            self.char_cnn = nn.Conv2d(
+                conf["max_word_len"],
+                conf["char_embedding_dim"],
+                (1, 6),
+                stride=(1, 1),
+                padding=0,
+                bias=True,
+            )
+
+        self.gru = nn.GRU(
+            input_size=(
+                conf["embedding_dim"]
+                + int(conf["use_char_emb"]) * conf["char_embedding_dim"]
+            ),
+            hidden_size=conf["hidden_size"],
+            batch_first=True,
+            bidirectional=True,
+        )
+
+    def char_embedding_forward(self, x):
+        # X - [batch_size, seq_len, char_emb_size])
+        batch_size, seq_len, char_emb_size = x.shape
+        x = x.view(-1, char_emb_size)
+        x = self.char_embedding(x)  # (batch_size * seq_len, char_emb_size, emb_size)
+        x = x.view(batch_size, -1, seq_len, char_emb_size)
+        x = x.permute(0, 3, 2, 1)
+        x = self.char_cnn(x)
+        x = torch.max(F.relu(x), 3)[0]
+        return x.view(batch_size, seq_len, -1)
+
+    def forward(self, inp, char_vec):
+        embedded = self.embedding(inp)
+        if char_vec != None:
+            char_emb = self.char_embedding_forward(char_vec)
+            embedded = torch.cat([embedded, char_emb], dim=2)
+        all_, _ = self.gru(embedded)
+        all_ = self.dropout(all_)
+        return all_
+
+
 # class MwAN(nn.Module):
 #     def __init__(self, conf):
 #         super().__init__()
-#         self.dropout = conf["dropout"]
-#         self.embedding = nn.Embedding(
-#             num_embeddings=conf["vocab_size"],
-#             embedding_dim=conf["embedding_dim"],
-#             padding_idx=conf["padding_idx"],
-#         )
-#         if conf["use_glove"]:
-#             self.embedding = nn.Embedding.from_pretrained(
-#                 torch.load(".vector_cache/{}_vectors.pt".format(conf["dataset"]))
-#             )
+#         self.dropout = nn.Dropout(conf["dropout"])
+#         self.encoder = MwAN_Encoder(conf)
 
-#         if conf["use_char_emb"]:
-#             self.char_embedding = nn.Embedding(
-#                 num_embeddings=conf["char_vocab_size"],
-#                 embedding_dim=conf["char_embedding_dim"],
-#                 padding_idx=0,
-#             )
-#             self.char_cnn = nn.Conv2d(
-#                 conf["max_word_len"],
-#                 conf["char_embedding_dim"],
-#                 (1, 6),
-#                 stride=(1, 1),
-#                 padding=0,
-#                 bias=True,
-#             )
-
-#         self.projection = nn.Linear(
-#             (
-#                 conf["embedding_dim"]
-#                 + int(conf["use_char_emb"]) * conf["char_embedding_dim"]
-#             ),
-#             conf["hidden_size"],
-#         )
-
-#         self.gru = nn.GRU(
-#             input_size=conf["hidden_size"],
-#             hidden_size=conf["hidden_size"],
-#             batch_first=True,
-#             bidirectional=True,
-#         )
-
-#         self.a_attention = nn.Linear(conf["hidden_size"], 1, bias=False)
 #         # Concat Attention
 #         self.Wc1 = nn.Linear(2 * conf["hidden_size"], conf["hidden_size"], bias=False)
 #         self.Wc2 = nn.Linear(2 * conf["hidden_size"], conf["hidden_size"], bias=False)
@@ -587,53 +609,41 @@ Multiway Attention Network
 #         self.Wp1 = nn.Linear(2 * conf["hidden_size"], conf["hidden_size"], bias=False)
 #         self.Wp2 = nn.Linear(2 * conf["hidden_size"], conf["hidden_size"], bias=False)
 #         self.vp = nn.Linear(conf["hidden_size"], 1, bias=False)
-#         self.prediction = nn.Linear(2 * conf["hidden_size"], 2, bias=False)
+#         self.prediction = nn.Linear(2 * conf["hidden_size"], 3, bias=False)
 
-#     def forward(self, premise, hypothesis):
-#         q_emb = self.embedding(premise)
-#         h_emb = self.embedding(hypothesis)
+#     def forward(self, premise, hypothesis, **kwargs):
+#         char_vec_x0 = kwargs.get("char_premise", None)
+#         char_vec_x1 = kwargs.get("char_hypothesis", None)
 
-#         a_embedding, _ = self.a_encoder(
-#             a_embeddings.view(-1, a_embeddings.size(2), a_embeddings.size(3))
-#         )
-#         a_score = F.softmax(self.a_attention(a_embedding), 1)  ### 32*50*1
-#         a_output = (
-#             a_score.transpose(2, 1).bmm(a_embedding).squeeze()
-#         )  ### 32*1*50 32*50*128 => 32*50*128
-#         a_embedding = a_output.view(a_embeddings.size(0), 3, -1)
+#         hp = self.encoder(premise, char_vec_x0)
+#         hh = self.encoder(hypothesis, char_vec_x1)
 
-#         hq, _ = self.q_encoder(p_embedding)
-#         hq = F.dropout(hq, self.drop_out)
-
-#         hp, _ = self.p_encoder(q_embedding)
-#         hp = F.dropout(hp, self.drop_out)
-
-#         _s1 = self.Wc1(hq).unsqueeze(1)
-#         _s2 = self.Wc2(hp).unsqueeze(2)
+#         _s1 = self.Wc1(hp).unsqueeze(1)
+#         _s2 = self.Wc2(hh).unsqueeze(2)
 #         sjt = self.vc(torch.tanh(_s1 + _s2)).squeeze()
 #         ait = F.softmax(sjt, 2)
-#         qtc = ait.bmm(hq)
-#         _s1 = self.Wb(hq).transpose(2, 1)
-#         sjt = hp.bmm(_s1)
+#         qtc = ait.bmm(hp)
+#         _s1 = self.Wb(hp).transpose(2, 1)
+#         sjt = hh.bmm(_s1)
 #         ait = F.softmax(sjt, 2)
-#         qtb = ait.bmm(hq)
-#         _s1 = hq.unsqueeze(1)
-#         _s2 = hp.unsqueeze(2)
+#         qtb = ait.bmm(hp)
+#         _s1 = hp.unsqueeze(1)
+#         _s2 = hh.unsqueeze(2)
 #         sjt = self.vd(torch.tanh(self.Wd(_s1 * _s2))).squeeze()
 #         ait = F.softmax(sjt, 2)
-#         qtd = ait.bmm(hq)
+#         qtd = ait.bmm(hp)
 #         sjt = self.vm(torch.tanh(self.Wm(_s1 - _s2))).squeeze()
 #         ait = F.softmax(sjt, 2)
-#         qtm = ait.bmm(hq)
+#         qtm = ait.bmm(hp)
 #         _s1 = hp.unsqueeze(1)
-#         _s2 = hp.unsqueeze(2)
+#         _s2 = hh.unsqueeze(2)
 #         sjt = self.vs(torch.tanh(self.Ws(_s1 * _s2))).squeeze()
 #         ait = F.softmax(sjt, 2)
-#         qts = ait.bmm(hp)
-#         aggregation = torch.cat([hp, qts, qtc, qtd, qtb, qtm], 2)
+#         qts = ait.bmm(hh)
+#         aggregation = torch.cat([hh, qts, qtc, qtd, qtb, qtm], 2)
 #         aggregation_representation, _ = self.gru_agg(aggregation)
-#         sj = self.vq(torch.tanh(self.Wq(hq))).transpose(2, 1)
-#         rq = F.softmax(sj, 2).bmm(hq)
+#         sj = self.vq(torch.tanh(self.Wq(hp))).transpose(2, 1)
+#         rq = F.softmax(sj, 2).bmm(hp)
 #         sj = F.softmax(
 #             self.vp(self.Wp1(aggregation_representation) + self.Wp2(rq)).transpose(
 #                 2, 1
@@ -641,9 +651,161 @@ Multiway Attention Network
 #             2,
 #         )
 #         rp = sj.bmm(aggregation_representation)
-#         encoder_output = F.dropout(F.leaky_relu(self.prediction(rp)), self.drop_out)
-#         score = F.softmax(a_embedding.bmm(encoder_output.transpose(2, 1)).squeeze(), 1)
-#         if not is_train:
-#             return score.argmax(1)
-#         loss = -torch.log(score[:, 0]).mean()
-#         return loss
+#         encoder_output = self.dropout(F.relu(self.prediction(rp)))
+#         encoder_output = F.softmax(encoder_output.squeeze(1), dim=1)
+#         return encoder_output
+
+
+class MwAN_snli(nn.Module):
+    def __init__(self, conf):
+        super().__init__()
+        self.dropout = nn.Dropout(conf["dropout"])
+
+        self.embedding = nn.Embedding(
+            num_embeddings=conf["vocab_size"],
+            embedding_dim=conf["embedding_dim"],
+            padding_idx=conf["padding_idx"],
+        )
+
+        if conf["use_glove"]:
+            self.embedding = nn.Embedding.from_pretrained(
+                torch.load(".vector_cache/{}_vectors.pt".format(conf["dataset"]))
+            )
+
+        if conf["use_char_emb"]:
+            self.char_embedding = nn.Embedding(
+                num_embeddings=conf["char_vocab_size"],
+                embedding_dim=conf["char_embedding_dim"],
+                padding_idx=0,
+            )
+            self.char_cnn = nn.Conv2d(
+                conf["max_word_len"],
+                conf["char_embedding_dim"],
+                (1, 6),
+                stride=(1, 1),
+                padding=0,
+                bias=True,
+            )
+
+        self.prem_gru = nn.GRU(
+            input_size=(
+                conf["embedding_dim"]
+                + int(conf["use_char_emb"]) * conf["char_embedding_dim"]
+            ),
+            hidden_size=conf["hidden_size"],
+            batch_first=True,
+            bidirectional=True,
+        )
+
+        self.hypo_gru = nn.GRU(
+            input_size=(
+                conf["embedding_dim"]
+                + int(conf["use_char_emb"]) * conf["char_embedding_dim"]
+            ),
+            hidden_size=conf["hidden_size"],
+            batch_first=True,
+            bidirectional=True,
+        )
+
+        # Concat Attention
+        self.Wc1 = nn.Linear(2 * conf["hidden_size"], conf["hidden_size"], bias=False)
+        self.Wc2 = nn.Linear(2 * conf["hidden_size"], conf["hidden_size"], bias=False)
+        self.vc = nn.Linear(conf["hidden_size"], 1, bias=False)
+        # Bilinear Attention
+        self.Wb = nn.Linear(
+            2 * conf["hidden_size"], 2 * conf["hidden_size"], bias=False
+        )
+        # Dot Attention :
+        self.Wd = nn.Linear(2 * conf["hidden_size"], conf["hidden_size"], bias=False)
+        self.vd = nn.Linear(conf["hidden_size"], 1, bias=False)
+        # Minus Attention :
+        self.Wm = nn.Linear(2 * conf["hidden_size"], conf["hidden_size"], bias=False)
+        self.vm = nn.Linear(conf["hidden_size"], 1, bias=False)
+
+        self.Ws = nn.Linear(2 * conf["hidden_size"], conf["hidden_size"], bias=False)
+        self.vs = nn.Linear(conf["hidden_size"], 1, bias=False)
+
+        self.gru_agg = nn.GRU(
+            12 * conf["hidden_size"],
+            conf["hidden_size"],
+            batch_first=True,
+            bidirectional=True,
+        )
+
+        self.Wq = nn.Linear(2 * conf["hidden_size"], conf["hidden_size"], bias=False)
+        self.vq = nn.Linear(conf["hidden_size"], 1, bias=False)
+        self.Wp1 = nn.Linear(2 * conf["hidden_size"], conf["hidden_size"], bias=False)
+        self.Wp2 = nn.Linear(2 * conf["hidden_size"], conf["hidden_size"], bias=False)
+        self.vp = nn.Linear(conf["hidden_size"], 1, bias=False)
+
+        self.prediction = nn.Linear(2 * conf["hidden_size"], 3, bias=False)
+
+    def char_embedding_forward(self, x):
+        # X - [batch_size, seq_len, char_emb_size])
+        batch_size, seq_len, char_emb_size = x.shape
+        x = x.view(-1, char_emb_size)
+        x = self.char_embedding(x)  # (batch_size * seq_len, char_emb_size, emb_size)
+        x = x.view(batch_size, -1, seq_len, char_emb_size)
+        x = x.permute(0, 3, 2, 1)
+        x = self.char_cnn(x)
+        x = torch.max(F.relu(x), 3)[0]
+        return x.view(batch_size, seq_len, -1)
+
+    def forward(self, premise, hypothesis, **kwargs):
+        char_vec_x0 = kwargs.get("char_premise", None)
+        char_vec_x1 = kwargs.get("char_hypothesis", None)
+
+        hp = self.embedding(premise)
+        hh = self.embedding(hypothesis)
+
+        if char_vec_x0 != None:
+            char_emb_hp = self.char_embedding_forward(char_vec_x0)
+            hp = torch.cat([hp, char_emb_hp], dim=2)
+
+        if char_vec_x1 != None:
+            char_emb_hh = self.char_embedding_forward(char_vec_x1)
+            hh = torch.cat([hh, char_emb_hh], dim=2)
+
+        hp, _ = self.prem_gru(hp)
+        hh, _ = self.hypo_gru(hh)
+
+        _s1 = self.Wc1(hp).unsqueeze(1)
+        _s2 = self.Wc2(hh).unsqueeze(2)
+        sjt = self.vc(torch.tanh(_s1 + _s2)).squeeze()
+        ait = F.softmax(sjt, 2)
+        qtc = ait.bmm(hp)
+        _s1 = self.Wb(hp).transpose(2, 1)
+        sjt = hh.bmm(_s1)
+        ait = F.softmax(sjt, 2)
+        qtb = ait.bmm(hp)
+        _s1 = hp.unsqueeze(1)
+        _s2 = hh.unsqueeze(2)
+        sjt = self.vd(torch.tanh(self.Wd(_s1 * _s2))).squeeze()
+        ait = F.softmax(sjt, 2)
+        qtd = ait.bmm(hp)
+        sjt = self.vm(torch.tanh(self.Wm(_s1 - _s2))).squeeze()
+        ait = F.softmax(sjt, 2)
+        qtm = ait.bmm(hp)
+        _s1 = hh.unsqueeze(1)
+        _s2 = hh.unsqueeze(2)
+        sjt = self.vs(torch.tanh(self.Ws(_s1 * _s2))).squeeze()
+        ait = F.softmax(sjt, 2)
+        qts = ait.bmm(hh)
+        aggregation = torch.cat([hh, qts, qtc, qtd, qtb, qtm], 2)
+        aggregation_representation, _ = self.gru_agg(aggregation)
+        sj = self.vq(torch.tanh(self.Wq(hp))).transpose(2, 1)
+        rq = F.softmax(sj, 2).bmm(hp)
+        sj = F.softmax(
+            self.vp(self.Wp1(aggregation_representation) + self.Wp2(rq)).transpose(
+                2, 1
+            ),
+            2,
+        )
+        rp = sj.bmm(aggregation_representation)
+        encoder_output = self.dropout(F.leaky_relu(self.prediction(rp)))
+        encoder_output = encoder_output.squeeze(1)
+        return encoder_output
+
+
+def mwan_snli(options):
+    return MwAN(options)

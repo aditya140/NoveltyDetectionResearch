@@ -19,7 +19,12 @@ from src.utils.trainer import *
 
 class Train_nli(Trainer):
     def __init__(
-        self, args, dataset_conf, model_conf, hparams, model_type,
+        self,
+        args,
+        dataset_conf,
+        model_conf,
+        hparams,
+        model_type,
     ):
         super(Train_nli, self).__init__(
             args,
@@ -51,13 +56,14 @@ class Train_nli(Trainer):
         if args.use_char_emb:
             model_conf["char_vocab_size"] = self.dataset.char_vocab_size()
 
-        
         if model_type == "attention":
             self.model = attn_bilstm_snli(model_conf)
         elif model_type == "bilstm":
             self.model = bilstm_snli(model_conf)
         elif model_type == "struc_attn":
             self.model = struc_attn_snli(model_conf)
+        elif model_type == "mwan":
+            self.model = mwan_snli(model_conf)
 
         self.model.to(self.device)
         model_size = self.count_parameters(self.model)
@@ -102,7 +108,6 @@ class Train_nli(Trainer):
         else:
             self.scheduler = None
 
-
     def save_lang(self):
         text_field, char_field = get_vocabs(self.dataset)
         save_field(
@@ -145,6 +150,7 @@ class Train_nli(Trainer):
     def save(self):
         self.save_lang()
         self.save_to_neptune()
+
 
 if __name__ == "__main__":
     args = parse_nli_conf()

@@ -30,6 +30,7 @@ def parse_nli_conf():
     parser.add_argument("--max_len", type=int, default=50)
     parser.add_argument("--batch_size", type=int, default=128)
     parser.add_argument("--use_char_emb", type=bool, default=False)
+    parser.add_argument("--folds", type=bool, default=False)
     parser.add_argument("--max_word_len", type=int, default=10)
     parser.add_argument("--device", type=str, default="cuda")
 
@@ -54,6 +55,10 @@ def parse_nli_conf():
     # model_conf
     parser_struc_attn = subparsers.add_parser("struc_attn")
     struc_attn_model_params(parser_struc_attn)
+
+    # model_conf
+    parser_mwan = subparsers.add_parser("mwan")
+    mwan_model_params(parser_mwan)
 
     parser.add_argument("--results_dir", type=str, default="results")
     return check_args(parser.parse_args())
@@ -226,6 +231,14 @@ def struc_attn_model_params(parser_dump):
     parser_dump.add_argument("--pool_strategy", type=str, default="max")
 
 
+def mwan_model_params(parser_dump):
+    parser_dump.add_argument("--hidden_size", type=int, default=150)
+    parser_dump.add_argument("--embedding_dim", type=int, default=300)
+    parser_dump.add_argument("--char_embedding_dim", type=int, default=100)
+    parser_dump.add_argument("--dropout", type=float, default=0.3)
+    parser_dump.add_argument("--use_glove", type=bool, default=False)
+
+
 """
 Novelty Argument Parser
 """
@@ -274,6 +287,10 @@ def parse_novelty_conf():
     # model_conf
     parser_diin = subparsers.add_parser("diin")
     diin_model_parameters(parser_diin)
+
+    # model_conf
+    parser_diin = subparsers.add_parser("mwan")
+    mwan_nov_model_parameters(parser_diin)
 
     parser.add_argument("--results_dir", type=str, default="results")
     return check_args(parser.parse_args())
@@ -375,6 +392,11 @@ def diin_model_parameters(parser_dump):
     parser_dump.add_argument("--num_layers", type=int, default=2)
     parser_dump.add_argument("--dense_net_layers", type=int, default=3)
     parser_dump.add_argument("--dense_net_growth_rate", type=int, default=20)
+
+
+def mwan_nov_model_parameters(parser_dump):
+    parser_dump.add_argument("--hidden_size", type=int, default=150)
+    parser_dump.add_argument("--dropout", type=float, default=0.3)
 
 
 """
