@@ -7,7 +7,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-from torch_lr_finder import LRFinder
+# from torch_lr_finder import LRFinder
 
 from src.defaults import *
 
@@ -55,15 +55,6 @@ class Trainer(abc.ABC):
             self.set_optimizers(hparams, **kwargs)
             self.set_schedulers(hparams, **kwargs)
         print("resource preparation done: {}".format(datetime.datetime.now()))
-
-
-    def find_lr(self):
-        lr_finder = LRFinder(self.model, self.opt, self.criterion, device="cuda")
-        lr_finder.range_test(self.dataset.train_iter, end_lr=100, num_iter=100)
-        lr_finder.plot() # to inspect the loss-learning rate graph
-        lr_finder.reset() # to reset the model and optimizer to their initial state
-        
-
 
     @abc.abstractmethod
     def load_dataset(self, dataset_conf, **kwargs):
