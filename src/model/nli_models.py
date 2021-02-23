@@ -589,6 +589,8 @@ class MwAN_snli(nn.Module):
             self.embedding = nn.Embedding.from_pretrained(
                 torch.load(".vector_cache/{}_vectors.pt".format(conf["dataset"]))
             )
+            if conf["freeze_emb"]:
+                self.embedding.requires_grad = False
 
         if conf["use_char_emb"]:
             self.char_embedding = nn.Embedding(

@@ -35,7 +35,7 @@ def parse_nli_conf():
     parser.add_argument("--device", type=str, default="cuda")
 
     # optimizer_conf
-    parser.add_argument("--epochs", type=int, default=20)
+    parser.add_argument("--epochs", type=int, default=10)
     parser.add_argument("--seed", type=int, default=-1)
     parser.add_argument("--lr", type=float, default=0.001)
     parser.add_argument("--optim", type=str, default="adamw")
@@ -235,8 +235,9 @@ def mwan_model_params(parser_dump):
     parser_dump.add_argument("--hidden_size", type=int, default=150)
     parser_dump.add_argument("--embedding_dim", type=int, default=300)
     parser_dump.add_argument("--char_embedding_dim", type=int, default=100)
-    parser_dump.add_argument("--dropout", type=float, default=0.3)
+    parser_dump.add_argument("--dropout", type=float, default=0.2)
     parser_dump.add_argument("--use_glove", type=bool, default=False)
+    parser_dump.add_argument("--freeze_emb", type=bool, default=False)
 
 
 """
