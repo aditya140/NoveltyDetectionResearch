@@ -236,12 +236,17 @@ class Trainer(abc.ABC):
     def result_checkpoint(self, epoch, train_loss, val_loss, train_acc, val_acc, took):
         if self.best_val_acc is None or val_acc > self.best_val_acc:
             self.best_val_acc = val_acc
+            
+            dataset_conf = self.dataset_conf
+            if dataset_conf.get('tokenize',False)!=False:
+                dataset_conf['tokenize'] = None
+
             torch.save(
                 {
                     "accuracy": self.best_val_acc,
                     "options": self.model_conf,
                     "model_dict": self.model.state_dict(),
-                    "dataset_conf": self.dataset_conf,
+                    "dataset_conf": dataset_conf,
                 },
                 self.model_save_path,
             )

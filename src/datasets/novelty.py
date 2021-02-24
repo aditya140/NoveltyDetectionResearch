@@ -12,6 +12,7 @@ import json, csv
 
 import torch
 from torchtext import data
+from torch.utils.data import Dataset, DataLoader
 from torchtext.data import Field, NestedField, LabelField, BucketIterator
 from transformers import BertTokenizer, DistilBertTokenizer
 from sklearn.model_selection import KFold, StratifiedKFold
@@ -285,6 +286,27 @@ class DLND(NoveltyDataset):
         )
 
 
+class DLND_Dataset(Dataset):
+    def __init__(self, data):
+        self.data = data
+        self.fields = self.data.fields
+
+    def __len__(self):
+        return len(self.data.examples)
+
+    def __getitem__(self, idx):
+        source = (
+            self.fields["source"].process([self.data.examples[idx].source]).squeeze()
+        )
+
+        target = (
+            self.fields["target"].process([self.data.examples[idx].target]).squeeze()
+        )
+        label = self.fields["label"].process([self.data.examples[idx].label]).squeeze()
+
+        return [source, target], label
+
+
 class Novelty:
     def __init__(
         self,
@@ -387,6 +409,18 @@ class Novelty:
 
     def labels(self):
         return self.LABEL.vocab.stoi
+
+    def get_dataloaders(self):
+        train_dl = DataLoader(
+            DLND_Dataset(self.train), batch_size=self.options["batch_size"]
+        )
+        dev_dl = DataLoader(
+            DLND_Dataset(self.dev), batch_size=self.options["batch_size"]
+        )
+        test_dl = DataLoader(
+            DLND_Dataset(self.test), batch_size=self.options["batch_size"]
+        )
+        return train_dl, dev_dl, test_dl
 
 
 def dlnd(options, sentence_field=None):

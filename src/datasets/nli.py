@@ -20,6 +20,40 @@ from pdb import set_trace
 __all__ = ["snli_module", "mnli_module"]
 
 
+class NLI_Dataset(Dataset):
+    def __init__(self, data):
+        self.data = data
+        self.fields = self.data.fields
+        self._has_char_emb = "premise_char" in self.fields.keys()
+
+    def __len__(self):
+        return len(self.data.examples)
+
+    def __getitem__(self, idx):
+        premise = (
+            self.fields["premise"].process([self.data.examples[idx].premise]).squeeze()
+        )
+        hypothesis = (
+            self.fields["hypothesis"]
+            .process([self.data.examples[idx].hypothesis])
+            .squeeze()
+        )
+        label = self.fields["label"].process([self.data.examples[idx].label]).squeeze()
+        if not self._has_char_emb:
+            return [premise, hypothesis], label
+        premise_char = (
+            self.fields["premise_char"]
+            .process([self.data.examples[idx].premise_char])
+            .squeeze()
+        )
+        hypothesis_char = (
+            self.fields["hypothesis_char"]
+            .process([self.data.examples[idx].hypothesis_char])
+            .squeeze()
+        )
+        return [premise, hypothesis, premise_char, hypothesis_char], label
+
+
 class SNLI:
     def __init__(self, options):
         self.options = options
@@ -122,6 +156,18 @@ class SNLI:
 
     def labels(self):
         return self.LABEL.vocab.stoi
+
+    def get_dataloaders(self):
+        train_dl = DataLoader(
+            NLI_Dataset(self.train), batch_size=self.options["batch_size"]
+        )
+        dev_dl = DataLoader(
+            NLI_Dataset(self.dev), batch_size=self.options["batch_size"]
+        )
+        test_dl = DataLoader(
+            NLI_Dataset(self.test), batch_size=self.options["batch_size"]
+        )
+        return train_dl, dev_dl, test_dl
 
 
 def snli(options):
