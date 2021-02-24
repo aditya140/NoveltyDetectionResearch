@@ -88,6 +88,12 @@ class Train_novelty(Trainer):
                 momentum=0.9,
             )
 
+        if hparams["optimizer"]["optim"] == "adadelta":
+            self.optimizer = optim.Adadelta(
+                self.model.parameters(),
+                lr=hparams["optimizer"]["lr"],
+            )
+
         self.best_val_acc = None
 
     def set_schedulers(self, hparams, **kwargs):
