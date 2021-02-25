@@ -6,6 +6,53 @@ import math
 from src.model.nli_models import *
 
 
+def init_weights(m):
+    classname = m.__class__.__name__
+    if classname.find("Linear") != -1 or classname.find("Bilinear") != -1:
+        nn.init.kaiming_uniform_(
+            a=2, mode="fan_in", nonlinearity="leaky_relu", tensor=m.weight
+        )
+        if m.bias is not None:
+            nn.init.constant_(tensor=m.bias, val=0)
+
+    elif classname.find("Conv") != -1:
+        nn.init.kaiming_uniform_(
+            a=2, mode="fan_in", nonlinearity="leaky_relu", tensor=m.weight
+        )
+        if m.bias is not None:
+            nn.init.constant_(tensor=m.bias, val=0)
+
+    elif (
+        classname.find("BatchNorm") != -1
+        or classname.find("GroupNorm") != -1
+        or classname.find("LayerNorm") != -1
+    ):
+        nn.init.uniform_(a=0, b=1, tensor=m.weight)
+        nn.init.constant_(tensor=m.bias, val=0)
+
+    elif classname.find("Cell") != -1:
+        nn.init.xavier_uniform_(gain=1, tensor=m.weight_hh)
+        nn.init.xavier_uniform_(gain=1, tensor=m.weight_ih)
+        nn.init.ones_(tensor=m.bias_hh)
+        nn.init.ones_(tensor=m.bias_ih)
+
+    # elif (
+    #     classname.find("RNN") != -1
+    #     or classname.find("LSTM") != -1
+    #     or classname.find("GRU") != -1
+    # ):
+    #     for w in m.all_weights:
+    #         nn.init.xavier_uniform_(gain=1, tensor=w[2].data)
+    #         nn.init.xavier_uniform_(gain=1, tensor=w[3].data)
+    #         nn.init.ones_(tensor=w[0].data)
+    #         nn.init.ones_(tensor=w[1].data)
+
+    if classname.find("Embedding") != -1:
+        nn.init.kaiming_uniform_(
+            a=2, mode="fan_in", nonlinearity="leaky_relu", tensor=m.weight
+        )
+
+
 """
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 Decomposable Attention Network
@@ -810,6 +857,11 @@ class MwAN(nn.Module):
         self.dropout = nn.Dropout(conf["dropout"])
         self.encoder = encoder
         self.template = nn.Parameter(torch.zeros((1)), requires_grad=True)
+
+        self.translate = nn.Linear(
+            2 * self.conf["encoder_dim"], 2 * self.conf["hidden_size"]
+        )
+
         self.prem_gru = nn.GRU(
             input_size=2 * self.conf["encoder_dim"],
             hidden_size=self.conf["hidden_size"],
@@ -848,7 +900,15 @@ class MwAN(nn.Module):
         self.Wp2 = nn.Linear(2 * conf["hidden_size"], conf["hidden_size"], bias=False)
         self.vp = nn.Linear(conf["hidden_size"], 1, bias=False)
 
-        self.prediction = nn.Linear(2 * conf["hidden_size"], 2, bias=False)
+        self.prediction = nn.Linear(2 * conf["hidden_size"], 2, bias=True)
+        self.initialize()
+
+    def initialize(self):
+        print("Initialized weights")
+        dont_init = self.encoder.__class__.__name__
+        for i in self.modules():
+            if i.__class__.__name__ != dont_init:
+                i.apply(init_weights)
 
     def encode_sent(self, inp):
         batch_size, num_sent, max_len = inp.shape
@@ -866,10 +926,12 @@ class MwAN(nn.Module):
 
         x_enc_t[x_padded_idx] = x_enc
         x_enc_t = x_enc_t.view(batch_size, num_sent, -1)
+        # embedded = self.dropout(self.translate(x_enc_t))
 
         return x_enc_t
 
     def forward(self, x0, x1):
+        x1,x0 = x0,x1
         x0_enc = self.encode_sent(x0)
         x1_enc = self.encode_sent(x1)
 

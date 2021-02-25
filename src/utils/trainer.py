@@ -1,12 +1,14 @@
 import abc
 import neptune
 import datetime
+from hyperdash import Experiment
 import time
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
+
 # from torch_lr_finder import LRFinder
 
 from src.defaults import *
@@ -14,10 +16,18 @@ from src.defaults import *
 
 class Trainer(abc.ABC):
     def __init__(
-        self, args, model_conf, dataset_conf, hparams, log_neptune=True, **kwargs
+        self,
+        args,
+        model_conf,
+        dataset_conf,
+        hparams,
+        log_neptune=True,
+        log_hyperdash=True,
+        **kwargs
     ):
         print("program execution start: {}".format(datetime.datetime.now()))
         self.log_neptune = log_neptune
+        self.log_hyperdash = log_hyperdash
         if log_neptune:
             if kwargs.get("neptune_project", None) == None:
                 raise ValueError(
@@ -32,6 +42,13 @@ class Trainer(abc.ABC):
             neptune.log_text("Dataset Conf", str(dataset_conf))
             neptune.log_text("Model Conf", str(model_conf))
             neptune.log_text("Hparams", str(hparams))
+        if log_hyperdash:
+            self.hd_exp = Experiment(
+                kwargs["neptune_project"], api_key_getter=get_hyperdash_api
+            )
+            self.hd_exp.param("Dataset Conf", str(dataset_conf))
+            self.hd_exp.param("Model Conf", str(model_conf))
+            self.hd_exp.param("Hparams", str(hparams))
 
         self.args = args
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -87,12 +104,23 @@ class Trainer(abc.ABC):
         pass
 
     def finish(self):
+        if self.log_hyperdash:
+            self.hd_exp.end()
         self.logger.info("[*] Training finished!\n\n")
         print("-" * 99)
         print(" [*] Training finished!")
         print(" [*] Please find the training log in results_dir")
 
-    def train(self, model, optimizer, criterion, train_iterator, log_neptune, **kwargs):
+    def train(
+        self,
+        model,
+        optimizer,
+        criterion,
+        train_iterator,
+        log_neptune,
+        log_hyperdash,
+        **kwargs
+    ):
         model.train()
 
         if hasattr(train_iterator, "init_epoch") and callable(
@@ -128,6 +156,8 @@ class Trainer(abc.ABC):
             n_loss += loss.item()
             if log_neptune:
                 neptune.log_metric("Train Loss", loss.item())
+            if log_hyperdash:
+                self.hd_exp.metric("Train Loss", loss.item(), log=False)
             loss.backward()
             optimizer.step()
         train_loss = n_loss / n_total
@@ -135,10 +165,20 @@ class Trainer(abc.ABC):
         if log_neptune:
             neptune.log_metric("Train Avg Loss", train_loss)
             neptune.log_metric("Train accuracy", train_acc)
+        if log_hyperdash:
+            self.hd_exp.metric("Train Avg Loss", train_loss, log=False)
+            self.hd_exp.metric("Train accuracy", train_acc, log=False)
         return train_loss, train_acc
 
     def validate(
-        self, model, optimizer, criterion, val_iterator, log_neptune, **kwargs
+        self,
+        model,
+        optimizer,
+        criterion,
+        val_iterator,
+        log_neptune,
+        log_hyperdash,
+        **kwargs
     ):
         model.eval()
         if hasattr(val_iterator, "init_epoch") and callable(val_iterator.init_epoch):
@@ -173,16 +213,30 @@ class Trainer(abc.ABC):
                 )
                 n_total += batch_size
                 n_loss += loss.item()
-                if self.log_neptune:
+                if log_neptune:
                     neptune.log_metric("Val Loss", loss.item())
+                if log_hyperdash:
+                    self.hd_exp.metric("Val Loss", loss.item(), log=False)
             val_loss = n_loss / n_total
             val_acc = 100.0 * n_correct / n_total
-            if self.log_neptune:
+            if log_neptune:
                 neptune.log_metric("Val Avg Loss", val_loss)
                 neptune.log_metric("Val Accuracy", val_acc)
+            if log_hyperdash:
+                self.hd_exp.metric("Val Avg Loss", val_loss, log=False)
+                self.hd_exp.metric("Val accuracy", val_acc, log=False)
             return val_loss, val_acc
 
-    def test(self, model, optimizer, criterion, test_iterator, log_neptune, **kwargs):
+    def test(
+        self,
+        model,
+        optimizer,
+        criterion,
+        test_iterator,
+        log_neptune,
+        log_hyperdash,
+        **kwargs
+    ):
         if hasattr(test_iterator, "init_epoch") and callable(test_iterator.init_epoch):
             test_iterator.init_epoch()
 
@@ -225,9 +279,12 @@ class Trainer(abc.ABC):
                 n_loss += loss.item()
             test_loss = n_loss / n_total
             test_acc = 100.0 * n_correct / n_total
-            if self.log_neptune:
+            if log_neptune:
                 neptune.log_metric("Test Avg Loss", test_loss)
                 neptune.log_metric("Test Accuracy", test_acc)
+            if log_hyperdash:
+                self.hd_exp.metric("Test Avg Loss", test_loss, log=False)
+                self.hd_exp.metric("Test accuracy", test_acc, log=False)
             return test_loss, test_acc
 
     def count_parameters(self, model):
@@ -236,10 +293,10 @@ class Trainer(abc.ABC):
     def result_checkpoint(self, epoch, train_loss, val_loss, train_acc, val_acc, took):
         if self.best_val_acc is None or val_acc > self.best_val_acc:
             self.best_val_acc = val_acc
-            
+
             dataset_conf = self.dataset_conf
-            if dataset_conf.get('tokenize',False)!=False:
-                dataset_conf['tokenize'] = None
+            if dataset_conf.get("tokenize", False) != False:
+                dataset_conf["tokenize"] = None
 
             torch.save(
                 {
@@ -269,6 +326,7 @@ class Trainer(abc.ABC):
                 self.criterion,
                 self.dataset.train_iter,
                 self.log_neptune,
+                self.log_hyperdash,
                 **kwargs
             )
             val_loss, val_acc = self.validate(
@@ -277,6 +335,7 @@ class Trainer(abc.ABC):
                 self.criterion,
                 self.dataset.val_iter,
                 self.log_neptune,
+                self.log_hyperdash,
                 **kwargs
             )
             if self.scheduler != None:
@@ -300,6 +359,7 @@ class Trainer(abc.ABC):
                 self.criterion,
                 self.dataset.test_iter,
                 self.log_neptune,
+                self.log_hyperdash,
                 **kwargs
             )
             print(
@@ -364,6 +424,8 @@ class Trainer(abc.ABC):
 
                 if self.log_neptune:
                     neptune.log_metric("train acc", train_acc)
+                if self.log_hyperdash:
+                    self.hd_exp.metric("train acc", train_acc, log=False)
 
             took = time.time() - start
             fold_acc.append(max(test_acc_list))
@@ -381,6 +443,8 @@ class Trainer(abc.ABC):
 
             if self.log_neptune:
                 neptune.log_metric("Fold Accuracy", max(test_acc_list))
+            if self.log_hyperdash:
+                self.hd_exp.metric("Fold Accuracy", max(test_acc_list), log=False)
 
         print(
             "| Fold {:3d}  |                | final acc {:5.2f} |                |               |               |".format(
@@ -390,6 +454,10 @@ class Trainer(abc.ABC):
         )
         if self.log_neptune:
             neptune.log_metric("Final Accuracy", sum(fold_acc) / len(fold_acc))
+        if self.log_hyperdash:
+            self.hd_exp.metric(
+                "Final Accuracy", sum(fold_acc) / len(fold_acc), log=False
+            )
 
         self.logger.info(
             "| Fold {:3d}  |                | final acc {:5.2f} |                |               |               |".format(

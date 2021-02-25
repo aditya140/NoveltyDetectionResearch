@@ -76,23 +76,27 @@ class Train_novelty(Trainer):
                 self.model.parameters(), lr=hparams["optimizer"]["lr"]
             )
 
-        if hparams["optimizer"]["optim"] == "adamw":
+        elif hparams["optimizer"]["optim"] == "adamw":
             self.optimizer = optim.AdamW(
                 self.model.parameters(), lr=hparams["optimizer"]["lr"]
             )
 
-        if hparams["optimizer"]["optim"] == "sgd":
+        elif hparams["optimizer"]["optim"] == "sgd":
             self.optimizer = optim.SGD(
                 self.model.parameters(),
                 lr=hparams["optimizer"]["lr"],
                 momentum=0.9,
             )
 
-        if hparams["optimizer"]["optim"] == "adadelta":
+        elif hparams["optimizer"]["optim"] == "adadelta":
             self.optimizer = optim.Adadelta(
                 self.model.parameters(),
                 lr=hparams["optimizer"]["lr"],
             )
+        
+        else:
+            raise ValueError("Wrong optimizer type, select from adam, adamw, sgd, adadelta")
+        
 
         self.best_val_acc = None
 

@@ -7,8 +7,10 @@ import logging
 import time
 import dill
 import neptune
+import hyperdash
 import shutil
 import dill
+
 
 
 NEPTUNE_API = "eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vdWkubmVwdHVuZS5haSIsImFwaV91cmwiOiJodHRwczovL3VpLm5lcHR1bmUuYWkiLCJhcGlfa2V5IjoiMTg3MzU5NjQtMmIxZC00Njg0LTgzYzMtN2UwYjVlYzVhNDg5In0="
@@ -544,48 +546,5 @@ def load_encoder_data(_id):
     return model_data
 
 
-def init_weights(m):
-    classname = m.__class__.__name__
-    if classname.find("Linear") != -1 or classname.find("Bilinear") != -1:
-        nn.init.kaiming_uniform_(
-            a=2, mode="fan_in", nonlinearity="leaky_relu", tensor=m.weight
-        )
-        if m.bias:
-            nn.init.zeros(tensor=m.bias)
-
-    elif classname.find("Conv") != -1:
-        nn.init.kaiming_uniform_(
-            a=2, mode="fan_in", nonlinearity="leaky_relu", tensor=m.weight
-        )
-        if m.bias:
-            nn.init.zeros(tensor=m.bias)
-
-    elif (
-        classname.find("BatchNorm") != -1
-        or classname.find("GroupNorm") != -1
-        or classname.find("LayerNorm") != -1
-    ):
-        nn.init.uniform_(a=0, b=1, tensor=m.weight)
-        nn.init.zeros(tensor=m.bias)
-
-    elif classname.find("Cell") != -1:
-        nn.init.xavier_uniform_(gain=1, tensor=m.weight_hh)
-        nn.init.xavier_uniform_(gain=1, tensor=m.weight_ih)
-        nn.init.ones_(tensor=m.bias_hh)
-        nn.init.ones_(tensor=m.bias_ih)
-
-    elif (
-        classname.find("RNN") != -1
-        or classname.find("LSTM") != -1
-        or classname.find("GRU") != -1
-    ):
-        for w in m.all_weights:
-            nn.init.xavier_uniform_(gain=1, tensor=w[2].data)
-            nn.init.xavier_uniform_(gain=1, tensor=w[3].data)
-            nn.init.ones_(tensor=w[0].data)
-            nn.init.ones_(tensor=w[1].data)
-
-    if classname.find("Embedding") != -1:
-        nn.init.kaiming_uniform_(
-            a=2, mode="fan_in", nonlinearity="leaky_relu", tensor=m.weight
-        )
+def get_hyperdash_api():
+    return "6dqfQAL9Xij4kBZzoFO+iDTxNHszbaxsxhzaeg0f/DE="

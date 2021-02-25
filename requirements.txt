@@ -10,3 +10,4 @@ dill
 spacy==2.2.4
 svn
 torchensemble
+hyperdash
