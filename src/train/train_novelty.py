@@ -11,6 +11,7 @@ import datetime
 import time
 import shutil
 import neptune
+import ballpark
 
 from src.defaults import *
 from src.model.novelty_models import *
@@ -60,14 +61,19 @@ class Train_novelty(Trainer):
             self.model = DIIN(model_conf, encoder)
         if kwargs["model_type"] == "mwan":
             self.model = MwAN(model_conf, encoder)
+        if kwargs["model_type"] == "struc":
+            self.model = StrucSelfAttn(model_conf, encoder)
 
         self.model.to(self.device)
         model_size = self.count_parameters(self.model)
         print(" [*] Model size : {}".format(model_size))
+        print(" [*] Model size : {}".format(ballpark.business(model_size)))
 
         self.logger.info(" [*] Model size : {}".format(model_size))
+        self.logger.info(" [*] Model size (approx) : {}".format(ballpark.business(model_size)))
         if self.log_neptune:
             neptune.log_text("Model size", str(model_size))
+            neptune.log_text("Model size (approx)", ballpark.business(model_size))
 
     def set_optimizers(self, hparams, **kwargs):
         self.criterion = nn.CrossEntropyLoss(reduction=hparams["loss_agg"])
@@ -93,10 +99,11 @@ class Train_novelty(Trainer):
                 self.model.parameters(),
                 lr=hparams["optimizer"]["lr"],
             )
-        
+
         else:
-            raise ValueError("Wrong optimizer type, select from adam, adamw, sgd, adadelta")
-        
+            raise ValueError(
+                "Wrong optimizer type, select from adam, adamw, sgd, adadelta"
+            )
 
         self.best_val_acc = None
 

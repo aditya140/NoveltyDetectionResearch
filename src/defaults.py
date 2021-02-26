@@ -12,7 +12,6 @@ import shutil
 import dill
 
 
-
 NEPTUNE_API = "eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vdWkubmVwdHVuZS5haSIsImFwaV91cmwiOiJodHRwczovL3VpLm5lcHR1bmUuYWkiLCJhcGlfa2V5IjoiMTg3MzU5NjQtMmIxZC00Njg0LTgzYzMtN2UwYjVlYzVhNDg5In0="
 NLI_NEPTUNE_PROJECT = "aparkhi/NLI"
 NOVELTY_NEPTUNE_PROJECT = "aparkhi/Novelty"
@@ -295,6 +294,10 @@ def parse_novelty_conf():
     parser_diin = subparsers.add_parser("mwan")
     mwan_nov_model_parameters(parser_diin)
 
+    # model_conf
+    parser_stru = subparsers.add_parser("struc")
+    struc_self_attn_model_parameters(parser_stru)
+
     parser.add_argument("--results_dir", type=str, default="results")
     return check_args(parser.parse_args())
 
@@ -400,6 +403,16 @@ def diin_model_parameters(parser_dump):
 def mwan_nov_model_parameters(parser_dump):
     parser_dump.add_argument("--hidden_size", type=int, default=150)
     parser_dump.add_argument("--dropout", type=float, default=0.3)
+
+
+def struc_self_attn_model_parameters(parser_dump):
+    parser_dump.add_argument("--dropout", type=float, default=0.3)
+    parser_dump.add_argument("--hidden_size", type=int, default=300)
+    parser_dump.add_argument("--attention_hops", type=int, default=10)
+    parser_dump.add_argument("--attention_layer_param", type=int, default=150)
+    parser_dump.add_argument("--num_layers", type=int, default=1)
+    parser_dump.add_argument("--prune_p", type=int, default=100)
+    parser_dump.add_argument("--prune_q", type=int, default=10)
 
 
 """

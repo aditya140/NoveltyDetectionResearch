@@ -931,7 +931,7 @@ class MwAN(nn.Module):
         return x_enc_t
 
     def forward(self, x0, x1):
-        x1,x0 = x0,x1
+        x1, x0 = x0, x1
         x0_enc = self.encode_sent(x0)
         x1_enc = self.encode_sent(x1)
 
@@ -963,6 +963,124 @@ class MwAN(nn.Module):
 
 """
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-Hierarchical Attention Network + CNN
+Structured Self Attention
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 """
+
+
+class StrucSelfAttention(nn.Module):
+    def __init__(self, conf):
+        super(StrucSelfAttention, self).__init__()
+        self.ut_dense = nn.Linear(
+            2 * conf["hidden_size"], conf["attention_layer_param"], bias=False
+        )
+        self.et_dense = nn.Linear(
+            conf["attention_layer_param"], conf["attention_hops"], bias=False
+        )
+
+    def forward(self, x):
+        # x shape: [batch_size, num_sent, embedding_width]
+        # ut shape: [batch_size, num_sent, att_unit]
+        ut = self.ut_dense(x)
+        ut = torch.tanh(ut)
+        # et shape: [batch_size, num_sent, att_hops]
+        et = self.et_dense(ut)
+
+        # att shape: [batch_size,  att_hops, seq_len]
+        att = F.softmax(et)
+        # output shape [batch_size, att_hops, embedding_width]
+        output = torch.bmm(att.permute(0, 2, 1), x).squeeze(1)
+        return output, att
+
+
+class Struc_DOC(nn.Module):
+    def __init__(self, conf, encoder):
+        super(Struc_DOC, self).__init__()
+        self.conf = conf
+        self.encoder = encoder
+
+        self.translate = nn.Linear(
+            2 * self.conf["encoder_dim"], self.conf["hidden_size"]
+        )
+        self.act = nn.ReLU()
+        self.dropout = nn.Dropout(conf["dropout"])
+        self.template = nn.Parameter(torch.zeros((1)), requires_grad=True)
+        self.lstm_layer = nn.LSTM(
+            input_size=self.conf["hidden_size"],
+            hidden_size=self.conf["hidden_size"],
+            num_layers=self.conf["num_layers"],
+            bidirectional=True,
+        )
+        self.attention = StrucSelfAttention(conf)
+
+        self.prune_p = nn.Linear(2 * self.conf["hidden_size"], self.conf["prune_p"])
+        self.prune_q = nn.Linear(self.conf["attention_hops"], self.conf["prune_q"])
+
+    def forward(self, inp):
+        batch_size, num_sent, max_len = inp.shape
+        x = inp.view(-1, max_len)
+
+        x_padded_idx = x.sum(dim=1) != 0
+        x_enc = []
+        for sub_batch in x[x_padded_idx].split(64):
+            x_enc.append(self.encoder(sub_batch, None))
+        x_enc = torch.cat(x_enc, dim=0)
+
+        x_enc_t = torch.zeros((batch_size * num_sent, x_enc.size(1))).to(
+            self.template.device
+        )
+
+        x_enc_t[x_padded_idx] = x_enc
+        x_enc_t = x_enc_t.view(batch_size, num_sent, -1)
+
+        embedded = self.dropout(self.translate(x_enc_t))
+        embedded = self.act(embedded)
+
+        all_, (_, _) = self.lstm_layer(embedded)
+        # opt: [batch, att_hops, hidden_size]
+        opt, attn = self.attention(all_)
+        # p_section: [batch, att_hops, prune_p]
+        p_section = self.prune_p(opt)
+        # q_section: [batch, hidden_size, prune_q]
+        q_section = self.prune_q(opt.permute(0, 2, 1))
+        encoded = torch.cat(
+            [p_section.view(batch_size, -1), q_section.view(batch_size, -1)], dim=1
+        )
+        return encoded
+
+
+class StrucSelfAttn(nn.Module):
+    def __init__(self, conf, encoder, doc_enc=None):
+        super(StrucSelfAttn, self).__init__()
+        self.conf = conf
+        if doc_enc == None:
+            self.encoder = Struc_DOC(conf, encoder)
+        elif encoder == None:
+            self.encoder = doc_enc
+        self.act = nn.ReLU()
+        self.dropout = nn.Dropout(conf["dropout"])
+
+        fc_in_dim = (
+            self.conf["attention_hops"] * self.conf["prune_p"]
+            + 2 * self.conf["hidden_size"] * self.conf["prune_q"]
+        )
+
+        self.fc = nn.Linear(4 * fc_in_dim, 2)
+
+    def forward(self, x0,x1):
+        # x0, x1 = inputs
+        x0_enc = self.encoder(x0)
+        x1_enc = self.encoder(x1)
+
+        cont = torch.cat(
+            [
+                x0_enc,
+                x1_enc,
+                torch.abs(x0_enc - x1_enc),
+                x0_enc * x1_enc,
+            ],
+            dim=1,
+        )
+        cont = self.dropout(self.act(cont))
+        cont = self.fc(cont)
+        return cont

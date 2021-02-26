@@ -412,13 +412,13 @@ class Novelty:
 
     def get_dataloaders(self):
         train_dl = DataLoader(
-            DLND_Dataset(self.train), batch_size=self.options["batch_size"]
+            DLND_Dataset(self.train), batch_size=self.options["batch_size"],shuffle=True
         )
         dev_dl = DataLoader(
-            DLND_Dataset(self.dev), batch_size=self.options["batch_size"]
+            DLND_Dataset(self.dev), batch_size=self.options["batch_size"],shuffle=True
         )
         test_dl = DataLoader(
-            DLND_Dataset(self.test), batch_size=self.options["batch_size"]
+            DLND_Dataset(self.test), batch_size=self.options["batch_size"],shuffle=True
         )
         return train_dl, dev_dl, test_dl
 
