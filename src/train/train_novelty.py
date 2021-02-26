@@ -11,7 +11,8 @@ import datetime
 import time
 import shutil
 import neptune
-import ballpark
+from millify import millify
+
 
 from src.defaults import *
 from src.model.novelty_models import *
@@ -67,13 +68,13 @@ class Train_novelty(Trainer):
         self.model.to(self.device)
         model_size = self.count_parameters(self.model)
         print(" [*] Model size : {}".format(model_size))
-        print(" [*] Model size : {}".format(ballpark.business(model_size)))
+        print(" [*] Model size : {}".format(millify(model_size, precision=2)))
 
         self.logger.info(" [*] Model size : {}".format(model_size))
-        self.logger.info(" [*] Model size (approx) : {}".format(ballpark.business(model_size)))
+        self.logger.info(" [*] Model size (approx) : {}".format(millify(model_size, precision=2)))
         if self.log_neptune:
             neptune.log_text("Model size", str(model_size))
-            neptune.log_text("Model size (approx)", ballpark.business(model_size))
+            neptune.log_text("Model size (approx)", millify(model_size, precision=2))
 
     def set_optimizers(self, hparams, **kwargs):
         self.criterion = nn.CrossEntropyLoss(reduction=hparams["loss_agg"])
