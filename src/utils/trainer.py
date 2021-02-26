@@ -404,6 +404,7 @@ class Trainer(abc.ABC):
                     self.criterion,
                     self.dataset.train_iter,
                     False,
+                    False,
                     **kwargs
                 )
                 val_loss, val_acc = self.validate(
@@ -411,6 +412,7 @@ class Trainer(abc.ABC):
                     self.optimizer,
                     self.criterion,
                     self.dataset.val_iter,
+                    False,
                     False,
                     **kwargs
                 )

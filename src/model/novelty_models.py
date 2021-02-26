@@ -963,7 +963,7 @@ class MwAN(nn.Module):
 
 """
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-Structured Self Attention
+Structured Self Attention + pruning
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 """
 

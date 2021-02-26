@@ -9,3 +9,17 @@ python3 src/train/train_novelty.py -d dlnd --load_nli NLI-93 --seed 1029 --folds
 
 pip3 install -r requirements.txt &&
 python3 src/train/train_novelty.py -d dlnd --load_nli NLI-87 --seed 1029 --folds True --scheduler step --optim adam --epochs 10 han
+
+
+pip3 install -r requirements.txt &&
+python3 -m spacy download en &&
+python3 src/train/train_novelty.py -d dlnd --load_nli NLI-93 --seed 1029 --folds --epochs 10 struc --attention_hops 5 --attention_layer_param 200 --prune_p 150 --prune_p 15 &&
+python3 src/train/train_novelty.py -d dlnd --load_nli NLI-93 --epochs 10 struc --attention_hops 10 --attention_layer_param 200 --prune_p 150 --prune_p 15 &&
+python3 src/train/train_novelty.py -d dlnd --load_nli NLI-93 --epochs 10 struc --attention_hops 20 --attention_layer_param 200 --prune_p 150 --prune_p 15 &&
+python3 src/train/train_novelty.py -d dlnd --load_nli NLI-93 --epochs 10 struc --attention_hops 40 --attention_layer_param 200 --prune_p 150 --prune_p 15 &&
+
+
+
+pip3 install -r requirements.txt &&
+python3 -m spacy download en &&
+python3 src/train/train_novelty.py -d dlnd --load_nli NLI-93 --seed 1029 --folds True --epochs 10 struc --attention_hops 25 --attention_layer_param 200 --prune_p 200 --prune_p 20
