@@ -561,3 +561,213 @@ def load_encoder_data(_id):
 
 def get_hyperdash_api():
     return "6dqfQAL9Xij4kBZzoFO+iDTxNHszbaxsxhzaeg0f/DE="
+
+
+"""
+Tuning
+"""
+
+
+def parse_novelty_tune_conf():
+    parser = ArgumentParser(description="PyTorch/torchtext Novelty Training")
+    parser.add_argument("--dataset", "-d", type=str, default="dlnd")
+
+    # language
+    parser.add_argument("--load_nli", type=str, default="None")
+    parser.add_argument("--max_num_sent", type=int, default=50)
+    parser.add_argument("--device", type=str, default="cuda")
+    parser.add_argument("--folds", type=bool, default=False)
+    parser.add_argument("--batch_size", type=int, default=32)
+    parser.add_argument("--tokenizer", type=str, default="None")
+    parser.add_argument("--max_len", type=int, default=0)
+    parser.add_argument("--sent_tokenizer", type=str, default="spacy")
+
+    # optimizer_conf
+    parser.add_argument("--epochs", type=int, default=20)
+    parser.add_argument("--lr", type=float, default=0.001)
+    parser.add_argument("--seed", type=int, default=-1)
+    parser.add_argument("--optim", type=str, default="adamw")
+    parser.add_argument("--num_trials", type=int, default=20)
+    parser.add_argument("--sampler", type=str, default="tpe")
+
+    subparsers = parser.add_subparsers(dest="model_type")
+
+    # model_conf
+    parser_dan = subparsers.add_parser("dan")
+    dan_model_parameters(parser_dan)
+
+    # model_conf
+    parser_adin = subparsers.add_parser("adin")
+    adin_model_parameters(parser_adin)
+
+    # model_conf
+    parser_han = subparsers.add_parser("han")
+    han_model_parameters(parser_han)
+
+    # model_conf
+    parser_rdv = subparsers.add_parser("rdv_cnn")
+    rdv_cnn_model_parameters(parser_rdv)
+
+    # model_conf
+    parser_diin = subparsers.add_parser("diin")
+    diin_model_parameters(parser_diin)
+
+    # model_conf
+    parser_diin = subparsers.add_parser("mwan")
+    mwan_nov_model_parameters(parser_diin)
+
+    # model_conf
+    parser_stru = subparsers.add_parser("struc")
+    struc_self_attn_model_parameters(parser_stru)
+
+    parser.add_argument("--results_dir", type=str, default="results")
+    return check_args(parser.parse_args())
+
+
+def get_tuning_novelty_conf(args):
+    # hparams
+    hparams = {}
+    hparams["optimizer"] = {
+        "optim": args.optim,
+        "lr": args.lr,
+    }
+    hparams["epochs"] = args.epochs
+
+    # dataset config
+    dataset_conf = {}
+    dataset_conf["dataset"] = args.dataset
+    dataset_conf["max_num_sent"] = args.max_num_sent
+    dataset_conf["sent_tokenizer"] = args.sent_tokenizer
+    dataset_conf["batch_size"] = args.batch_size
+    dataset_conf["device"] = args.device
+
+    if args.load_nli == "None":
+        assert args.tokenizer != "None"
+        assert args.max_len != 0
+
+        dataset_conf["tokenizer"] = args.tokenizer
+        dataset_conf["max_len"] = args.max_len
+        sentence_field = None
+
+    else:
+        check_model(args.load_nli)
+        sentence_field = load_field(args.load_nli)
+
+    used_keys = [
+        "tokenizer",
+        "max_len",
+        "batch_size",
+        "epochs",
+        "lr",
+        "optim",
+        "model_type",
+    ]
+
+    model_type = args.model_type
+    model_conf = {
+        k: args.__dict__[k] for k in set(list(args.__dict__.keys())) - set(used_keys)
+    }
+    return dataset_conf, hparams, model_type, model_conf, sentence_field
+
+
+def model_conf_tuning(trial, model_conf, model_type):
+    if model_type == "dan":
+        return dan_model_tuning(trial, model_conf)
+    if model_type == "han":
+        return han_model_tuning(trial, model_conf)
+    if model_type == "adin":
+        return adin_model_tuning(trial, model_conf)
+    if model_type == "mwan":
+        return mwan_model_tuning(trial, model_conf)
+    if model_type == "struc":
+        return struc_self_attn_tuning(trial, model_conf)
+
+
+def dan_model_tuning(trial, model_conf):
+    model_conf["hidden_size"] = trial.suggest_categorical(
+        "hidden_size", [50, 100, 200, 300, 400]
+    )
+    return model_conf
+
+
+def adin_model_tuning(trial, model_conf):
+    model_conf["hidden_size"] = trial.suggest_int("hidden_size", 50, 400)
+    model_conf["k"] = trial.suggest_int("k", 10, 300)
+    model_conf["N"] = trial.suggest_int("k", 1, 3)
+    return model_conf
+
+
+def han_model_tuning(trial, model_conf):
+    model_conf["hidden_size"] = trial.suggest_int("hidden_size", 50, 400)
+    model_conf["num_layers"] = trial.suggest_int("num_layers", 1, 3)
+    model_conf["attention_layer_param"] = trial.suggest_int(
+        "attention_layer_param", 10, 300
+    )
+    return model_conf
+
+
+def mwan_model_tuning(trial, model_conf):
+    model_conf["hidden_size"] = trial.suggest_categorical(
+        "hidden_size", [50, 100, 200, 300, 400]
+    )
+    return model_conf
+
+
+def struc_self_attn_tuning(trial, model_conf):
+    model_conf["hidden_size"] = trial.suggest_int("hidden_size", 50, 400)
+    model_conf["num_layers"] = trial.suggest_int("num_layers", 1, 3)
+    model_conf["attention_hops"] = trial.suggest_int("attention_hops", 1, 25)
+    model_conf["prune_p"] = trial.suggest_int("prune_p", 10, 150)
+    model_conf["prune_q"] = trial.suggest_int("prune_q", 5, 100)
+    model_conf["attention_layer_param"] = trial.suggest_int(
+        "attention_layer_param", 10, 300
+    )
+    return model_conf
+
+
+def model_search_space(model_type):
+    if model_type == "dan":
+        return dan_search_space()
+    if model_type == "han":
+        return han_search_space()
+    if model_type == "adin":
+        return adin_search_space()
+    if model_type == "mwan":
+        return mwan_search_space()
+    if model_type == "struc":
+        return struc_search_space()
+
+
+def dan_search_space():
+    return {"hidden_size": [50, 100, 200, 300, 400]}
+
+
+def han_search_space():
+    return {
+        "hidden_size": [50, 100, 200, 300, 400],
+        "num_layers": [1, 2],
+        "attention_layer_param": [10, 50, 100, 200, 300, 400],
+    }
+
+
+def adin_search_space():
+    return {
+        "hidden_size": [50, 100, 200, 300, 400],
+        "k": [10, 50, 100, 200, 300],
+        "N": [1, 2],
+    }
+
+
+def mwan_search_space():
+    return {"hidden_size": [10, 50, 100, 200, 300, 400]}
+
+
+def struc_search_space():
+    return {
+        "hidden_size": [50, 100, 200, 300, 400],
+        "num_layers": [1, 2],
+        "attention_layer_param": [10, 50, 100, 200, 300, 400],
+        "attention_hops": [1, 3, 5, 10, 20, 30],
+        "prune_p": [10, 50, 100, 150],
+        "prune_q": [5, 10, 20, 50, 100],
+    }

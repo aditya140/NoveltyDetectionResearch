@@ -12,3 +12,5 @@ svn
 torchensemble
 hyperdash
 millify
+tensorboardX
+ray

@@ -71,7 +71,9 @@ class Train_novelty(Trainer):
         print(" [*] Model size : {}".format(millify(model_size, precision=2)))
 
         self.logger.info(" [*] Model size : {}".format(model_size))
-        self.logger.info(" [*] Model size (approx) : {}".format(millify(model_size, precision=2)))
+        self.logger.info(
+            " [*] Model size (approx) : {}".format(millify(model_size, precision=2))
+        )
         if self.log_neptune:
             neptune.log_text("Model size", str(model_size))
             neptune.log_text("Model size (approx)", millify(model_size, precision=2))
