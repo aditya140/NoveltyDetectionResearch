@@ -159,6 +159,10 @@ def objective(
     return val_acc
 
 
+def print_best_callback(study, trial):
+    print(f"Best value: {study.best_value}, Best params: {study.best_trial.params}")
+
+
 if __name__ == "__main__":
 
     exp = Experiment("tuning", api_key_getter=get_hyperdash_api)
@@ -202,7 +206,9 @@ if __name__ == "__main__":
         direction="maximize", study_name="novelty_tuner", sampler=sampler
     )
 
-    study.optimize(partial_objective, n_trials=args.num_trials)
+    study.optimize(
+        partial_objective, n_trials=args.num_trials, callbacks=[print_best_callback]
+    )
     pruned_trials = [
         t for t in study.trials if t.state == optuna.trial.TrialState.PRUNED
     ]
