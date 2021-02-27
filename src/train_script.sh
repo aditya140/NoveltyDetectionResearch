@@ -23,3 +23,34 @@ python3 src/train/train_novelty.py -d dlnd --load_nli NLI-93 --epochs 10 struc -
 pip3 install -r requirements.txt &&
 python3 -m spacy download en &&
 python3 src/train/train_novelty.py -d dlnd --load_nli NLI-93 --seed 1029 --folds True --epochs 10 struc --attention_hops 25 --attention_layer_param 200 --prune_p 200 --prune_p 20
+
+
+
+pip3 install -r requirements.txt &&
+python3 -m spacy download en &&
+python3 src/tune/tune_novelty.py -d dlnd --load_nli NLI-93 --num_trials 40 --epochs 8 --sampler grid dan
+
+
+
+pip3 install -r requirements.txt &&
+python3 -m spacy download en &&
+python3 src/tune/tune_novelty.py -d dlnd --load_nli NLI-93 --num_trials 40 --epochs 8 --sampler grid mwan
+
+
+
+pip3 install -r requirements.txt &&
+python3 -m spacy download en &&
+python3 src/tune/tune_novelty.py -d dlnd --load_nli NLI-93 --num_trials 40 --epochs 8 struc
+
+
+
+
+pip3 install -r requirements.txt &&
+python3 -m spacy download en &&
+python3 src/tune/tune_novelty.py -d dlnd --load_nli NLI-93 --num_trials 40 --epochs 8 adin
+
+
+
+pip3 install -r requirements.txt &&
+python3 -m spacy download en &&
+python3 src/tune/tune_novelty.py -d dlnd --load_nli NLI-93 --num_trials 40 --epochs 8 han
