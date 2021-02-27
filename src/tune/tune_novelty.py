@@ -122,7 +122,6 @@ def objective(
 ):
     model_kwargs = copy.deepcopy(model_kwargs)
     model_config = model_conf_tuning(trial, model_config, model_type)
-    print(model_config)
     net = model(model_config, **model_kwargs)
     net.to(device)
     optimizer, criterion = get_optimizer_criterion(net, hparams)

@@ -98,5 +98,5 @@ def train_model(model, optimizer, criterion, train_iterator, **kwargs):
         optimizer.step()
     train_loss = n_loss / n_total
     train_acc = 100.0 * n_correct / n_total
-    print("Train Accuracy", train_acc)
+    # print("Train Accuracy", train_acc)
     return train_loss, train_acc
