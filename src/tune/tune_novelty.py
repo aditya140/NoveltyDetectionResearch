@@ -42,7 +42,7 @@ class Tune_novelty(Tuner):
             dataset_conf,
             model_conf,
             hparams,
-            **{"sentence_field": sentence_field, "model_type": model_type}
+            **{"sentence_field": sentence_field, "model_type": model_type},
         )
 
     def load_dataset(self):
@@ -139,7 +139,7 @@ def objective(
             train_dl,
             **{
                 "batch_attr": {"model_inp": ["source", "target"], "label": "label"},
-            }
+            },
         )
         val_loss, val_acc = validate_model(
             net,
@@ -148,7 +148,7 @@ def objective(
             val_dl,
             **{
                 "batch_attr": {"model_inp": ["source", "target"], "label": "label"},
-            }
+            },
         )
 
         trial.report(val_acc, epoch)
@@ -201,6 +201,7 @@ if __name__ == "__main__":
     study = optuna.create_study(
         direction="maximize", study_name="novelty_tuner", sampler=sampler
     )
+
     study.optimize(partial_objective, n_trials=args.num_trials)
     pruned_trials = [
         t for t in study.trials if t.state == optuna.trial.TrialState.PRUNED
@@ -214,14 +215,25 @@ if __name__ == "__main__":
     print("  Number of pruned trials: ", len(pruned_trials))
     print("  Number of complete trials: ", len(complete_trials))
 
+    exp.log("Study statistics: ")
+    exp.log(f"  Number of finished trials: {len(study.trials)}")
+    exp.log(f"  Number of pruned trials: {len(pruned_trials)}")
+    exp.log(f"  Number of complete trials: {len(complete_trials)}")
+
     print("Best trial:")
+    exp.log("Best trial:")
     trial = study.best_trial
 
     print("  Value: ", trial.value)
+    exp.log(f" Value: {trial.value}")
 
     print("  Params: ")
+    exp.log("  Params: ")
     for key, value in trial.params.items():
         print("    {}: {}".format(key, value))
+        exp.log("    {}: {}".format(key, value))
 
     print("Study Dataframe: ")
     print(tabulate(study.trials_dataframe(), headers="keys", tablefmt="psql"))
+    exp.log(tabulate(study.trials_dataframe(), headers="keys", tablefmt="psql"))
+    exp.end()
