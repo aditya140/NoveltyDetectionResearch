@@ -871,7 +871,7 @@ class MwAN(nn.Module):
 
         self.hypo_gru = nn.GRU(
             input_size=2 * self.conf["encoder_dim"],
-            hidden_size=conf["hidden_size"],
+            hidden_size=self.conf["hidden_size"],
             batch_first=True,
             bidirectional=True,
         )
