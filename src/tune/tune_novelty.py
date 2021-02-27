@@ -126,6 +126,8 @@ def objective(
     net.to(device)
     optimizer, criterion = get_optimizer_criterion(net, hparams)
 
+    best_val_acc = 0
+
     for epoch in range(epochs):
         train_dl, val_dl, test_dl = (
             dataset.train_iter,
@@ -152,11 +154,12 @@ def objective(
         )
 
         trial.report(val_acc, epoch)
+        best_val_acc = max(best_val_acc,val_acc)
 
         # Handle pruning based on the intermediate value.
         if trial.should_prune():
             raise optuna.exceptions.TrialPruned()
-    return val_acc
+    return best_val_acc
 
 
 def print_best_callback(study, trial):
