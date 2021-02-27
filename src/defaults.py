@@ -708,7 +708,7 @@ def han_model_tuning(trial, model_conf):
 
 def mwan_model_tuning(trial, model_conf):
     model_conf["hidden_size"] = trial.suggest_categorical(
-        "hidden_size", [50, 100, 200, 300, 400]
+        "hidden_size", [10,50, 100, 200, 300, 400]
     )
     return model_conf
 
