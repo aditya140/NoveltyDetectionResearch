@@ -149,13 +149,14 @@ if __name__ == "__main__":
         args, dataset_conf, model_conf, optim_conf, model_type, sentence_field
     )
     if args.folds:
-        trainer.test_folds(
+        test_acc = trainer.test_folds(
             **{
                 "model_type": model_type,
                 "batch_attr": {"model_inp": ["source", "target"], "label": "label"},
             }
         )
     else:
-        trainer.fit(
+        test_acc = trainer.fit(
             **{"batch_attr": {"model_inp": ["source", "target"], "label": "label"}}
         )
+

@@ -377,6 +377,7 @@ class Trainer(abc.ABC):
                 )
             )
         self.finish()
+        return test_acc
 
     def test_folds(self, **kwargs):
         print(" [*] Training starts!")
@@ -467,4 +468,6 @@ class Trainer(abc.ABC):
                 sum(fold_acc) / len(fold_acc),
             )
         )
+        fold_acc_avg = sum(fold_acc) / len(fold_acc)
         self.finish()
+        return fold_acc_avg

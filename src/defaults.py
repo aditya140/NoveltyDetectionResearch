@@ -716,7 +716,7 @@ def mwan_model_tuning(trial, model_conf):
 def struc_self_attn_tuning(trial, model_conf):
     model_conf["hidden_size"] = trial.suggest_int("hidden_size", 50, 400)
     model_conf["num_layers"] = trial.suggest_int("num_layers", 1, 3)
-    model_conf["attention_hops"] = trial.suggest_int("attention_hops", 1, 25)
+    model_conf["attention_hops"] = trial.suggest_int("attention_hops", 2, 25)
     model_conf["prune_p"] = trial.suggest_int("prune_p", 10, 150)
     model_conf["prune_q"] = trial.suggest_int("prune_q", 5, 100)
     model_conf["attention_layer_param"] = trial.suggest_int(
@@ -767,7 +767,7 @@ def struc_search_space():
         "hidden_size": [50, 100, 200, 300, 400],
         "num_layers": [1, 2],
         "attention_layer_param": [10, 50, 100, 200, 300, 400],
-        "attention_hops": [1, 3, 5, 10, 20, 30],
+        "attention_hops": [3, 5, 10, 20, 30],
         "prune_p": [10, 50, 100, 150],
         "prune_q": [5, 10, 20, 50, 100],
     }
