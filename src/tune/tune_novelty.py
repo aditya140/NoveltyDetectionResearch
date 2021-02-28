@@ -46,10 +46,9 @@ class Tune_novelty(Tuner):
         )
 
     def load_dataset(self):
-        if dataset_conf["dataset"] == "dlnd":
-            dataset = dlnd(
-                self.dataset_conf, sentence_field=self.init_kwargs["sentence_field"]
-            )
+        dataset = novelty_dataset(
+            self.dataset_conf, sentence_field=self.init_kwargs["sentence_field"]
+        )
         return dataset
 
     def load_model(
@@ -154,7 +153,7 @@ def objective(
         )
 
         trial.report(val_acc, epoch)
-        best_val_acc = max(best_val_acc,val_acc)
+        best_val_acc = max(best_val_acc, val_acc)
 
         # Handle pruning based on the intermediate value.
         if trial.should_prune():

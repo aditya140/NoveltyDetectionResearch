@@ -39,8 +39,9 @@ class Train_novelty(Trainer):
         )
 
     def load_dataset(self, dataset_conf, **kwargs):
-        if dataset_conf["dataset"] == "dlnd":
-            self.dataset = dlnd(dataset_conf, sentence_field=kwargs["sentence_field"])
+        self.dataset = novelty_dataset(
+            dataset_conf, sentence_field=kwargs["sentence_field"]
+        )
 
         if self.log_neptune:
             neptune.append_tag([dataset_conf["dataset"], kwargs["model_type"]])

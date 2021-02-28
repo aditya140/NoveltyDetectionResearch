@@ -116,8 +116,10 @@ class NoveltyDataset(data.TabularDataset):
             test: The filename of the test data, or None to not load the test
                 set. Default: 'test.jsonl'.
         """
+
         path = cls.download(root)
-        cls.create_jsonl(path)
+        if not os.path.exists(os.path.join(path,train)):
+            cls.create_jsonl(path)
 
         if parse_field is None:
             fields = {
@@ -754,7 +756,7 @@ class Novelty:
         return train_dl, dev_dl, test_dl
 
 
-def dlnd(options, sentence_field=None):
+def novelty_dataset(options, sentence_field=None):
     options["use_vocab"] = True
     if sentence_field == None:
         if options["tokenizer"] == "bert":
