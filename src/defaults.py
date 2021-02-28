@@ -693,7 +693,7 @@ def dan_model_tuning(trial, model_conf):
 def adin_model_tuning(trial, model_conf):
     model_conf["hidden_size"] = trial.suggest_int("hidden_size", 50, 400)
     model_conf["k"] = trial.suggest_int("k", 10, 300)
-    model_conf["N"] = trial.suggest_int("k", 1, 3)
+    model_conf["N"] = trial.suggest_int("N", 1, 3)
     return model_conf
 
 

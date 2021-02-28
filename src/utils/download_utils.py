@@ -1,5 +1,5 @@
 import os, requests
-import tqdm
+from tqdm import tqdm
 
 
 def download_file_from_google_drive(id, destination):

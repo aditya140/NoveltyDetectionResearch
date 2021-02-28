@@ -9,6 +9,7 @@ import tarfile, zipfile, gzip
 from functools import partial
 import xml.etree.ElementTree as ET
 import json, csv
+from collections import defaultdict
 
 import torch
 from torchtext import data
@@ -19,6 +20,11 @@ from sklearn.model_selection import KFold, StratifiedKFold
 import nltk, spacy
 
 from ..utils.download_utils import download_from_url
+
+
+"""
+Novelty Dataset Base class (torchtext TabularDataset)
+"""
 
 
 class NoveltyDataset(data.TabularDataset):
@@ -36,7 +42,7 @@ class NoveltyDataset(data.TabularDataset):
 
     @classmethod
     def download(cls, root, check=None):
-        """Download and unzip an online archive (.z ip, .gz, or .tgz).
+        """Download and unzip an online archive (.zip, .gz, or .tgz).
 
         Arguments:
             root (str): Folder to download data to.
@@ -133,6 +139,317 @@ class NoveltyDataset(data.TabularDataset):
             format="json",
             fields=fields,
             filter_pred=lambda ex: ex.label != "-",
+        )
+
+
+class APWSJ(NoveltyDataset):
+    urls = [
+        (
+            "https://drive.google.com/file/d/1h7bS3zdP-6bPDuvJ_JXq8YzR6a3OEmRg/view?usp=sharing",
+            "dataset_aw.zip",
+        )
+    ]
+    dirname = "trec"
+    name = "apwsj"
+
+    @classmethod
+    def process_apwsj(cls, path):
+        AP_path = os.path.join(path, "AP")
+        AP_files = glob.glob(os.path.join(AP_path, "*.gz"))
+        for i in AP_files:
+            with gzip.open(i, "r") as f:
+                text = f.read()
+
+            with open(i[:-3], "wb") as f_new:
+                f_new.write(text)
+            os.remove(i)
+
+        wsj = os.path.join(path, "TREC", "wsj")
+        ap = os.path.join(path, "TREC", "AP")
+        ap_others = os.path.join(path, "AP")
+        wsj_others = os.path.join(path, "WSJ", "wsj_split")
+        cmunrf = os.path.join(path, "CMUNRF")
+
+        wsj_files = glob.glob(wsj + "/*")
+        ap_files = glob.glob(ap + "/*")
+
+        wsj_other_files = []
+        ap_other_files = glob.glob(os.path.join(ap_others, "*"))
+
+        wsj_big = glob.glob(os.path.join(wsj_others, "*"))
+        for i in wsj_big:
+            for file_path in glob.glob(os.path.join(i, "*")):
+                wsj_other_files.append(file_path)
+
+        docs_json = {}
+        errors = 0
+        for wsj_file in wsj_files:
+            with open(wsj_file, "r") as f:
+                txt = f.read()
+            docs = [
+                i.split("<DOC>")[1]
+                for i in filter(lambda x: len(x) > 10, txt.split("</DOC>"))
+            ]
+
+            for doc in docs:
+                try:
+                    id = doc.split("<DOCNO>")[1].split("</DOCNO>")[0]
+                    text = doc.split("<TEXT>")[1].split("</TEXT>")[0]
+                    docs_json[id] = text
+                except:
+                    errors += 1
+
+        for ap_file in ap_files:
+            with open(ap_file, "r", encoding="latin-1") as f:
+                txt = f.read()
+            docs = [
+                i.split("<DOC>")[1]
+                for i in filter(lambda x: len(x) > 10, txt.split("</DOC>"))
+            ]
+
+            for doc in docs:
+                try:
+                    id = doc.split("<DOCNO>")[1].split("</DOCNO>")[0]
+                    text = doc.split("<TEXT>")[1].split("</TEXT>")[0]
+                    docs_json[id] = text
+                except:
+                    errors += 1
+
+        for wsj_file in wsj_other_files:
+            with open(wsj_file, "r") as f:
+                txt = f.read()
+            docs = [
+                i.split("<DOC>")[1]
+                for i in filter(lambda x: len(x) > 10, txt.split("</DOC>"))
+            ]
+
+            for doc in docs:
+                try:
+                    id = doc.split("<DOCNO>")[1].split("</DOCNO>")[0]
+                    text = doc.split("<TEXT>")[1].split("</TEXT>")[0]
+                    docs_json[id] = text
+                except:
+                    errors += 1
+
+        for ap_file in ap_other_files:
+            with open(ap_file, "r", encoding="latin-1") as f:
+                txt = f.read()
+            docs = [
+                i.split("<DOC>")[1]
+                for i in filter(lambda x: len(x) > 10, txt.split("</DOC>"))
+            ]
+
+            for doc in docs:
+                try:
+                    id = doc.split("<DOCNO>")[1].split("</DOCNO>")[0]
+                    text = doc.split("<TEXT>")[1].split("</TEXT>")[0]
+                    docs_json[id] = text
+                except:
+                    errors += 1
+
+        print("Reading APWSJ dataset, Errors : ", errors)
+
+        docs_json = {k.strip(): v.strip() for k, v in docs_json.items()}
+
+        topic_to_doc_file = os.path.join(cmunrf, "NoveltyData/apwsj.qrels")
+        with open(topic_to_doc_file, "r") as f:
+            topic_to_doc = f.read()
+        topic_doc = [
+            (i.split(" 0 ")[1][:-2], i.split(" 0 ")[0])
+            for i in topic_to_doc.split("\n")
+        ]
+        topics = "q101, q102, q103, q104, q105, q106, q107, q108, q109, q111, q112, q113, q114, q115, q116, q117, q118, q119, q120, q121, q123, q124, q125, q127, q128, q129, q132, q135, q136, q137, q138, q139, q141"
+        topic_list = topics.split(", ")
+        filterd_docid = [(k, v) for k, v in topic_doc if v in topic_list]
+
+        def crawl(red_dict, doc, crawled):
+            ans = []
+            for cdoc in red_dict[doc]:
+                ans.append(cdoc)
+                if crawled[cdoc] == 0:
+                    try:
+                        red_dict[cdoc] = crawl(red_dict, cdoc, crawled)
+                        crawled[cdoc] = 1
+                        ans += red_dict[cdoc]
+                    except:
+                        crawled[cdoc] = 1
+            return ans
+
+        wf = os.path.join(cmunrf, "redundancy_list_without_partially_redundant.txt")
+        redundancy_path = os.path.join(cmunrf, "NoveltyData/redundancy.apwsj.result")
+        topics_allowed = "q101, q102, q103, q104, q105, q106, q107, q108, q109, q111, q112, q113, q114, q115, q116, q117, q118, q119, q120, q121, q123, q124, q125, q127, q128, q129, q132, q135, q136, q137, q138, q139, q141"
+        topics_allowed = topics_allowed.split(", ")
+        red_dict = dict()
+        allow_partially_redundant = 1
+        for line in open(redundancy_path, "r"):
+            tokens = line.split()
+            if tokens[2] == "?":
+                if allow_partially_redundant == 1:
+                    red_dict[tokens[0] + "/" + tokens[1]] = [
+                        tokens[0] + "/" + i for i in tokens[3:]
+                    ]
+            else:
+                red_dict[tokens[0] + "/" + tokens[1]] = [
+                    tokens[0] + "/" + i for i in tokens[2:]
+                ]
+        crawled = defaultdict(int)
+        for doc in red_dict:
+            if crawled[doc] == 0:
+                red_dict[doc] = crawl(red_dict, doc, crawled)
+                crawled[doc] = 1
+        with open(wf, "w") as f:
+            for doc in red_dict:
+                if doc.split("/")[0] in topics_allowed:
+                    f.write(
+                        " ".join(
+                            doc.split("/") + [i.split("/")[1] for i in red_dict[doc]]
+                        )
+                        + "\n"
+                    )
+
+        write_file = os.path.join(cmunrf, "novel_list_without_partially_redundant.txt")
+        topics = topic_list
+        doc_topic_dict = defaultdict(list)
+
+        for i in topic_doc:
+            doc_topic_dict[i[0]].append(i[1])
+        docs_sorted = (
+            open(os.path.join(cmunrf, "NoveltyData/apwsj88-90.rel.docno.sorted"), "r")
+            .read()
+            .splitlines()
+        )
+        sorted_doc_topic_dict = defaultdict(list)
+        for doc in docs_sorted:
+            if len(doc_topic_dict[doc]) > 0:
+                for t in doc_topic_dict[doc]:
+                    sorted_doc_topic_dict[t].append(doc)
+        redundant_dict = defaultdict(lambda: defaultdict(int))
+        for line in open(
+            os.path.join(cmunrf, "redundancy_list_without_partially_redundant.txt"), "r"
+        ):
+            tokens = line.split()
+            redundant_dict[tokens[0]][tokens[1]] = 1
+        novel_list = []
+        for topic in topics:
+            if topic in topics_allowed:
+                for i in range(len(sorted_doc_topic_dict[topic])):
+                    if redundant_dict[topic][sorted_doc_topic_dict[topic][i]] != 1:
+                        if i > 0:
+                            # take at most 5 latest docs in case of novel
+                            novel_list.append(
+                                " ".join(
+                                    [topic, sorted_doc_topic_dict[topic][i]]
+                                    + sorted_doc_topic_dict[topic][max(0, i - 5) : i]
+                                )
+                            )
+        with open(write_file, "w") as f:
+            f.write("\n".join(novel_list))
+
+        # Novel cases
+        novel_docs = os.path.join(cmunrf, "novel_list_without_partially_redundant.txt")
+        with open(novel_docs, "r") as f:
+            novel_doc_list = [i.split() for i in f.read().split("\n")]
+        # Redundant cases
+        red_docs = os.path.join(
+            cmunrf, "redundancy_list_without_partially_redundant.txt"
+        )
+        with open(red_docs, "r") as f:
+            red_doc_list = [i.split() for i in f.read().split("\n")]
+        red_doc_list = filter(lambda x: len(x) > 0, red_doc_list)
+        novel_doc_list = filter(lambda x: len(x) > 0, novel_doc_list)
+
+        missing_file_log = os.path.join(cmunrf, "missing_log.txt")
+        dataset = []
+        s_not_found = 0
+        t_not_found = 0
+        for i in novel_doc_list:
+            target_id = i[1]
+            source_ids = i[2:]
+            if target_id in docs_json.keys():
+                data_inst = {}
+                data_inst["target_text"] = docs_json[target_id]
+                data_inst["source"] = ""
+                for source_id in source_ids:
+                    if source_id in docs_json.keys():
+                        data_inst["source"] += docs_json[source_id] + ". \n"
+                data_inst["DLA"] = "Novel"
+            else:
+                with open(missing_file_log, "w+") as f:
+                    f.write(str(target_id) + "")
+            if data_inst["source"] != "":
+                dataset.append(data_inst)
+
+        for i in red_doc_list:
+            target_id = i[1]
+            source_ids = i[2:]
+            if target_id in docs_json.keys():
+                data_inst = {}
+                data_inst["target_text"] = docs_json[target_id]
+                data_inst["source"] = ""
+                for source_id in source_ids:
+                    if source_id in docs_json.keys():
+                        data_inst["source"] += docs_json[source_id] + ". \n"
+                data_inst["DLA"] = "Non-Novel"
+            else:
+                with open(missing_file_log, "w+") as f:
+                    f.write(str(target_id) + "")
+            if data_inst["source"] != "":
+                dataset.append(data_inst)
+
+        dataset_json = {}
+        for i in range(len(dataset)):
+            dataset_json[i] = dataset[i]
+        return dataset_json
+
+    @classmethod
+    def process_data(cls, path):
+        cmunrf_url = "http://www.cs.cmu.edu/~yiz/research/NoveltyData/CMUNRF1.tar"
+        cmunrf_path = os.path.join(path, "CMUNRF1.tar")
+
+        download_from_url(cmunrf_url, cmunrf_path)
+
+        data_zips = [
+            (os.path.join(path, "AP.tar"), os.path.join(path, "AP")),
+            (os.path.join(path, "trec.zip"), os.path.join(path, "TREC")),
+            (os.path.join(path, "wsj_split.zip"), os.path.join(path, "WSJ")),
+            (os.path.join(path, "CMUNRF1.tar"), os.path.join(path, "CMUNRF")),
+        ]
+        for data_zip in data_zips:
+            shutil.unpack_archive(data_zip[0], data_zip[1])
+
+        """
+        Process APWSJ
+        """
+        dataset_json = cls.process_apwsj(path)
+
+        if not os.path.exists(path):
+            os.makedirs(path)
+
+        with open(os.path.join(path, "apwsj.jsonl"), "w") as f:
+            f.writelines([json.dumps(i) + "\n" for i in dataset_json.values()])
+
+        # with open(os.path.join(path, "dlnd.jsonl"), "w") as f:
+        #     json.dump(list(dataset.values()), f)
+
+    @classmethod
+    def splits(
+        cls,
+        text_field,
+        label_field,
+        parse_field=None,
+        root=".data",
+        train="apwsj.jsonl",
+        validation=None,
+        test=None,
+    ):
+        return super(APWSJ, cls).splits(
+            text_field,
+            label_field,
+            parse_field=parse_field,
+            root=root,
+            train=train,
+            validation=validation,
+            test=test,
         )
 
 
@@ -286,6 +603,11 @@ class DLND(NoveltyDataset):
         )
 
 
+"""
+PyTorch Dataset/DataLoader
+"""
+
+
 class DLND_Dataset(Dataset):
     def __init__(self, data):
         self.data = data
@@ -305,6 +627,11 @@ class DLND_Dataset(Dataset):
         label = self.fields["label"].process([self.data.examples[idx].label]).squeeze()
 
         return [source, target], label
+
+
+"""
+Novelty Dataset Class
+"""
 
 
 class Novelty:
@@ -357,6 +684,8 @@ class Novelty:
 
         if options["dataset"] == "dlnd":
             dataset = DLND
+        if options["dataset"] == "apwsj":
+            dataset = APWSJ
 
         (self.data,) = dataset.splits(self.TEXT_FIELD, self.LABEL)
         self.train, self.dev, self.test = self.data.split(
@@ -412,13 +741,15 @@ class Novelty:
 
     def get_dataloaders(self):
         train_dl = DataLoader(
-            DLND_Dataset(self.train), batch_size=self.options["batch_size"],shuffle=True
+            DLND_Dataset(self.train),
+            batch_size=self.options["batch_size"],
+            shuffle=True,
         )
         dev_dl = DataLoader(
-            DLND_Dataset(self.dev), batch_size=self.options["batch_size"],shuffle=True
+            DLND_Dataset(self.dev), batch_size=self.options["batch_size"], shuffle=True
         )
         test_dl = DataLoader(
-            DLND_Dataset(self.test), batch_size=self.options["batch_size"],shuffle=True
+            DLND_Dataset(self.test), batch_size=self.options["batch_size"], shuffle=True
         )
         return train_dl, dev_dl, test_dl
 
