@@ -66,6 +66,9 @@ class DAN(nn.Module):
         self.conf = conf
         self.num_sent = conf["max_num_sent"]
         self.encoder = encoder
+        if self.conf["freeze_encoder"]:
+            self.encoder.requires_grad = False
+
         self.translate = nn.Linear(
             2 * self.conf["encoder_dim"], self.conf["hidden_size"]
         )
@@ -196,6 +199,9 @@ class ADIN(nn.Module):
         self.conf = conf
         self.num_sent = conf["max_num_sent"]
         self.encoder = encoder
+        if self.conf["freeze_encoder"]:
+            self.encoder.requires_grad = False
+
         self.translate = nn.Linear(
             2 * self.conf["encoder_dim"], self.conf["hidden_size"]
         )
@@ -281,6 +287,9 @@ class HAN_DOC(nn.Module):
         super(HAN_DOC, self).__init__()
         self.conf = conf
         self.encoder = encoder
+        if self.conf["freeze_encoder"]:
+            self.encoder.requires_grad = False
+
 
         self.translate = nn.Linear(
             2 * self.conf["encoder_dim"], self.conf["hidden_size"]
@@ -365,6 +374,9 @@ class Accumulator(nn.Module):
         super(Accumulator, self).__init__()
         self.conf = conf
         self.encoder = encoder
+        if self.conf["freeze_encoder"]:
+            self.encoder.requires_grad = False
+
         self.template = nn.Parameter(torch.zeros((1)), requires_grad=True)
 
     def forward(self, src, trg):
@@ -687,6 +699,9 @@ class DIIN(nn.Module):
         super().__init__()
         self.conf = conf
         self.encoder = encoder
+        if self.conf["freeze_encoder"]:
+            self.encoder.requires_grad = False
+
 
         self.num_sent = conf["max_num_sent"]
 
@@ -856,6 +871,9 @@ class MwAN(nn.Module):
         self.conf = conf
         self.dropout = nn.Dropout(conf["dropout"])
         self.encoder = encoder
+        if self.conf["freeze_encoder"]:
+            self.encoder.requires_grad = False
+
         self.template = nn.Parameter(torch.zeros((1)), requires_grad=True)
 
         self.translate = nn.Linear(
@@ -998,6 +1016,8 @@ class Struc_DOC(nn.Module):
         super(Struc_DOC, self).__init__()
         self.conf = conf
         self.encoder = encoder
+        if self.conf["freeze_encoder"]:
+            self.encoder.requires_grad = False
 
         self.translate = nn.Linear(
             2 * self.conf["encoder_dim"], self.conf["hidden_size"]

@@ -267,6 +267,7 @@ def parse_novelty_conf():
     parser.add_argument("--optim", type=str, default="adamw")
     parser.add_argument("--loss_agg", type=str, default="sum")
     parser.add_argument("--scheduler", type=str, default="step")
+    parser.add_argument("--freeze_encoder", type=bool, default=False)
 
     subparsers = parser.add_subparsers(dest="model_type")
 
