@@ -84,3 +84,22 @@ python3 src/train/train_novelty.py -d dlnd --load_nli NLI-93 --epochs 10 dan &&
 python3 src/train/train_novelty.py -d dlnd --load_nli NLI-93 --epochs 10 rdv_cnn &&
 python3 src/train/train_novelty.py -d dlnd --load_nli NLI-93 --epochs 10 adin &&
 python3 src/train/train_novelty.py -d dlnd --load_nli NLI-93 --epochs 10 struc
+
+
+
+
+pip3 install -r requirements.txt &&
+python3 -m spacy download en &&
+python3 src/ensemble/train_novelty.py -d dlnd --load_nli NLI-93 --epochs 10 dan
+
+
+
+pip3 install -r requirements.txt &&
+python3 -m spacy download en &&
+python3 src/ensemble/train_novelty.py -d dlnd --load_nli NLI-93 --epochs 8 struc
+
+
+
+pip3 install -r requirements.txt &&
+python3 -m spacy download en &&
+python3 src/ensemble/train_novelty.py -d dlnd --load_nli NLI-93 --epochs 8 adin

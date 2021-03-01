@@ -590,7 +590,7 @@ class MwAN_snli(nn.Module):
                 torch.load(".vector_cache/{}_vectors.pt".format(conf["dataset"]))
             )
             if conf["freeze_emb"]:
-                self.embedding.requires_grad = False
+                self.embedding.requires_grad_(False)
 
         if conf["use_char_emb"]:
             self.char_embedding = nn.Embedding(

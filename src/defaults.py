@@ -15,6 +15,7 @@ import dill
 NEPTUNE_API = "eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vdWkubmVwdHVuZS5haSIsImFwaV91cmwiOiJodHRwczovL3VpLm5lcHR1bmUuYWkiLCJhcGlfa2V5IjoiMTg3MzU5NjQtMmIxZC00Njg0LTgzYzMtN2UwYjVlYzVhNDg5In0="
 NLI_NEPTUNE_PROJECT = "aparkhi/NLI"
 NOVELTY_NEPTUNE_PROJECT = "aparkhi/Novelty"
+NOVELTY_ENSEMBLE_NEPTUNE_PROJECT = "aparkhi/NoveltyEnsemble"
 
 
 """
