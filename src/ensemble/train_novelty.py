@@ -92,9 +92,10 @@ class Train:
     def execute(self):
         train_loader = self.dataset.train_iter
         val_loader = self.dataset.val_iter
+        test_loader = self.dataset.test_iter
 
         self.model.fit(train_loader, epochs=self.args.epochs, test_loader=val_loader)
-        test_acc = self.model.predict(self.dataset.test_iter)
+        test_acc = self.model.predict(test_loader)
         print("Test Acc:", test_acc)
         self.hd_exp.log(f"Test Acc: {test_acc}")
         self.exp.log(f"Test Acc: {test_acc}")

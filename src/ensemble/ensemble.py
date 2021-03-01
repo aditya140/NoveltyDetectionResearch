@@ -377,20 +377,26 @@ class VotingClassifier_novelty(VotingClassifier):
     )
     def predict(self, test_loader):
         self.eval()
-        correct = 0
-        total = 0
+        estimators = [i for i in self.estimators_]
 
-        for _, batch in enumerate(test_loader):
-            source, target, label = (
-                batch.source.to(self.device),
-                batch.target.to(self.device),
-                batch.label.to(self.device),
-            )
-            output = self.forward(source, target)
-            _, predicted = torch.max(output.data, 1)
-            correct += (predicted == label).sum().item()
-            total += label.size(0)
+        def _forward(estimators, x, y):
+            outputs = [F.softmax(estimator(x, y), dim=1) for estimator in estimators]
+            proba = op.average(outputs)
+            return proba
 
-        acc = 100 * correct / total
+        with torch.no_grad():
+            correct = 0
+            total = 0
+            for _, batch in enumerate(test_loader):
+                source, target, label = (
+                    batch.source.to(self.device),
+                    batch.target.to(self.device),
+                    batch.label.to(self.device),
+                )
 
+                output = _forward(estimators, source, target)
+                _, predicted = torch.max(output.data, 1)
+                correct += (predicted == label).sum().item()
+                total += label.size(0)
+            acc = 100 * correct / total
         return acc
