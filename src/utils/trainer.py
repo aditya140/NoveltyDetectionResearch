@@ -3,6 +3,7 @@ import neptune
 import datetime
 from hyperdash import Experiment
 import time
+from millify import millify
 
 import torch
 import torch.nn as nn
@@ -69,8 +70,23 @@ class Trainer(abc.ABC):
         self.load_dataset(dataset_conf, **kwargs)
         if not args.folds:
             self.load_model(model_conf, **kwargs)
+            model_size = self.count_parameters(self.model)
+
+            print(" [*] Model size : {}".format(model_size))
+            print(" [*] Model size : {}".format(millify(model_size, precision=2)))
+
+            self.logger.info(" [*] Model size : {}".format(model_size))
+            self.logger.info(
+                " [*] Model size (approx) : {}".format(millify(model_size, precision=2))
+            )
+            if self.log_neptune:
+                neptune.log_text("Model size", str(model_size))
+                neptune.log_text("Model size (approx)", millify(model_size, precision=2))
+
             self.set_optimizers(hparams, **kwargs)
             self.set_schedulers(hparams, **kwargs)
+
+        model_size = self.count_parameters(self.model)
         print("resource preparation done: {}".format(datetime.datetime.now()))
 
     @abc.abstractmethod

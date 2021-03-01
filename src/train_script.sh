@@ -59,3 +59,28 @@ python3 src/tune/tune_novelty.py -d dlnd --load_nli NLI-93 --num_trials 40 --epo
 pip3 install -r requirements.txt &&
 python3 -m spacy download en &&
 python3 src/tune/tune_novelty.py -d dlnd --load_nli NLI-93 --epochs 10 --num_trials 100 struc
+
+
+
+pip3 install -r requirements.txt &&
+python3 -m spacy download en &&
+python3 src/train/train_novelty.py -d dlnd --load_nli NLI-93 --freeze_encoder True --epochs 10 han &&
+python3 src/train/train_novelty.py -d dlnd --load_nli NLI-93 --epochs 10 han &&
+python3 src/train/train_novelty.py -d dlnd --load_nli NLI-93 --freeze_encoder True --epochs 10 dan &&
+python3 src/train/train_novelty.py -d dlnd --load_nli NLI-93 --epochs 10 dan &&
+python3 src/train/train_novelty.py -d dlnd --load_nli NLI-93 --freeze_encoder True --epochs 10 rdv_cnn &&
+python3 src/train/train_novelty.py -d dlnd --load_nli NLI-93 --epochs 10 rdv_cnn &&
+python3 src/train/train_novelty.py -d dlnd --load_nli NLI-93 --freeze_encoder True --epochs 10 adin &&
+python3 src/train/train_novelty.py -d dlnd --load_nli NLI-93 --epochs 10 adin &&
+python3 src/train/train_novelty.py -d dlnd --load_nli NLI-93 --freeze_encoder True --epochs 10 struc &&
+python3 src/train/train_novelty.py -d dlnd --load_nli NLI-93 --epochs 10 struc
+
+
+
+pip3 install -r requirements.txt &&
+python3 -m spacy download en &&
+python3 src/train/train_novelty.py -d dlnd --load_nli NLI-93 --epochs 10 han &&
+python3 src/train/train_novelty.py -d dlnd --load_nli NLI-93 --epochs 10 dan &&
+python3 src/train/train_novelty.py -d dlnd --load_nli NLI-93 --epochs 10 rdv_cnn &&
+python3 src/train/train_novelty.py -d dlnd --load_nli NLI-93 --epochs 10 adin &&
+python3 src/train/train_novelty.py -d dlnd --load_nli NLI-93 --epochs 10 struc

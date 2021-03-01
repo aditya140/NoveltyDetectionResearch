@@ -67,17 +67,6 @@ class Train_novelty(Trainer):
             self.model = StrucSelfAttn(model_conf, encoder)
 
         self.model.to(self.device)
-        model_size = self.count_parameters(self.model)
-        print(" [*] Model size : {}".format(model_size))
-        print(" [*] Model size : {}".format(millify(model_size, precision=2)))
-
-        self.logger.info(" [*] Model size : {}".format(model_size))
-        self.logger.info(
-            " [*] Model size (approx) : {}".format(millify(model_size, precision=2))
-        )
-        if self.log_neptune:
-            neptune.log_text("Model size", str(model_size))
-            neptune.log_text("Model size (approx)", millify(model_size, precision=2))
 
     def set_optimizers(self, hparams, **kwargs):
         self.criterion = nn.CrossEntropyLoss(reduction=hparams["loss_agg"])
