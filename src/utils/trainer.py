@@ -9,6 +9,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
+from sklearn.metrics import f1_score, precision_recall_fscore_support
 
 # from torch_lr_finder import LRFinder
 
@@ -24,7 +25,7 @@ class Trainer(abc.ABC):
         hparams,
         log_neptune=True,
         log_hyperdash=True,
-        **kwargs
+        **kwargs,
     ):
         print("program execution start: {}".format(datetime.datetime.now()))
         self.log_neptune = log_neptune
@@ -81,7 +82,9 @@ class Trainer(abc.ABC):
             )
             if self.log_neptune:
                 neptune.log_text("Model size", str(model_size))
-                neptune.log_text("Model size (approx)", millify(model_size, precision=2))
+                neptune.log_text(
+                    "Model size (approx)", millify(model_size, precision=2)
+                )
 
             self.set_optimizers(hparams, **kwargs)
             self.set_schedulers(hparams, **kwargs)
@@ -120,12 +123,13 @@ class Trainer(abc.ABC):
         pass
 
     def finish(self):
-        if self.log_hyperdash:
-            self.hd_exp.end()
         self.logger.info("[*] Training finished!\n\n")
         print("-" * 99)
         print(" [*] Training finished!")
         print(" [*] Please find the training log in results_dir")
+
+        if self.log_hyperdash:
+            self.hd_exp.end()
 
     def train(
         self,
@@ -135,7 +139,7 @@ class Trainer(abc.ABC):
         train_iterator,
         log_neptune,
         log_hyperdash,
-        **kwargs
+        **kwargs,
     ):
         model.train()
 
@@ -176,6 +180,7 @@ class Trainer(abc.ABC):
                 self.hd_exp.metric("Train Loss", loss.item(), log=False)
             loss.backward()
             optimizer.step()
+
         train_loss = n_loss / n_total
         train_acc = 100.0 * n_correct / n_total
         if log_neptune:
@@ -194,12 +199,17 @@ class Trainer(abc.ABC):
         val_iterator,
         log_neptune,
         log_hyperdash,
-        **kwargs
+        **kwargs,
     ):
         model.eval()
         if hasattr(val_iterator, "init_epoch") and callable(val_iterator.init_epoch):
             val_iterator.init_epoch()
         n_correct, n_total, n_loss = 0, 0, 0
+        all_probs, all_preds, all_labels = (
+            torch.empty((0, 2)),
+            torch.empty((0,)),
+            torch.empty((0,)),
+        )
 
         if kwargs.get("batch_attr", None) == None:
             raise ValueError(
@@ -219,16 +229,14 @@ class Trainer(abc.ABC):
 
                 answer = model(*model_inp)
                 loss = criterion(answer, label)
-                n_correct += (
-                    (
-                        torch.max(F.softmax(answer, dim=1), 1)[1].view(label.size())
-                        == label
-                    )
-                    .sum()
-                    .item()
-                )
+                prob = F.softmax(answer, dim=1)
+                predictions = torch.max(prob, 1)[1].view(label.size())
+                n_correct += (predictions == label).sum().item()
                 n_total += batch_size
                 n_loss += loss.item()
+                all_preds = torch.cat([predictions.cpu(), all_preds], dim=0)
+                all_labels = torch.cat([label.cpu(), all_labels], dim=0)
+                all_probs = torch.cat([prob.cpu(), all_probs], dim=0)
                 if log_neptune:
                     neptune.log_metric("Val Loss", loss.item())
                 if log_hyperdash:
@@ -241,7 +249,7 @@ class Trainer(abc.ABC):
             if log_hyperdash:
                 self.hd_exp.metric("Val Avg Loss", val_loss, log=False)
                 self.hd_exp.metric("Val accuracy", val_acc, log=False)
-            return val_loss, val_acc
+            return val_loss, val_acc, (prob.cpu().tolist(), label.cpu().tolist())
 
     def test(
         self,
@@ -251,7 +259,7 @@ class Trainer(abc.ABC):
         test_iterator,
         log_neptune,
         log_hyperdash,
-        **kwargs
+        **kwargs,
     ):
         if hasattr(test_iterator, "init_epoch") and callable(test_iterator.init_epoch):
             test_iterator.init_epoch()
@@ -274,6 +282,11 @@ class Trainer(abc.ABC):
 
         test_iterator.init_epoch()
         n_correct, n_total, n_loss = 0, 0, 0
+        all_probs, all_preds, all_labels = (
+            torch.empty((0, 2)),
+            torch.empty((0,)),
+            torch.empty((0,)),
+        )
 
         with torch.no_grad():
             for batch_idx, batch in enumerate(test_iterator):
@@ -283,25 +296,39 @@ class Trainer(abc.ABC):
 
                 answer = model(*model_inp)
                 loss = criterion(answer, label)
-                n_correct += (
-                    (
-                        torch.max(F.softmax(answer, dim=1), 1)[1].view(label.size())
-                        == label
-                    )
-                    .sum()
-                    .item()
-                )
+                prob = F.softmax(answer, dim=1)
+                predictions = torch.max(prob, 1)[1].view(label.size())
+                n_correct += (predictions == label).sum().item()
                 n_total += batch_size
                 n_loss += loss.item()
+                all_preds = torch.cat([predictions.cpu(), all_preds], dim=0)
+                all_labels = torch.cat([label.cpu(), all_labels], dim=0)
+                all_probs = torch.cat([prob.cpu(), all_probs], dim=0)
+
             test_loss = n_loss / n_total
             test_acc = 100.0 * n_correct / n_total
+            prec, recall, f1_score, support = precision_recall_fscore_support(
+                all_labels, all_preds
+            )
+            prec = {i: prec[i] for i in range(len(prec))}
+            recall = {i: recall[i] for i in range(len(recall))}
+            f1_score = {i: f1_score[i] for i in range(len(f1_score))}
+            support = {i: support[i] for i in range(len(support))}
+
             if log_neptune:
                 neptune.log_metric("Test Avg Loss", test_loss)
                 neptune.log_metric("Test Accuracy", test_acc)
+                neptune.log_text("Precision", str(prec))
+                neptune.log_text("Recall", str(recall))
+                neptune.log_text("F1", str(f1_score))
             if log_hyperdash:
                 self.hd_exp.metric("Test Avg Loss", test_loss, log=False)
                 self.hd_exp.metric("Test accuracy", test_acc, log=False)
-            return test_loss, test_acc
+
+                self.hd_exp.log(f"Precision : {str(prec)}")
+                self.hd_exp.log(f"Recall : {str(recall)}")
+                self.hd_exp.log(f"F1 : {str(f1_score)}")
+            return test_loss, test_acc, (prob, gold)
 
     def count_parameters(self, model):
         return sum(p.numel() for p in model.parameters() if p.requires_grad)
@@ -343,16 +370,16 @@ class Trainer(abc.ABC):
                 self.dataset.train_iter,
                 self.log_neptune,
                 self.log_hyperdash,
-                **kwargs
+                **kwargs,
             )
-            val_loss, val_acc = self.validate(
+            val_loss, val_acc, (prob, gold) = self.validate(
                 self.model,
                 self.optimizer,
                 self.criterion,
                 self.dataset.val_iter,
                 self.log_neptune,
                 self.log_hyperdash,
-                **kwargs
+                **kwargs,
             )
             if self.scheduler != None:
                 self.scheduler.step()
@@ -369,14 +396,14 @@ class Trainer(abc.ABC):
             )
 
         if hasattr(self.dataset, "test_iter"):
-            test_loss, test_acc = self.test(
+            test_loss, test_acc, (prob, gold) = self.test(
                 self.model,
                 self.optimizer,
                 self.criterion,
                 self.dataset.test_iter,
                 self.log_neptune,
                 self.log_hyperdash,
-                **kwargs
+                **kwargs,
             )
             print(
                 "| Epoch {:3d} | test loss {:5.2f}  |  test acc {:5.2f} |                |               |               |".format(
@@ -422,16 +449,16 @@ class Trainer(abc.ABC):
                     self.dataset.train_iter,
                     False,
                     False,
-                    **kwargs
+                    **kwargs,
                 )
-                val_loss, val_acc = self.validate(
+                val_loss, val_acc, (prob, gold) = self.validate(
                     self.model,
                     self.optimizer,
                     self.criterion,
                     self.dataset.val_iter,
                     False,
                     False,
-                    **kwargs
+                    **kwargs,
                 )
                 test_acc_list.append(val_acc)
                 test_loss_list.append(val_loss)

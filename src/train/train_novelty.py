@@ -1,6 +1,9 @@
 import sys
 
 sys.path.append(".")
+import warnings
+
+warnings.filterwarnings("ignore")
 
 import torch
 import torch.nn as nn
@@ -43,8 +46,13 @@ class Train_novelty(Trainer):
             dataset_conf, sentence_field=kwargs["sentence_field"]
         )
 
+        lable_dict = self.dataset.labels()
+
         if self.log_neptune:
             neptune.append_tag([dataset_conf["dataset"], kwargs["model_type"]])
+            neptune.log_text("class_labels", str(dict(self.dataset.labels())))
+        if self.log_hyperdash:
+            self.hd_exp.param("class_labels", str(dict(self.dataset.labels())))
 
     def load_model(self, model_conf, **kwargs):
         nli_model_data = load_encoder_data(self.args.load_nli)
@@ -148,4 +156,3 @@ if __name__ == "__main__":
         test_acc = trainer.fit(
             **{"batch_attr": {"model_inp": ["source", "target"], "label": "label"}}
         )
-

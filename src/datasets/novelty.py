@@ -1,4 +1,4 @@
-import io, os, glob, shutil
+import io, os, glob, shutil, re
 import six
 import requests
 import random
@@ -118,7 +118,7 @@ class NoveltyDataset(data.TabularDataset):
         """
 
         path = cls.download(root)
-        if not os.path.exists(os.path.join(path,train)):
+        if not os.path.exists(os.path.join(path, train)):
             cls.create_jsonl(path)
 
         if parse_field is None:
@@ -467,121 +467,75 @@ class DLND(NoveltyDataset):
 
     @classmethod
     def process_data(cls, path):
-        def get_sources(source):
-            source_meta = [
-                "/".join(i.split("/")[:-1])
-                + "/"
-                + i.split("/")[-1].split(".")[0]
-                + ".xml"
-                for i in source
+        all_direc = [
+            os.path.join(path, direc, direc1)
+            for direc in os.listdir(path)
+            if os.path.isdir(os.path.join(path, direc))
+            for direc1 in os.listdir(os.path.join(path, direc))
+        ]
+
+        source_files = [
+            [
+                os.path.join(direc, "source", file)
+                for file in os.listdir(os.path.join(direc, "source"))
+                if file.endswith(".txt")
             ]
-            sources = list(zip(source, source_meta))
-            data = []
-            for x in sources:
-                with open(x[0], mode="r", errors="ignore") as f:
-                    source_text = f.read()
-                root = ET.parse(x[1]).getroot()
-                title = root.findall("feature")[0].get("title")
-                eventname = root.findall("feature")[1].get("eventname")
-                id = x[0].split("/")[-1].split(".")[0]
-                data.append(
-                    {
-                        "id": id,
-                        "eventname": eventname,
-                        "title": title,
-                        "source_text": source_text,
-                    }
-                )
-            return data
-
-        def filter_labels(x):
-            mapping = {
-                "Non-Novel": "Non-Novel",
-                "Non-Novelvel": "Non-Novel",
-                "NovNon-Novelel": "Non-Novel",
-                "Novel": "Novel",
-                "non-novel": "Non-Novel",
-                "novel": "Novel",
-            }
-            return mapping[x]
-
-        def get_targets(target):
-            target_meta = [
-                "/".join(i.split("/")[:-1])
-                + "/"
-                + i.split("/")[-1].split(".")[0]
-                + ".xml"
-                for i in target
+            for direc in all_direc
+        ]
+        target_files = [
+            [
+                os.path.join(direc, "target", file)
+                for file in os.listdir(os.path.join(direc, "target"))
+                if file.endswith(".txt")
             ]
-            targets = list(zip(target, target_meta))
-            data = []
-            for x in targets:
-                with open(x[0], mode="r", errors="ignore") as f:
-                    target_text = f.read()
-                # with open(x[1],mode='r',errors='ignore') as f:
-                #     print(f.read())
-                root = ET.parse(x[1]).getroot()
-                novel = root.findall("feature")[2].get("DLA")
-                src_id = root.findall("feature")[0].get("sourceid").split(",")
-                id = x[0].split("/")[-1].split(".")[0]
-                eventname = root.findall("feature")[1].get("eventname")
+            for direc in all_direc
+        ]
+        source_docs = [
+            [
+                open(file_name, "r", encoding="latin-1")
+                .read()
+                .encode("ascii", "ignore")
+                .decode()
+                for file_name in direc
+            ]
+            for direc in source_files
+        ]
+        target_docs = [
+            [
+                open(file_name, "r", encoding="latin-1")
+                .read()
+                .encode("ascii", "ignore")
+                .decode()
+                for file_name in direc
+            ]
+            for direc in target_files
+        ]
+        data = []
+        for i in range(len(target_docs)):
+            for j in range(len(target_docs[i])):
+                label = [
+                    tag.attrib["DLA"]
+                    for tag in ET.parse(target_files[i][j][:-4] + ".xml").findall(
+                        "feature"
+                    )
+                    if "DLA" in tag.attrib.keys()
+                ][0]
                 data.append(
-                    {
-                        "id": id,
-                        "eventname": eventname,
-                        "target_text": target_text,
-                        "src_id": src_id,
-                        "DLA": novel,
-                    }
+                    [target_docs[i][j]]
+                    + [source_docs[i][k] for k in range(len(source_docs[i]))]
+                    + ["Novel" if label.lower() == "novel" else "Non-Novel"]
                 )
-            return data
-
-        categories = glob.glob(os.path.join(path, "*"))
-        sources = []
-        targets = []
-        for cat in categories:
-            if os.path.isdir(cat):
-                topics = glob.glob(cat + "/*")
-                for topic in topics:
-                    source = topic + "/source/*.txt"
-                    target = topic + "/target/*.txt"
-                    event_id = topic + "/EventId.txt"
-                    sources += get_sources(glob.glob(source))
-                    targets += get_targets(glob.glob(target))
-
-        source_set = {}
-        for i in sources:
-            source_set[i["id"]] = i
-        target_set = {}
-        for i in targets:
-            target_set[i["id"]] = i
-
-        dataset = {}
-        i = 0
-        for target in target_set.keys():
-            source_text = []
-            if len(target_set[target]["src_id"]) > 0 and target_set[target][
-                "src_id"
-            ] != [""]:
-                for src_id in target_set[target]["src_id"]:
-                    source_text.append(source_set[src_id]["source_text"])
-                dataset[i] = {
-                    "target_text": target_set[target]["target_text"],
-                    "source": source_text,
-                    "DLA": filter_labels(target_set[target]["DLA"]),
-                }
-                i += 1
-        for id_ in dataset.keys():
-            dataset[id_]["source"] = "\n".join(dataset[id_]["source"])
+        dataset = []
+        for i in data:
+            dataset.append(
+                {"source": i[0], "target_text": "\n".join(i[1:-1]), "DLA": i[-1]}
+            )
 
         if not os.path.exists(path):
             os.makedirs(path)
 
         with open(os.path.join(path, "dlnd.jsonl"), "w") as f:
-            f.writelines([json.dumps(i) + "\n" for i in dataset.values()])
-
-        # with open(os.path.join(path, "dlnd.jsonl"), "w") as f:
-        #     json.dump(list(dataset.values()), f)
+            f.writelines([json.dumps(i) + "\n" for i in dataset])
 
     @classmethod
     def splits(
@@ -595,6 +549,77 @@ class DLND(NoveltyDataset):
         test=None,
     ):
         return super(DLND, cls).splits(
+            text_field,
+            label_field,
+            parse_field=parse_field,
+            root=root,
+            train=train,
+            validation=validation,
+            test=test,
+        )
+
+
+class Webis(NoveltyDataset):
+    urls = [
+        (
+            "https://zenodo.org/record/3251771/files/Webis-CPC-11.zip",
+            "Webis-CPC-11.zip",
+        )
+    ]
+    dirname = "Webis-CPC-11"
+    name = "webis"
+
+    @classmethod
+    def process_data(cls, path):
+
+        original = glob.glob(os.path.join(path, "*original*"))
+        metadata = glob.glob(os.path.join(path, "*metadata*"))
+        paraphrase = glob.glob(os.path.join(path, "*paraphrase*"))
+        assert len(original) == len(metadata) == len(paraphrase)
+        ids = [i.split("/")[-1].split("-")[0] for i in original]
+        data = {int(i): {} for i in ids}
+        to_pop = []
+        for id in data.keys():
+            org_file = os.path.join(path, f"{id}-original.txt")
+            para_file = os.path.join(path, f"{id}-paraphrase.txt")
+            meta_file = os.path.join(path, f"{id}-metadata.txt")
+
+            with open(org_file, "r") as f:
+                org = f.read()
+            with open(para_file, "r") as f:
+                par = f.read()
+            with open(meta_file, "r") as f:
+                text = f.read()
+                novel = re.findall("Paraphrase: (.*)", text)[0] == "Yes"
+            if len(org) > 10 and len(par) > 10:
+                data[id]["source"] = org.replace("\n", "")
+                data[id]["target_text"] = par.replace("\n", "")
+                data[id]["DLA"] = novel
+            else:
+                to_pop.append(id)
+        for id in to_pop:
+            data.pop(id, None)
+
+        dataset = data.values()
+
+        if not os.path.exists(path):
+            os.makedirs(path)
+
+        with open(os.path.join(path, "webis.jsonl"), "w") as f:
+            f.writelines([json.dumps(i) + "\n" for i in dataset])
+
+    @classmethod
+    def splits(
+        cls,
+        text_field,
+        label_field,
+        parse_field=None,
+        root=".data",
+        train="webis.jsonl",
+        validation=None,
+        test=None,
+    ):
+        return super(Webis, cls).splits(
             text_field,
             label_field,
             parse_field=parse_field,
@@ -688,6 +713,8 @@ class Novelty:
             dataset = DLND
         if options["dataset"] == "apwsj":
             dataset = APWSJ
+        if options["dataset"] == "webis":
+            dataset = Webis
 
         (self.data,) = dataset.splits(self.TEXT_FIELD, self.LABEL)
         self.train, self.dev, self.test = self.data.split(

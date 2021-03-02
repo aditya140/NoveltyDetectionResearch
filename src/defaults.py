@@ -10,7 +10,9 @@ import neptune
 import hyperdash
 import shutil
 import dill
-
+import pickle
+from sklearn.metrics import precision_recall_curve
+import matplotlib.pyplot as plt
 
 NEPTUNE_API = "eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vdWkubmVwdHVuZS5haSIsImFwaV91cmwiOiJodHRwczovL3VpLm5lcHR1bmUuYWkiLCJhcGlfa2V5IjoiMTg3MzU5NjQtMmIxZC00Njg0LTgzYzMtN2UwYjVlYzVhNDg5In0="
 NLI_NEPTUNE_PROJECT = "aparkhi/NLI"
@@ -564,6 +566,18 @@ def load_encoder_data(_id):
 def get_hyperdash_api():
     return "6dqfQAL9Xij4kBZzoFO+iDTxNHszbaxsxhzaeg0f/DE="
 
+
+def setup_prc_plit(title):
+    plt.xlabel('Recall')
+    plt.ylabel('Precision')
+    plt.ylim([0.0, 1.05])
+    plt.xlim([0.0, 1.0])
+    plt.title(title)
+
+
+def plot_prc(plt,probs,gold,cls=0,label=""):
+    p_,r_,_ = precision_recall_curve(gold,[i[0] for i in probs])
+    plt.plot(r_,p_,"-",label)
 
 """
 Tuning
