@@ -171,6 +171,7 @@ class Novelty_model(pl.LightningModule):
             return [optimizer], [scheduler]
         else:
             return [optimizer]
+
     def training_step(self, batch, batch_idx):
         x0, x1, y, id_ = batch
         opt = self(x0, x1).squeeze(1)
@@ -541,8 +542,6 @@ class Novelty_longformer(pl.LightningModule):
                         logger.experiment.log_image("precision-recall curve", fig)
                         plt.close(fig)
         return result
-
-
 
 
 class SwitchOptim(Callback):

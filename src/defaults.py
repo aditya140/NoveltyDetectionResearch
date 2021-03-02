@@ -412,10 +412,10 @@ def mwan_nov_model_parameters(parser_dump):
 def struc_self_attn_model_parameters(parser_dump):
     parser_dump.add_argument("--dropout", type=float, default=0.3)
     parser_dump.add_argument("--hidden_size", type=int, default=300)
-    parser_dump.add_argument("--attention_hops", type=int, default=10)
+    parser_dump.add_argument("--attention_hops", type=int, default=25)
     parser_dump.add_argument("--attention_layer_param", type=int, default=150)
     parser_dump.add_argument("--num_layers", type=int, default=1)
-    parser_dump.add_argument("--prune_p", type=int, default=100)
+    parser_dump.add_argument("--prune_p", type=int, default=20)
     parser_dump.add_argument("--prune_q", type=int, default=10)
 
 
@@ -567,17 +567,23 @@ def get_hyperdash_api():
     return "6dqfQAL9Xij4kBZzoFO+iDTxNHszbaxsxhzaeg0f/DE="
 
 
-def setup_prc_plit(title):
+def setup_prc_plot(title):
     plt.xlabel('Recall')
     plt.ylabel('Precision')
     plt.ylim([0.0, 1.05])
     plt.xlim([0.0, 1.0])
     plt.title(title)
+    return plt
 
 
-def plot_prc(plt,probs,gold,cls=0,label=""):
-    p_,r_,_ = precision_recall_curve(gold,[i[0] for i in probs])
-    plt.plot(r_,p_,"-",label)
+def plot_prc(plt,probs,gold,cls_label=0,label=""):
+    if cls_label==1:
+        invert_gold = [1-i for i in gold]
+        gold = invert_gold
+    p_,r_,_ = precision_recall_curve(gold,[i[cls_label] for i in probs])
+    plt.plot(r_,p_,"-",label=label)
+    plt.legend(loc='best')
+    return plt
 
 """
 Tuning

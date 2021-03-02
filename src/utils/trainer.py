@@ -90,8 +90,7 @@ class Trainer(abc.ABC):
 
             self.set_optimizers(hparams, **kwargs)
             self.set_schedulers(hparams, **kwargs)
-
-        model_size = self.count_parameters(self.model)
+            model_size = self.count_parameters(self.model)
         print("resource preparation done: {}".format(datetime.datetime.now()))
 
     @abc.abstractmethod
@@ -491,19 +490,27 @@ class Trainer(abc.ABC):
                     min(train_loss_list),
                     max(train_acc_list),
                     min(test_loss_list),
-                    max(test_acc_list),
+                    test_acc,
                     took,
                 )
             )
 
             if self.log_neptune:
-                neptune.log_metric("Fold Accuracy", max(test_acc_list))
+                neptune.log_metric("Fold Accuracy", test_acc)
             if self.log_hyperdash:
-                self.hd_exp.metric("Fold Accuracy", max(test_acc_list), log=False)
+                self.hd_exp.metric("Fold Accuracy", test_acc, log=False)
 
-        all_preds = np.max(all_probs, 1)
+        all_gold = np.array(all_gold, dtype=np.int)
+        all_probs = np.array(all_probs)
+        all_pred = np.argmax(all_probs, 1)
+
+        with open(
+            os.path.join(self.args.results_dir, self.exp_id, "probs.p"), "wb"
+        ) as f:
+            pickle.dump({"prob": all_probs, "gold": all_gold, "pred": all_pred}, f)
+
         prec, recall, f1_score, support = precision_recall_fscore_support(
-            all_gold, all_preds
+            all_gold, all_pred
         )
         prec = {i: prec[i] for i in range(len(prec))}
         recall = {i: recall[i] for i in range(len(recall))}
@@ -520,8 +527,9 @@ class Trainer(abc.ABC):
             neptune.log_text("Final Precision", str(prec))
             neptune.log_text("Final Recall", str(recall))
             neptune.log_text("Final F1", str(f1_score))
-            pickle.dump({"prob": all_probs, "gold": all_gold})
-            neptune.log_artifact()
+            neptune.log_artifact(
+                os.path.join(self.args.results_dir, self.exp_id, "probs.p")
+            )
         if self.log_hyperdash:
             self.hd_exp.metric(
                 "Final Accuracy", sum(fold_acc) / len(fold_acc), log=False

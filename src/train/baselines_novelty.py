@@ -1,26 +1,40 @@
-import pickle
+import os, pickle, logging, shutil, wget, string, json, nltk, time
+from random import shuffle
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
 from scipy.stats import entropy
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.feature_extraction.text import CountVectorizer
+
+
+nltk.download("stopwords")
+nltk.download("punkt")
 from nltk.corpus import stopwords
-import string
-from random import shuffle
 from sklearn.linear_model import LogisticRegression
-import os
 import xml.etree.ElementTree as ET
 from gensim.models.doc2vec import Doc2Vec
 from sklearn.metrics import accuracy_score, confusion_matrix
 from sklearn.metrics import precision_recall_fscore_support
 from nltk import word_tokenize
-import wget
-import shutil
 
+
+if not os.path.exists("./results/novelty_baseline/"):
+    os.makedirs("./results/novelty_baseline/")
+
+logging.basicConfig(
+    level=logging.INFO,
+    filename="results/novelty_baseline/train_{}.log".format(
+        time.strftime("%H:%M:%S", time.gmtime(time.time())),
+    ),
+    format="%(asctime)s - %(message)s",
+    datefmt="%d-%b-%y %H:%M:%S",
+)
+logger = logging.getLogger("train")
 
 
 def download_doc2vecmodel():
-    doc2vec_url = "https://public.boxcloud.com/d/1/b1!-wL2tixya3XbXRNGAMFqiqX1bE6046fqlCO4jCJ5lb92XfmUQfq1L6zMr_fDYrmS-sSkKdzHre2F_joU-h9nojCU_bBZH6Z3k4c3J-WTCmYONv6UqZNxzhTRpDsXxRJl28qbrcurqcnVUDVRLDZ0BYG5UBYvvUtN0tm0O-n31SoZzTsB52K463P-y0qCMIdVdzCEa1uCX3tPIs85TCWYO1JVTYyRf8-t_Mj-3FZ0h4zsZZcUVlpPkEB1LXmrV-wqVj-Ps7GXVEWV_Bil_ZlP-I5UT2Fq9ae6AUt7edYYkiWrEY1owRoMjQRPFNmuNH_2MByk1DzHzT2uQq3lG1EPqQFWVtgct1qUaWkotpLxujKeKBSlVpQZ17691T1i6MRxc9qFvofkmLXKOrY27voUB1CxfkyqygA82kZejfk-Je3O8qxPQvOm8mS_MY9-DZgprSuqWr13DH0kLGCGo8rCZkzeGOBtEfrti7yGcbZh5KwnXU4JWtki-SdssON1i5QbHNpNKmi0v8nWq5cxDWQClRRPARoxIuQpaSrwkf6iRmPrAbWpVVUM_GErIfkTos4N-mjkTOrivoWAuGVV9s1wdRaVrILpZ_Tv9UJNu-DSwLJyQhOJ3roXytdJzjvLtDKKcO9GobssaWICD5GmlQzaicevSbgWvh-YDrtoyYkeOBh7SNmDI-qb8Uyvll3XZ4-DwbEv1Fo9KSgAr6p3vixJMEEQLdVgPaKOrQwxWquC6W7X6AIXSCT1_KMVEaDlu3AkougrbUuLHJs1D8QW1wkE_ncsHu-O9h3v-HXIb2tn7gFuDQi3ITQLGkkS8PKLQGWGs_Dk-A5cCDrljxZe3L6gNKyCNceTHaQqyaKC1qDwWeJRmOjrx5Qra289nTVJLaweejgzPq5Hts-wzkxmFj1ChsDGenJ7om752UYheGf52tjmLWxiEcPVJuIAc8ixnioJN4rQMTylIdP5q9LKXx6zoNJFVjHGqXWDRMX0pW0btgebWpbU--DGgA4mbI1fFjqGtjvJAIVP_F_LukIYXl-rsYKqhVhmH7Ts7GBVk-vUGXa5Xl6pBsn6eZLJgsFQxYH--ai2zKnXuSLQRFLL_htQ6kEyDPYpCvH2H3EnxpXkpvwupZ2u6zYffBULxfU9qvh9jk9TVB6ZmrCJGwzCIk69yBRjQbuRsQm1SMwl7obpNfUsHUbcuk1DP6-DNq3LGMzD0tvABMqFIJP9C3AJjurP5bMDE1I0uLMlRrPsiU_zOQoRd7o-3G4RmHk6V0TyeXIerhN6LbZ3GpXNxNViKtaVr_G1QVo6reTjIOP9WBelOgvJNq7-QteE2catLzE2NZLqag../download"
+    # https://ibm.ent.box.com/s/3f160t4xpuya9an935k84ig465gvymm2
+    doc2vec_url = "https://public.boxcloud.com/d/1/b1!lMgOFAdscMZy2rv2GRTRFCr5JTeXMJjXQ0nwcPQoO7ppvzbo4IY7lSF_0oLjW9Zt2CcsI-4JhMKJpUSEJsR59-PgLFlZ68_-ev7AZU9yyXQp7GPy3Hs4i_hQ1X1XSsuv21Z1anQxobdPkrtiQhl-osD7K6Bg4OeF78ouBHp3uz1nsv1HBOndO4vy_miDHuv7j-vlKfZqawHqeSZONpZmTe1oQ1JM8Y3GEbBLQMx2vgajf6qQmuy4KnGObc21iqZR8zoYglpTKPUfYm6ueGFehRlXmQd_6f8_dzIDDar-GFPwKl4YbbvqjKv4smHgORbzuck2UgyO9A7AkIGo03N9qcY7LpWTPnukPPQ1nDLcVZ_Pc2uda1e8QLcgCpS39i5AAWw986HIwOH9AMVXVtI96badck6IG8P7-JSC_ww8QusZdZxUTpMCk_gc4eJD5LBbDUntnMpQ-f85dw-8ANvFJCac_-hrv4Y5xFrs0yvqvkl7jZgx36fpvzyMHqYXbvoVNF5Q8eQzFRncN-H71nq2S4bLdG3LjE00hSR2zIuLzai_i7NdcJZQWU7TGnaloh7kcEI_ekJ1RN85j3HJwmd-x9SH7Ec0ATAbU7_RtuLtc1jSYk5dEIZByilZR2Q99l2YF6tBCPbuOiw55gXzr0CXbgDNJXMCgU3YAybW0QGeo7kcBCIGV6E-Q0IJWp1oyPCyn1TDgh7VuhI4BWuKz6dhSxyCjkM0KggDQNICtkcSA-J68LmABsK1lhcQhQcwoFK5XXhiKbaDb4uLstb37mTUM3UvAlbdz4_JhTrPD45XOoURy569JiNDQTB-QlXkOZP1LbJ26fJtwhGXrEci5xGEcvc-GkurpRpmQGDBPGCPsZ3TVeRgd83RuVCbh_OlPtNLTGEB9qkK_5tm4Ib-8RvmPFch9oQQuc8nu5hjzQS5OIeUkV0INh9XrACI7JCEonaPUgp8bNySjXxMuDh0EphxoRP5CPrE1eh78OEaeGWnuGgLDQbOhPxhVmCd0eSzhIOijQnLh0W9Z7ytGO0gcZ7StjeRUL_1bXxBQo9vYuzQu7mQjOZ68ozG04XgmPEO8-Q0qQJSg0VCSTbJnptABsMdCEet25YbyjbgZ1Hed0M-OSOwsdB1E89DwMU1FXDAt33z1usDmH2S69DRqY1jXyKBCDWCScTQO4xQeHV0vD5f4g3ZwpPwn5kFAjRGbEArUTyHN5D9plKOBBEqTMZJYuaGojZi_d6qaslfMGA9NNh050Mg9Y5kkcOPvsmstqdN-A2BTakdv1i6e_PXkFifWEekLWKIdCeAYMeuhOeauqA6R3e0ntQNGFOQNo09GRJ6ACBEz4QPHfKmYjijRQFVoYGFsItxEK7baEdc8d54/download"
     wget.download(doc2vec_url, "enwiki_dbow.tgz")
 
 
@@ -48,6 +62,7 @@ tfidf_vec1 = TfidfVectorizer(
 count_vec = CountVectorizer(
     decode_error="ignore", lowercase=False, stop_words=stopwords
 )
+
 
 def make_cv_10_fold(labels):
     cv = [None] * n_cases
@@ -129,6 +144,12 @@ def train_lr(features):
     print("\nClass wise precisions: " + str(p))
     print("Class wise recalls: " + str(r))
     print("Class wise fscores: " + str(f))
+
+    logger.info("\nConfusion matrix:\n" + str(cf))
+    logger.info("\nAccuracy: " + str(acc))
+    logger.info("\nClass wise precisions: " + str(p))
+    logger.info("Class wise recalls: " + str(r))
+    logger.info("Class wise fscores: " + str(f))
     return probs
 
 
@@ -212,81 +233,55 @@ def calc_pv(docs):
 
 
 if __name__ == "__main__":
-    dlnd_path = ".data/dlnd/TAP-DLND-1.0_LREC2018_modified/"
-    all_direc = [
-        dlnd_path + direc + "/" + direc1 + "/"
-        for direc in os.listdir(dlnd_path)
-        if os.path.isdir(dlnd_path + direc)
-        for direc1 in os.listdir(dlnd_path + direc)
-    ]
-    source_files = [
-        [
-            direc + "source/" + file
-            for file in os.listdir(direc + "source/")
-            if file.endswith(".txt")
-        ]
-        for direc in all_direc
-    ]
-    target_files = [
-        [
-            direc + "target/" + file
-            for file in os.listdir(direc + "target/")
-            if file.endswith(".txt")
-        ]
-        for direc in all_direc
-    ]
-    source_docs = [
-        [open(file_name, "r", encoding="latin-1").read() for file_name in direc]
-        for direc in source_files
-    ]
-    target_docs = [
-        [open(file_name, "r", encoding="latin-1").read() for file_name in direc]
-        for direc in target_files
-    ]
-    data = []
-    for i in range(len(target_docs)):
-        for j in range(len(target_docs[i])):
-            label = [
-                tag.attrib["DLA"]
-                for tag in ET.parse(target_files[i][j][:-4] + ".xml").findall("feature")
-                if "DLA" in tag.attrib.keys()
-            ][0]
+
+    with open(".data/dlnd/TAP-DLND-1.0_LREC2018_modified/dlnd.jsonl", "r") as f:
+        data = f.readlines()
+        d = [json.loads(i) for i in data]
+        data = []
+        for i in d:
             data.append(
-                [target_docs[i][j]]
-                + [source_docs[i][k] for k in range(len(source_docs[i]))]
-                + [1 if label == "Novel" else 0]
+                [i["target_text"]] + [i["source"]] + [1 if i["DLA"] == "Novel" else 0]
             )
     n_cases = len(data)
     labels = [data[i][-1] for i in range(n_cases)]
     class_order = np.unique(labels)
     cv = make_cv_10_fold(labels)
     print("\nSET DIFFERENCE METRIC\n")
+    logger.info("\nSET DIFFERENCE METRIC\n")
     set_diff = [calc_set_diff(data[i][:-1]) for i in range(n_cases)]
     probs_set_diff = train_lr(set_diff)
     print("\nGEO DIFFERENCE METRIC\n")
+    logger.info("\nGEO DIFFERENCE METRIC\n")
     geo_diff = [calc_geo_diff(data[i][:-1]) for i in range(n_cases)]
     probs_geo_diff = train_lr(geo_diff)
     print("\nTFIDF NOVELTY SCORE METRIC\n")
+    logger.info("\nTFIDF NOVELTY SCORE METRIC\n")
     tfidf_novelty_score = [
         calc_tfidf_novelty_score(data[i][:-1]) for i in range(n_cases)
     ]
     probs_tfidf_novelty_score = train_lr(tfidf_novelty_score)
     print("\nKL DIVERGENCE METRIC\n")
+    logger.info("\nKL DIVERGENCE METRIC\n")
     kl_div = [calc_kl_div(data[i][:-1]) for i in range(n_cases)]
     probs_kl_div = train_lr(kl_div)
     print("\nPARAGRAPH VECTOR + LR\n")
+    logger.info("\nPARAGRAPH VECTOR + LR\n")
     pv = [calc_pv(data[i][:-1]) for i in range(n_cases)]
     probs_pv = train_lr(pv)
 
-    pickle.dump(
-        [
-            class_order,
-            probs_set_diff,
-            probs_geo_diff,
-            probs_tfidf_novelty_score,
-            probs_kl_div,
-            probs_pv,
-            labels,
-        ],
-        open("dlnd_baselines_class_probs.p", "wb"),
+    with open("./results/novelty_baseline/dlnd_baselines_class_probs.p", "wb") as f:
+        pickle.dump(
+            {
+                "class_order": class_order,
+                "probs_set_diff": probs_set_diff,
+                "probs_geo_diff": probs_geo_diff,
+                "probs_tfidf_novelty_score": probs_tfidf_novelty_score,
+                "probs_kl_div": probs_kl_div,
+                "probs_pv": probs_pv,
+                "labels": labels,
+            },
+            f,
+        )
+    logger.info(
+        "predictions saved at ./results/novelty_baseline/dlnd_baselines_class_probs.p"
     )
