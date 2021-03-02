@@ -4,6 +4,8 @@ import datetime
 from hyperdash import Experiment
 import time
 from millify import millify
+import numpy as np
+import pickle
 
 import torch
 import torch.nn as nn
@@ -249,7 +251,11 @@ class Trainer(abc.ABC):
             if log_hyperdash:
                 self.hd_exp.metric("Val Avg Loss", val_loss, log=False)
                 self.hd_exp.metric("Val accuracy", val_acc, log=False)
-            return val_loss, val_acc, (prob.cpu().tolist(), label.cpu().tolist())
+            return (
+                val_loss,
+                val_acc,
+                (all_probs.tolist(), all_labels.tolist()),
+            )
 
     def test(
         self,
@@ -321,14 +327,12 @@ class Trainer(abc.ABC):
                 neptune.log_text("Precision", str(prec))
                 neptune.log_text("Recall", str(recall))
                 neptune.log_text("F1", str(f1_score))
-            if log_hyperdash:
-                self.hd_exp.metric("Test Avg Loss", test_loss, log=False)
-                self.hd_exp.metric("Test accuracy", test_acc, log=False)
 
-                self.hd_exp.log(f"Precision : {str(prec)}")
-                self.hd_exp.log(f"Recall : {str(recall)}")
-                self.hd_exp.log(f"F1 : {str(f1_score)}")
-            return test_loss, test_acc, (prob, gold)
+            return (
+                test_loss,
+                test_acc,
+                (all_probs.tolist(), all_labels.tolist()),
+            )
 
     def count_parameters(self, model):
         return sum(p.numel() for p in model.parameters() if p.requires_grad)
@@ -427,6 +431,8 @@ class Trainer(abc.ABC):
         print("-" * 99)
         fold_no = 0
         fold_acc = []
+        all_probs, all_gold = [], []
+
         for train_iter, val_iter in self.dataset.iter_folds():
 
             self.load_model(self.model_conf, **kwargs)
@@ -460,7 +466,7 @@ class Trainer(abc.ABC):
                     False,
                     **kwargs,
                 )
-                test_acc_list.append(val_acc)
+                test_acc_list.append((val_acc, (prob, gold)))
                 test_loss_list.append(val_loss)
                 train_acc_list.append(train_acc)
                 train_loss_list.append(train_loss)
@@ -473,8 +479,11 @@ class Trainer(abc.ABC):
                 if self.log_hyperdash:
                     self.hd_exp.metric("train acc", train_acc, log=False)
 
+            test_acc, (fold_prob, fold_gold) = max(test_acc_list, key=lambda x: x[0])
+            all_probs += fold_prob
+            all_gold += fold_gold
             took = time.time() - start
-            fold_acc.append(max(test_acc_list))
+            fold_acc.append(test_acc)
 
             print(
                 "| Fold {:3d}  | train loss {:5.2f} | train acc {:5.2f} | test loss {:5.2f} | test acc {:5.2f} | time: {:5.2f}s |".format(
@@ -492,6 +501,14 @@ class Trainer(abc.ABC):
             if self.log_hyperdash:
                 self.hd_exp.metric("Fold Accuracy", max(test_acc_list), log=False)
 
+        all_preds = np.max(all_probs, 1)
+        prec, recall, f1_score, support = precision_recall_fscore_support(
+            all_gold, all_preds
+        )
+        prec = {i: prec[i] for i in range(len(prec))}
+        recall = {i: recall[i] for i in range(len(recall))}
+        f1_score = {i: f1_score[i] for i in range(len(f1_score))}
+        support = {i: support[i] for i in range(len(support))}
         print(
             "| Fold {:3d}  |                | final acc {:5.2f} |                |               |               |".format(
                 0,
@@ -500,6 +517,11 @@ class Trainer(abc.ABC):
         )
         if self.log_neptune:
             neptune.log_metric("Final Accuracy", sum(fold_acc) / len(fold_acc))
+            neptune.log_text("Final Precision", str(prec))
+            neptune.log_text("Final Recall", str(recall))
+            neptune.log_text("Final F1", str(f1_score))
+            pickle.dump({"prob": all_probs, "gold": all_gold})
+            neptune.log_artifact()
         if self.log_hyperdash:
             self.hd_exp.metric(
                 "Final Accuracy", sum(fold_acc) / len(fold_acc), log=False
