@@ -17,6 +17,8 @@ from sklearn.metrics import accuracy_score, confusion_matrix
 from sklearn.metrics import precision_recall_fscore_support
 from nltk import word_tokenize
 
+import neptune
+
 
 if not os.path.exists("./results/novelty_baseline/"):
     os.makedirs("./results/novelty_baseline/")

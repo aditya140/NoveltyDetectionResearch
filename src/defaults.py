@@ -539,9 +539,12 @@ def save_field(path, field):
 def download_models_from_neptune(_id):
     if _id.split("-")[0] == "NLI":
         download_model(NLI_NEPTUNE_PROJECT, _id)
+    if _id.split("-")[0] == "NOV":
+        download_model(NOVELTY_NEPTUNE_PROJECT, _id)
 
 
 def download_model(project, _id):
+    prj = project
     model_folder_path = "./results"
     model_path = os.path.join(model_folder_path, _id)
     if not os.path.exists(model_path):
@@ -549,12 +552,15 @@ def download_model(project, _id):
 
     project = neptune.init(project, api_token=NEPTUNE_API)
     experiment = project.get_experiments(id=_id)[0]
-    experiment.download_artifact(_id + ".zip", model_folder_path)
+    if prj == NLI_NEPTUNE_PROJECT:
+        experiment.download_artifact(_id + ".zip", model_folder_path)
 
-    shutil.unpack_archive(
-        os.path.join(model_folder_path, _id + ".zip"),
-        extract_dir=model_path,
-    )
+        shutil.unpack_archive(
+            os.path.join(model_folder_path, _id + ".zip"),
+            extract_dir=model_path,
+        )
+    if prj == NOVELTY_NEPTUNE_PROJECT:
+        experiment.download_artifact("probs.p", model_path)
 
 
 def load_encoder_data(_id):
@@ -568,22 +574,23 @@ def get_hyperdash_api():
 
 
 def setup_prc_plot(title):
-    plt.xlabel('Recall')
-    plt.ylabel('Precision')
+    plt.xlabel("Recall")
+    plt.ylabel("Precision")
     plt.ylim([0.0, 1.05])
     plt.xlim([0.0, 1.0])
     plt.title(title)
     return plt
 
 
-def plot_prc(plt,probs,gold,cls_label=0,label=""):
-    if cls_label==1:
-        invert_gold = [1-i for i in gold]
+def plot_prc(plt, probs, gold, cls_label=0, label=""):
+    if cls_label == 1:
+        invert_gold = [1 - i for i in gold]
         gold = invert_gold
-    p_,r_,_ = precision_recall_curve(gold,[i[cls_label] for i in probs])
-    plt.plot(r_,p_,"-",label=label)
-    plt.legend(loc='best')
+    p_, r_, _ = precision_recall_curve(gold, [i[cls_label] for i in probs])
+    plt.plot(r_, p_, "-", label=label)
+    plt.legend(loc="best")
     return plt
+
 
 """
 Tuning
