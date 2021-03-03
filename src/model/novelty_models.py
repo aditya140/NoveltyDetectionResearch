@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
+import numpy as np
 import math
 from src.model.nli_models import *
 
@@ -289,7 +290,6 @@ class HAN_DOC(nn.Module):
         self.encoder = encoder
         if self.conf["freeze_encoder"]:
             self.encoder.requires_grad_(False)
-
 
         self.translate = nn.Linear(
             2 * self.conf["encoder_dim"], self.conf["hidden_size"]
@@ -702,7 +702,6 @@ class DIIN(nn.Module):
         if self.conf["freeze_encoder"]:
             self.encoder.requires_grad_(False)
 
-
         self.num_sent = conf["max_num_sent"]
 
         self.template = nn.Parameter(torch.zeros((1)), requires_grad=True)
@@ -1087,7 +1086,7 @@ class StrucSelfAttn(nn.Module):
 
         self.fc = nn.Linear(4 * fc_in_dim, 2)
 
-    def forward(self, x0,x1):
+    def forward(self, x0, x1):
         # x0, x1 = inputs
         x0_enc = self.encoder(x0)
         x1_enc = self.encoder(x1)
@@ -1104,3 +1103,118 @@ class StrucSelfAttn(nn.Module):
         cont = self.dropout(self.act(cont))
         cont = self.fc(cont)
         return cont
+
+
+"""
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+MultiHead Attention 
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+"""
+
+"""
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+HCAN
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+"""
+
+
+
+class ConvolutionalMultiheadAttention(nn.Module):
+    def __init__(self, input_dim, kernel_dim, multihead_cnt, conv_cnt):
+        super(ConvolutionalMultiheadAttention, self).__init__()
+        self.input_dim = input_dim
+        self.multihead_cnt = multihead_cnt
+
+        self.convs = nn.ModuleList([nn.Conv1d(input_dim, input_dim, kernel_dim)
+                                    for _ in range(conv_cnt)])
+        for w in self.convs:
+            nn.init.xavier_normal_(w.weight)
+
+    def attention(self, q, k, v):
+        return torch.softmax(torch.div(torch.bmm(q.permute(0,2,1), k),
+               np.sqrt(self.input_dim)), 2).bmm(v.permute(0,2,1)).permute(0,2,1)
+
+    def multihead(self, hiddens):
+        hiddens = [torch.chunk(hidden, self.multihead_cnt, 1) for hidden in hiddens]
+        hiddens = torch.cat([self.attention(hiddens[0][i], hiddens[1][i], hiddens[2][i])
+                             for i in range(self.multihead_cnt)], 1)
+
+        return hiddens
+
+class ConvolutionalMultiheadSelfAttention(ConvolutionalMultiheadAttention):
+    def __init__(self, input_dim, kernel_dim, multihead_cnt=10, conv_cnt=6):
+        super(ConvolutionalMultiheadSelfAttention, self).\
+              __init__(input_dim, kernel_dim, multihead_cnt, conv_cnt)
+
+    def forward(self, input):
+        hiddens = [F.elu(conv(input)) for conv in self.convs[:-1]]
+        hiddens.append(torch.tanh(self.convs[-1](input)))
+
+        elu_hid = self.multihead(hiddens[:3])
+        tanh_hid= self.multihead(hiddens[3:])
+        output = F.layer_norm(torch.mul(elu_hid, tanh_hid), elu_hid.size()[1:])
+
+        return output
+
+class ConvolutionalMultiheadTargetAttention(ConvolutionalMultiheadAttention):
+    def __init__(self, input_dim, kernel_dim, multihead_cnt=10, conv_cnt=2):
+        super(ConvolutionalMultiheadTargetAttention, self).\
+              __init__(input_dim, kernel_dim, multihead_cnt, conv_cnt)
+        self.target = nn.Parameter(torch.randn(input_dim, 1))
+        stdv = 1. / math.sqrt(self.target.size(1))
+        self.target.data.uniform_(-stdv, stdv)
+
+    def forward(self, input):
+        batch_size = input.size(0)
+        hiddens = [F.elu(conv(input)) for conv in self.convs]
+        output = self.multihead([self.target.expand(batch_size, self.input_dim, 1)]+hiddens)
+
+        return output
+
+
+class Proto(nn.Module):
+    def __init__(self, num_emb, input_dim, pretrained_weight):
+        super(Proto, self).__init__()
+        self.id2vec = nn.Embedding(num_emb, input_dim, padding_idx=1)
+        # unk, pad, ..., keywords
+        self.id2vec.weight.data[3:].copy_(torch.from_numpy(pretrained_weight))
+        self.id2vec.requires_grad = True
+
+    def predict(self, x, l):
+        input = self.id2vec(x)
+        input = torch.div(torch.sum(input, 1), l)
+        return self.model(input)
+
+    def forward(self, data, sent_maxlen):
+        x, l, y = torch.split(data, [sent_maxlen,1,1], 1)
+        logits = self.predict(x, l.float())
+        loss = self.loss(logits, y.squeeze())
+        accuracy = self.accuracy(logits, y.squeeze())
+
+        return loss, accuracy
+
+
+class Proto_CNN(Proto):
+    def __init__(self, input_dim, hidden_dim, kernel_dim,
+                 sent_maxlen, dropout_rate, num_emb, pretrained_weight):
+        super(Proto_CNN, self).__init__(num_emb, input_dim, pretrained_weight)
+
+        self.positions = nn.Parameter(torch.randn(sent_maxlen,input_dim))
+        stdv = 1. / self.positions.size(1) ** 0.5
+        self.positions.data.uniform_(-stdv, stdv)
+        self.cmsa = ConvolutionalMultiheadSelfAttention(input_dim, kernel_dim[0])
+        self.cmta = ConvolutionalMultiheadTargetAttention(input_dim, kernel_dim[1])
+        self.dropout = nn.Dropout(dropout_rate)
+        self.cls = nn.Linear(input_dim, hidden_dim[-1])
+        nn.init.xavier_normal_(self.cls.weight)
+
+    def predict(self, x):
+        input = self.id2vec(x)
+        input = self.dropout(input + self.positions)
+
+        hidden = self.cmsa(input.permute(0,2,1))
+        hidden = self.cmta(hidden)
+
+        logits = self.cls(hidden.squeeze(-1))
+
+        return logits
