@@ -13,7 +13,7 @@ from tabulate import tabulate
 from sklearn.metrics import accuracy_score, confusion_matrix
 from sklearn.metrics import precision_recall_fscore_support
 
-dlnd_models_to_compare = ["NOV-444", "NOV-447", "NOV-446"]
+dlnd_models_to_compare = ["NOV-452", "NOV-450", "NOV-446", "NOV-445"]
 # apwsj_models_to_compare = ["NOV-444"]
 
 
@@ -80,7 +80,7 @@ def plot_prc_curve(results):
 
     p = setup_prc_plot("Non Novel Precision Recall Curve")
     for k, v in results.items():
-        k = v.get("model_type",k)
+        k = v.get("model_type", k)
         prob = v["preds"]["prob"]
         gold = v["preds"]["gold"]
         non_novel_class = v["class_labels"]["Novel"]
@@ -90,7 +90,7 @@ def plot_prc_curve(results):
     plt.clf()
     p = setup_prc_plot("Novel Precision Recall Curve")
     for k, v in results.items():
-        k = results.get("model_type",k)
+        k = results.get("model_type", k)
         prob = v["preds"]["prob"]
         gold = v["preds"]["gold"]
         novel_class = v["class_labels"]["Non-Novel"]
@@ -120,7 +120,7 @@ def get_results_dataframe(res):
     df = df.sort_values(by=["Accuracy"])
     with open("plots/result_table.log", "w") as f:
         f.write(tabulate(df, headers="keys", tablefmt="psql"))
-    
+
     return df
 
 
