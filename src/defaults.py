@@ -586,7 +586,7 @@ def plot_prc(plt, probs, gold, cls_label=0, label=""):
     if cls_label == 1:
         invert_gold = [1 - i for i in gold]
         gold = invert_gold
-    p_, r_, _ = precision_recall_curve(gold, [i[cls_label] for i in probs])
+    p_, r_, _ = precision_recall_curve(gold, [i[1 - cls_label] for i in probs])
     plt.plot(r_, p_, "-", label=label)
     plt.legend(loc="best")
     return plt

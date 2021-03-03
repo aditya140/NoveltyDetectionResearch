@@ -69,7 +69,7 @@ class Train:
 
         self.model = VotingClassifier_novelty(
             estimator=model,
-            n_estimators=5,
+            n_estimators=8,
             cuda=True,
             estimator_args={"conf": model_conf, "encoder": encoder},
         )

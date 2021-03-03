@@ -80,6 +80,7 @@ def plot_prc_curve(results):
 
     p = setup_prc_plot("Non Novel Precision Recall Curve")
     for k, v in results.items():
+        k = v.get("model_type",k)
         prob = v["preds"]["prob"]
         gold = v["preds"]["gold"]
         non_novel_class = v["class_labels"]["Novel"]
@@ -89,6 +90,7 @@ def plot_prc_curve(results):
     plt.clf()
     p = setup_prc_plot("Novel Precision Recall Curve")
     for k, v in results.items():
+        k = results.get("model_type",k)
         prob = v["preds"]["prob"]
         gold = v["preds"]["gold"]
         novel_class = v["class_labels"]["Non-Novel"]
