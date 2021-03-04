@@ -1,4 +1,4 @@
-import os, pickle, logging, shutil, wget, string, json, nltk, time
+import os, pickle, logging, shutil, wget, string, json, nltk, time, sys
 from random import shuffle
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
@@ -236,14 +236,43 @@ def calc_pv(docs):
 
 if __name__ == "__main__":
 
-    with open(".data/dlnd/TAP-DLND-1.0_LREC2018_modified/dlnd.jsonl", "r") as f:
-        data = f.readlines()
-        d = [json.loads(i) for i in data]
-        data = []
-        for i in d:
-            data.append(
-                [i["target_text"]] + [i["source"]] + [1 if i["DLA"] == "Novel" else 0]
-            )
+    if sys.argv[1] == "dlnd":
+        with open(".data/dlnd/TAP-DLND-1.0_LREC2018_modified/dlnd.jsonl", "r") as f:
+            data = f.readlines()
+            d = [json.loads(i) for i in data]
+            data = []
+            for i in d:
+                data.append(
+                    [i["target_text"]]
+                    + [i["source"]]
+                    + [1 if i["DLA"] == "Novel" else 0]
+                )
+        optpath = "dlnd_baselines_class_probs"
+
+    elif sys.argv[1] == "apwsj":
+        with open(".data/apwsj/trec/apwsj.jsonl", "r") as f:
+            data = f.readlines()
+            d = [json.loads(i) for i in data]
+            data = []
+            for i in d:
+                data.append(
+                    [i["target_text"]]
+                    + [i["source"]]
+                    + [1 if i["DLA"] == "Novel" else 0]
+                )
+        optpath = "apwsj_baselines_class_probs"
+
+    elif sys.argv[1] == "webis":
+        with open(".data/webis/Webis-CPC-11/webis.jsonl", "r") as f:
+            data = f.readlines()
+            d = [json.loads(i) for i in data]
+            data = []
+            for i in d:
+                data.append(
+                    [i["target_text"]] + [i["source"]] + [1 if i["DLA"] == True else 0]
+                )
+        optpath = "webis_baselines_class_probs"
+
     n_cases = len(data)
     labels = [data[i][-1] for i in range(n_cases)]
     class_order = np.unique(labels)
@@ -271,7 +300,7 @@ if __name__ == "__main__":
     pv = [calc_pv(data[i][:-1]) for i in range(n_cases)]
     probs_pv = train_lr(pv)
 
-    with open("./results/novelty_baseline/dlnd_baselines_class_probs.p", "wb") as f:
+    with open(f"./results/novelty_baseline/{optpath}.p", "wb") as f:
         pickle.dump(
             {
                 "class_order": class_order,
@@ -285,5 +314,5 @@ if __name__ == "__main__":
             f,
         )
     logger.info(
-        "predictions saved at ./results/novelty_baseline/dlnd_baselines_class_probs.p"
+        f"predictions saved at ./results/novelty_baseline/{optpath}.p"
     )

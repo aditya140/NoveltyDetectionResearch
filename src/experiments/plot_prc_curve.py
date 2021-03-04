@@ -7,6 +7,7 @@ warnings.filterwarnings("ignore")
 
 from src.defaults import *
 import pickle, json
+import os
 import pandas as pd
 from tabulate import tabulate
 
@@ -14,7 +15,8 @@ from sklearn.metrics import accuracy_score, confusion_matrix
 from sklearn.metrics import precision_recall_fscore_support
 
 dlnd_models_to_compare = ["NOV-452", "NOV-450", "NOV-446", "NOV-445"]
-# apwsj_models_to_compare = ["NOV-444"]
+apwsj_models_to_compare = ["NOV-455", "NOV-456", "NOV-459"]
+webis_models_to_compare = []
 
 
 def get_baseline_results(dataset):
@@ -48,10 +50,13 @@ def get_baseline_results(dataset):
 
 
 def get_model_resutls(models):
-    for i in dlnd_models_to_compare:
+    for i in models:
         check_model(i)
 
-    exps = project.get_experiments(dlnd_models_to_compare)
+    if models == []:
+        return {}
+
+    exps = project.get_experiments(models)
     results = {}
     for exp in exps:
         _, model_type = exp.get_tags()
@@ -74,10 +79,7 @@ def get_model_resutls(models):
     return results
 
 
-def plot_prc_curve(results):
-    if not os.path.exists("plots"):
-        os.makedirs("plots")
-
+def plot_prc_curve(results, path):
     p = setup_prc_plot("Non Novel Precision Recall Curve")
     for k, v in results.items():
         k = v.get("model_type", k)
@@ -86,17 +88,17 @@ def plot_prc_curve(results):
         non_novel_class = v["class_labels"]["Novel"]
         p = plot_prc(p, prob, gold, cls_label=non_novel_class, label=k)
 
-    p.savefig("plots/NonNovel_prc.jpg")
+    p.savefig(os.path.join(path, "NonNovel_prc.jpg"))
     plt.clf()
     p = setup_prc_plot("Novel Precision Recall Curve")
     for k, v in results.items():
-        k = results.get("model_type", k)
+        k = v.get("model_type", k)
         prob = v["preds"]["prob"]
         gold = v["preds"]["gold"]
         novel_class = v["class_labels"]["Non-Novel"]
         p = plot_prc(p, prob, gold, cls_label=novel_class, label=k)
 
-    p.savefig("plots/Novel_prc.jpg")
+    p.savefig(os.path.join(path, "Novel_prc.jpg"))
     plt.clf()
 
 
@@ -111,14 +113,14 @@ def process_row(x):
     return x
 
 
-def get_results_dataframe(res):
+def get_results_dataframe(res, path):
     df = pd.DataFrame(res)
     df = df.transpose()
     df = df.reset_index(drop=True)
     df = df.apply(lambda x: process_row(x), axis=1)
     df = df.drop(columns=["accuracy", "recall", "prec", "f1", "class_labels", "preds"])
     df = df.sort_values(by=["Accuracy"])
-    with open("plots/result_table.log", "w") as f:
+    with open(os.path.join(path, "result_table.log"), "w") as f:
         f.write(tabulate(df, headers="keys", tablefmt="psql"))
 
     return df
@@ -126,10 +128,29 @@ def get_results_dataframe(res):
 
 if __name__ == "__main__":
     dataset = sys.argv[1]
+    print(dataset)
     if dataset == "dlnd":
         project = neptune.init(NOVELTY_NEPTUNE_PROJECT, api_token=NEPTUNE_API)
         model_results = get_model_resutls(dlnd_models_to_compare)
         baseline_results = get_baseline_results("dlnd")
         model_results.update(baseline_results)
-    plot_prc_curve(model_results)
-    df = get_results_dataframe(model_results)
+        res_path = "plots/dlnd"
+
+    if dataset == "apwsj":
+        project = neptune.init(NOVELTY_NEPTUNE_PROJECT, api_token=NEPTUNE_API)
+        model_results = get_model_resutls(apwsj_models_to_compare)
+        baseline_results = get_baseline_results("apwsj")
+        model_results.update(baseline_results)
+        res_path = "plots/apwsj"
+
+    if dataset == "webis":
+        project = neptune.init(NOVELTY_NEPTUNE_PROJECT, api_token=NEPTUNE_API)
+        model_results = get_model_resutls(webis_models_to_compare)
+        baseline_results = get_baseline_results("webis")
+        model_results.update(baseline_results)
+        res_path = "plots/webis"
+
+    if not os.path.exists(res_path):
+        os.makedirs(res_path)
+    plot_prc_curve(model_results, res_path)
+    df = get_results_dataframe(model_results, res_path)

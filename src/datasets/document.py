@@ -1,8 +1,9 @@
-import io, os, glob, shutil, re
+import io, os, glob, shutil, re, bs4, time
 import six
 import requests
 import random
 import numpy as np
+import itertools
 
 from tqdm import tqdm
 import tarfile, zipfile, gzip
@@ -10,28 +11,165 @@ from functools import partial
 import xml.etree.ElementTree as ET
 import json, csv
 from collections import defaultdict
+import pandas as pd
 
 import torch
 from torchtext import data
 from torch.utils.data import Dataset, DataLoader
-from torchtext.data import Field, NestedField, LabelField, BucketIterator
+from torchtext.data import Field, NestedField, LabelField, BucketIterator, Example
 from transformers import BertTokenizer, DistilBertTokenizer
 from sklearn.model_selection import KFold, StratifiedKFold
+from sklearn.preprocessing import MultiLabelBinarizer
 import nltk, spacy
+from nltk.corpus.reader.wordnet import ADJ, ADJ_SAT, ADV, NOUN, VERB
+from contextlib import contextmanager
 
 from ..utils.download_utils import download_from_url
 
 from torchtext.datasets import IMDB
 
+
 import os
-import glob
-import io
+import fnmatch
+import itertools
+from pandas import DataFrame
+import re
+from html.parser import HTMLParser
+
+
+class ReutersSGMLParser(HTMLParser):
+    """
+    Parser of a single SGML file of the reuters-21578 collection.
+    """
+
+    def __init__(self, encoding="latin-1"):
+        HTMLParser.__init__(self)
+        self.encoding = encoding
+        self._reset()
+
+    def _reset(self):
+        self.in_title = 0
+        self.in_body = 0
+        self.in_topics = 0
+        self.in_topic_d = 0
+        self.title = ""
+        self.body = ""
+        self.topics = []
+        self.topic_d = ""
+        self.lewissplit = ""
+        self.topics_attribute = ""
+
+    def parse(self, fd):
+        self.docs = []
+        for chunk in fd:
+            self.feed(chunk.decode(self.encoding))
+            for doc in self.docs:
+                yield doc
+            self.docs = []
+        self.close()
+
+    def handle_data(self, data):
+        if self.in_body:
+            self.body += data
+        elif self.in_title:
+            self.title += data
+        elif self.in_topic_d:
+            self.topic_d += data
+
+    def handle_starttag(self, tag, attributes):
+        if tag == "reuters":
+            attributes_dict = dict(attributes)
+            self.lewissplit = attributes_dict["lewissplit"]
+            self.topics_attribute = attributes_dict["topics"]
+        elif tag == "title":
+            self.in_title = 1
+        elif tag == "body":
+            self.in_body = 1
+        elif tag == "topics":
+            self.in_topics = 1
+        elif tag == "d":
+            self.in_topic_d = 1
+
+    def handle_endtag(self, tag):
+        if tag == "reuters":
+            self.body = re.sub(r"\s+", r" ", self.body)
+            self.docs.append(
+                {
+                    "title": self.title,
+                    "body": self.body,
+                    "topics": self.topics,
+                    "lewissplit": self.lewissplit,
+                    "topics_attribute": self.topics_attribute,
+                }
+            )
+            self._reset()
+        elif tag == "title":
+            self.in_title = 0
+        elif tag == "body":
+            self.in_body = 0
+        elif tag == "topics":
+            self.in_topics = 0
+        elif tag == "d":
+            self.in_topic_d = 0
+            self.topics.append(self.topic_d)
+            self.topic_d = ""
+
+
+class ReutersReader:
+    """
+    Class used to read the reuters-21578 collection
+
+    :data_path = relative path to the folder containing the source SGML files
+    :split = choose between ModApte and ModLewis splits.
+    """
+
+    def __init__(self, data_path, split="ModApte"):
+        self.data_path = data_path
+        self.split = split
+
+    def fetch_documents_generator(self):
+        """
+        Iterate through all the SGML files and returns a generator cointaining all the documents
+        in the router-21578 collection
+        """
+
+        for root, _dirnames, filenames in os.walk(self.data_path):
+            for filename in fnmatch.filter(filenames, "*.sgm"):
+                path = os.path.join(root, filename)
+                parser = ReutersSGMLParser()
+                for doc in parser.parse(open(path, "rb")):
+                    yield doc
+
+    def get_documents(self):
+        """
+        Returns a dataframe containing one row for each document
+        """
+
+        doc_generator = self.fetch_documents_generator()
+
+        if self.split == "ModLewis":
+            data = [
+                ("{title}\n\n{body}".format(**doc), doc["topics"], doc["lewissplit"])
+                for doc in itertools.chain(doc_generator)
+                if doc["lewissplit"] != "NOT-USED"
+                and doc["topics_attribute"] != "BYPASS"
+            ]
+        else:
+            data = [
+                ("{title}\n\n{body}".format(**doc), doc["topics"], doc["lewissplit"])
+                for doc in itertools.chain(doc_generator)
+                if doc["lewissplit"] != "NOT-USED" and doc["topics_attribute"] == "YES"
+            ]
+
+        return DataFrame(data, columns=["text", "topics", "lewissplit"]).to_dict(
+            "records"
+        )
 
 
 # https://archive.ics.uci.edu/ml/machine-learning-databases/reuters21578-mld/reuters21578.tar.gz
 
 
-class DocumentDataset(data.TabularDataset):
+class DocumentDataset(data.Dataset):
     urls = []
     dirname = ""
     name = "novelty"
@@ -100,6 +238,7 @@ class DocumentDataset(data.TabularDataset):
         train="train.jsonl",
         validation="val.jsonl",
         test="test.jsonl",
+        top_n=10,
     ):
         """Create dataset objects for splits of the SNLI dataset.
 
@@ -121,6 +260,11 @@ class DocumentDataset(data.TabularDataset):
                 set. Default: 'test.jsonl'.
         """
 
+        def binarize_multi_label(label_list):
+            mlb = MultiLabelBinarizer()
+            mlb.fit(label_list)
+            return mlb.transform(label_list)
+
         path = cls.download(root)
         if not os.path.exists(os.path.join(path, train)):
             cls.create_jsonl(path)
@@ -131,22 +275,41 @@ class DocumentDataset(data.TabularDataset):
                 "label": ("label", label_field),
             }
 
-        for key in extra_fields:
-            if key not in fields.keys():
-                fields[key] = extra_fields[key]
+        jsonl_path = os.path.join(path, train)
+        with open(jsonl_path, "r") as f:
+            data = [json.loads(i) for i in f.readlines()]
+        df = pd.DataFrame.from_records(data)
 
-        return super(DocumentDataset, cls).splits(
-            path,
-            root,
-            train,
-            validation,
-            test,
-            format="json",
-            fields=fields,
-            filter_pred=lambda ex: ex.label != "-",
+        top_n = 10
+        filter_single_class = False
+
+        topic_list = list(itertools.chain(*df["topics"].values))
+        unique, counts = np.unique(topic_list, return_counts=True)
+        top_n_idx = np.argsort(counts)[-1 * top_n :]
+        to_select = unique[top_n_idx]
+        df["topic"] = df["topics"].apply(lambda x: [i for i in x if i in to_select])
+
+        y = binarize_multi_label(df["topic"])
+        df["label"] = y.tolist()
+
+        if filter_single_class:
+            df = df[df["topic"].apply(lambda x: len(x) == 1)]
+
+        train_data, test_data = (
+            df[df["topic"].astype(bool)][df["lewissplit"] == "TRAIN"],
+            df[df["topic"].astype(bool)][df["lewissplit"] == "TEST"],
         )
 
+        train_examples = [
+            Example.fromlist(i, fields.values())
+            for i in train_data[["text", "label"]].values
+        ]
+        test_examples = [
+            Example.fromlist(i, fields.values())
+            for i in test_data[["text", "label"]].values
+        ]
 
+        return cls(train_examples, fields.values()), cls(test_examples, fields.values())
 
 
 class Reuters(DocumentDataset):
@@ -156,287 +319,20 @@ class Reuters(DocumentDataset):
             "reuters21578.tar.gz",
         )
     ]
-    dirname = "reuters21578"
+    dirname = "."
     name = "reuters"
 
     @classmethod
-    def process_apwsj(cls, path):
-        AP_path = os.path.join(path, "AP")
-        AP_files = glob.glob(os.path.join(AP_path, "*.gz"))
-        for i in AP_files:
-            with gzip.open(i, "r") as f:
-                text = f.read()
-
-            with open(i[:-3], "wb") as f_new:
-                f_new.write(text)
-            os.remove(i)
-
-        wsj = os.path.join(path, "TREC", "wsj")
-        ap = os.path.join(path, "TREC", "AP")
-        ap_others = os.path.join(path, "AP")
-        wsj_others = os.path.join(path, "WSJ", "wsj_split")
-        cmunrf = os.path.join(path, "CMUNRF")
-
-        wsj_files = glob.glob(wsj + "/*")
-        ap_files = glob.glob(ap + "/*")
-
-        wsj_other_files = []
-        ap_other_files = glob.glob(os.path.join(ap_others, "*"))
-
-        wsj_big = glob.glob(os.path.join(wsj_others, "*"))
-        for i in wsj_big:
-            for file_path in glob.glob(os.path.join(i, "*")):
-                wsj_other_files.append(file_path)
-
-        docs_json = {}
-        errors = 0
-        for wsj_file in wsj_files:
-            with open(wsj_file, "r") as f:
-                txt = f.read()
-            docs = [
-                i.split("<DOC>")[1]
-                for i in filter(lambda x: len(x) > 10, txt.split("</DOC>"))
-            ]
-
-            for doc in docs:
-                try:
-                    id = doc.split("<DOCNO>")[1].split("</DOCNO>")[0]
-                    text = doc.split("<TEXT>")[1].split("</TEXT>")[0]
-                    docs_json[id] = text
-                except:
-                    errors += 1
-
-        for ap_file in ap_files:
-            with open(ap_file, "r", encoding="latin-1") as f:
-                txt = f.read()
-            docs = [
-                i.split("<DOC>")[1]
-                for i in filter(lambda x: len(x) > 10, txt.split("</DOC>"))
-            ]
-
-            for doc in docs:
-                try:
-                    id = doc.split("<DOCNO>")[1].split("</DOCNO>")[0]
-                    text = doc.split("<TEXT>")[1].split("</TEXT>")[0]
-                    docs_json[id] = text
-                except:
-                    errors += 1
-
-        for wsj_file in wsj_other_files:
-            with open(wsj_file, "r") as f:
-                txt = f.read()
-            docs = [
-                i.split("<DOC>")[1]
-                for i in filter(lambda x: len(x) > 10, txt.split("</DOC>"))
-            ]
-
-            for doc in docs:
-                try:
-                    id = doc.split("<DOCNO>")[1].split("</DOCNO>")[0]
-                    text = doc.split("<TEXT>")[1].split("</TEXT>")[0]
-                    docs_json[id] = text
-                except:
-                    errors += 1
-
-        for ap_file in ap_other_files:
-            with open(ap_file, "r", encoding="latin-1") as f:
-                txt = f.read()
-            docs = [
-                i.split("<DOC>")[1]
-                for i in filter(lambda x: len(x) > 10, txt.split("</DOC>"))
-            ]
-
-            for doc in docs:
-                try:
-                    id = doc.split("<DOCNO>")[1].split("</DOCNO>")[0]
-                    text = doc.split("<TEXT>")[1].split("</TEXT>")[0]
-                    docs_json[id] = text
-                except:
-                    errors += 1
-
-        print("Reading APWSJ dataset, Errors : ", errors)
-
-        docs_json = {k.strip(): v.strip() for k, v in docs_json.items()}
-
-        topic_to_doc_file = os.path.join(cmunrf, "NoveltyData/apwsj.qrels")
-        with open(topic_to_doc_file, "r") as f:
-            topic_to_doc = f.read()
-        topic_doc = [
-            (i.split(" 0 ")[1][:-2], i.split(" 0 ")[0])
-            for i in topic_to_doc.split("\n")
-        ]
-        topics = "q101, q102, q103, q104, q105, q106, q107, q108, q109, q111, q112, q113, q114, q115, q116, q117, q118, q119, q120, q121, q123, q124, q125, q127, q128, q129, q132, q135, q136, q137, q138, q139, q141"
-        topic_list = topics.split(", ")
-        filterd_docid = [(k, v) for k, v in topic_doc if v in topic_list]
-
-        def crawl(red_dict, doc, crawled):
-            ans = []
-            for cdoc in red_dict[doc]:
-                ans.append(cdoc)
-                if crawled[cdoc] == 0:
-                    try:
-                        red_dict[cdoc] = crawl(red_dict, cdoc, crawled)
-                        crawled[cdoc] = 1
-                        ans += red_dict[cdoc]
-                    except:
-                        crawled[cdoc] = 1
-            return ans
-
-        wf = os.path.join(cmunrf, "redundancy_list_without_partially_redundant.txt")
-        redundancy_path = os.path.join(cmunrf, "NoveltyData/redundancy.apwsj.result")
-        topics_allowed = "q101, q102, q103, q104, q105, q106, q107, q108, q109, q111, q112, q113, q114, q115, q116, q117, q118, q119, q120, q121, q123, q124, q125, q127, q128, q129, q132, q135, q136, q137, q138, q139, q141"
-        topics_allowed = topics_allowed.split(", ")
-        red_dict = dict()
-        allow_partially_redundant = 1
-        for line in open(redundancy_path, "r"):
-            tokens = line.split()
-            if tokens[2] == "?":
-                if allow_partially_redundant == 1:
-                    red_dict[tokens[0] + "/" + tokens[1]] = [
-                        tokens[0] + "/" + i for i in tokens[3:]
-                    ]
-            else:
-                red_dict[tokens[0] + "/" + tokens[1]] = [
-                    tokens[0] + "/" + i for i in tokens[2:]
-                ]
-        crawled = defaultdict(int)
-        for doc in red_dict:
-            if crawled[doc] == 0:
-                red_dict[doc] = crawl(red_dict, doc, crawled)
-                crawled[doc] = 1
-        with open(wf, "w") as f:
-            for doc in red_dict:
-                if doc.split("/")[0] in topics_allowed:
-                    f.write(
-                        " ".join(
-                            doc.split("/") + [i.split("/")[1] for i in red_dict[doc]]
-                        )
-                        + "\n"
-                    )
-
-        write_file = os.path.join(cmunrf, "novel_list_without_partially_redundant.txt")
-        topics = topic_list
-        doc_topic_dict = defaultdict(list)
-
-        for i in topic_doc:
-            doc_topic_dict[i[0]].append(i[1])
-        docs_sorted = (
-            open(os.path.join(cmunrf, "NoveltyData/apwsj88-90.rel.docno.sorted"), "r")
-            .read()
-            .splitlines()
-        )
-        sorted_doc_topic_dict = defaultdict(list)
-        for doc in docs_sorted:
-            if len(doc_topic_dict[doc]) > 0:
-                for t in doc_topic_dict[doc]:
-                    sorted_doc_topic_dict[t].append(doc)
-        redundant_dict = defaultdict(lambda: defaultdict(int))
-        for line in open(
-            os.path.join(cmunrf, "redundancy_list_without_partially_redundant.txt"), "r"
-        ):
-            tokens = line.split()
-            redundant_dict[tokens[0]][tokens[1]] = 1
-        novel_list = []
-        for topic in topics:
-            if topic in topics_allowed:
-                for i in range(len(sorted_doc_topic_dict[topic])):
-                    if redundant_dict[topic][sorted_doc_topic_dict[topic][i]] != 1:
-                        if i > 0:
-                            # take at most 5 latest docs in case of novel
-                            novel_list.append(
-                                " ".join(
-                                    [topic, sorted_doc_topic_dict[topic][i]]
-                                    + sorted_doc_topic_dict[topic][max(0, i - 5) : i]
-                                )
-                            )
-        with open(write_file, "w") as f:
-            f.write("\n".join(novel_list))
-
-        # Novel cases
-        novel_docs = os.path.join(cmunrf, "novel_list_without_partially_redundant.txt")
-        with open(novel_docs, "r") as f:
-            novel_doc_list = [i.split() for i in f.read().split("\n")]
-        # Redundant cases
-        red_docs = os.path.join(
-            cmunrf, "redundancy_list_without_partially_redundant.txt"
-        )
-        with open(red_docs, "r") as f:
-            red_doc_list = [i.split() for i in f.read().split("\n")]
-        red_doc_list = filter(lambda x: len(x) > 0, red_doc_list)
-        novel_doc_list = filter(lambda x: len(x) > 0, novel_doc_list)
-
-        missing_file_log = os.path.join(cmunrf, "missing_log.txt")
-        dataset = []
-        s_not_found = 0
-        t_not_found = 0
-        for i in novel_doc_list:
-            target_id = i[1]
-            source_ids = i[2:]
-            if target_id in docs_json.keys():
-                data_inst = {}
-                data_inst["target_text"] = docs_json[target_id]
-                data_inst["source"] = ""
-                for source_id in source_ids:
-                    if source_id in docs_json.keys():
-                        data_inst["source"] += docs_json[source_id] + ". \n"
-                data_inst["DLA"] = "Novel"
-            else:
-                with open(missing_file_log, "w+") as f:
-                    f.write(str(target_id) + "")
-            if data_inst["source"] != "":
-                dataset.append(data_inst)
-
-        for i in red_doc_list:
-            target_id = i[1]
-            source_ids = i[2:]
-            if target_id in docs_json.keys():
-                data_inst = {}
-                data_inst["target_text"] = docs_json[target_id]
-                data_inst["source"] = ""
-                for source_id in source_ids:
-                    if source_id in docs_json.keys():
-                        data_inst["source"] += docs_json[source_id] + ". \n"
-                data_inst["DLA"] = "Non-Novel"
-            else:
-                with open(missing_file_log, "w+") as f:
-                    f.write(str(target_id) + "")
-            if data_inst["source"] != "":
-                dataset.append(data_inst)
-
-        dataset_json = {}
-        for i in range(len(dataset)):
-            dataset_json[i] = dataset[i]
-        return dataset_json
-
-    @classmethod
     def process_data(cls, path):
-        cmunrf_url = "http://www.cs.cmu.edu/~yiz/research/NoveltyData/CMUNRF1.tar"
-        cmunrf_path = os.path.join(path, "CMUNRF1.tar")
-
-        download_from_url(cmunrf_url, cmunrf_path)
-
-        data_zips = [
-            (os.path.join(path, "AP.tar"), os.path.join(path, "AP")),
-            (os.path.join(path, "trec.zip"), os.path.join(path, "TREC")),
-            (os.path.join(path, "wsj_split.zip"), os.path.join(path, "WSJ")),
-            (os.path.join(path, "CMUNRF1.tar"), os.path.join(path, "CMUNRF")),
-        ]
-        for data_zip in data_zips:
-            shutil.unpack_archive(data_zip[0], data_zip[1])
-
-        """
-        Process APWSJ
-        """
-        dataset_json = cls.process_apwsj(path)
 
         if not os.path.exists(path):
             os.makedirs(path)
 
-        with open(os.path.join(path, "apwsj.jsonl"), "w") as f:
-            f.writelines([json.dumps(i) + "\n" for i in dataset_json.values()])
+        data = ReutersReader(path)
+        dataset_json = data.get_documents()
 
-        # with open(os.path.join(path, "dlnd.jsonl"), "w") as f:
-        #     json.dump(list(dataset.values()), f)
+        with open(os.path.join(path, "reuters.jsonl"), "w") as f:
+            f.writelines([json.dumps(i) + "\n" for i in dataset_json])
 
     @classmethod
     def splits(
@@ -445,11 +341,11 @@ class Reuters(DocumentDataset):
         label_field,
         parse_field=None,
         root=".data",
-        train="apwsj.jsonl",
+        train="reuters.jsonl",
         validation=None,
         test=None,
     ):
-        return super(APWSJ, cls).splits(
+        return super(Reuters, cls).splits(
             text_field,
             label_field,
             parse_field=parse_field,
@@ -458,8 +354,6 @@ class Reuters(DocumentDataset):
             validation=validation,
             test=test,
         )
-
-
 
 
 class Document:
@@ -508,16 +402,22 @@ class Document:
             tokenize=self.sent_tok,
             fix_length=options["max_num_sent"],
         )
-        self.LABEL = LabelField(dtype=torch.long)
 
         if options["dataset"] == "imdb":
             dataset = IMDB
+            self.LABEL = LabelField(dtype=torch.long)
+            (self.train, self.test) = dataset.splits(self.TEXT_FIELD, self.LABEL)
+            self.LABEL.build_vocab(self.train)
 
-        (self.train, self.test) = dataset.splits(self.TEXT_FIELD, self.LABEL)
+        if options["dataset"] == "reuters":
+            dataset = Reuters
+            self.LABEL = LABEL = data.Field(
+                sequential=False, use_vocab=False, dtype=torch.long
+            )
+            (self.train, self.test) = dataset.splits(self.TEXT_FIELD, self.LABEL)
 
-        self.LABEL.build_vocab(self.train)
         if build_vocab:
-            self.TEXT_FIELD.build_vocab(self.train, self.dev)
+            self.TEXT_FIELD.build_vocab(self.train, self.test)
 
         self.train_iter, self.test_iter = BucketIterator.splits(
             (self.train, self.test),
