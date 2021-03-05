@@ -256,6 +256,7 @@ def parse_novelty_conf():
 
     # language
     parser.add_argument("--load_nli", type=str, default="None")
+    parser.add_argument("--load_han", type=str, default="None")
     parser.add_argument("--max_num_sent", type=int, default=50)
     parser.add_argument("--device", type=str, default="cuda")
     parser.add_argument("--folds", type=bool, default=False)
@@ -326,7 +327,7 @@ def get_novelty_conf(args):
     dataset_conf["batch_size"] = args.batch_size
     dataset_conf["device"] = args.device
 
-    if args.load_nli == "None":
+    if args.load_nli == "None" and args.load_han == "None":
         assert args.tokenizer != "None"
         assert args.max_len != 0
 
@@ -334,6 +335,9 @@ def get_novelty_conf(args):
         dataset_conf["max_len"] = args.max_len
         sentence_field = None
 
+    elif args.load_han != "None":
+        check_model(args.load_han)
+        sentence_field = load_field(args.load_han)
     else:
         check_model(args.load_nli)
         sentence_field = load_field(args.load_nli)
@@ -447,7 +451,7 @@ def parse_document_clf_conf():
     parser.add_argument("--seed", type=int, default=-1)
     parser.add_argument("--optim", type=str, default="adamw")
     parser.add_argument("--loss_agg", type=str, default="mean")
-    parser.add_argument("--scheduler", type=str, default="cosnt")
+    parser.add_argument("--scheduler", type=str, default="plateau")
     parser.add_argument("--freeze_encoder", type=bool, default=False)
 
     subparsers = parser.add_subparsers(dest="model_type")
@@ -622,7 +626,7 @@ def makedirs(name):
 
 def get_vocabs(dataset):
     text_field = dataset.TEXT
-    if dataset.options.get("use_char_emb",False):
+    if dataset.options.get("use_char_emb", False):
         char_field = dataset.CHAR_TEXT
     else:
         char_field = None

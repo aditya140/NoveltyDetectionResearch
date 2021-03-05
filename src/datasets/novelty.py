@@ -702,11 +702,14 @@ class Novelty:
         else:
             self.sent_tok = lambda x: nltk.sent_tokenize(x)
 
-        self.TEXT_FIELD = NestedField(
-            self.sentence_field,
-            tokenize=self.sent_tok,
-            fix_length=options["max_num_sent"],
-        )
+        if options["doc_field"]:
+            self.TEXT_FIELD = self.sentence_field
+        else:
+            self.TEXT_FIELD = NestedField(
+                self.sentence_field,
+                tokenize=self.sent_tok,
+                fix_length=options["max_num_sent"],
+            )
         self.LABEL = LabelField(dtype=torch.long)
 
         if options["dataset"] == "dlnd":

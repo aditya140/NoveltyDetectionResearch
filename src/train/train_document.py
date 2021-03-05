@@ -98,6 +98,7 @@ class Train_document(Trainer):
         self.best_val_acc = None
 
     def set_schedulers(self, hparams, **kwargs):
+        self.scheduler_has_args = False
         if hparams["optimizer"]["scheduler"] == "step":
             self.scheduler = optim.lr_scheduler.StepLR(
                 self.optimizer, step_size=5, gamma=0.5
@@ -108,10 +109,15 @@ class Train_document(Trainer):
                 self.optimizer, T_max=10
             )
 
+        elif hparams["optimizer"]["scheduler"] == "plateau":
+            self.scheduler = optim.lr_scheduler.ReduceLROnPlateau(
+                self.optimizer, patience=6, mode="max", threshold=0.01
+            )
+            self.scheduler_has_args = True
+
         else:
             self.scheduler = None
 
-    
     def save_lang(self):
         text_field, char_field = get_vocabs(self.dataset)
         save_field(

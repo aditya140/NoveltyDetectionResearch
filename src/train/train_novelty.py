@@ -42,12 +42,15 @@ class Train_novelty(Trainer):
         )
 
     def load_dataset(self, dataset_conf, **kwargs):
-        self.label_size = len(self.dataset.labels())
+        dataset_conf["doc_field"]=False
+        if self.args.load_nli=="None":
+            dataset_conf["doc_field"]=True
         self.dataset = novelty_dataset(
             dataset_conf, sentence_field=kwargs["sentence_field"]
         )
 
         lable_dict = self.dataset.labels()
+        self.label_size = len(self.dataset.labels())
 
         if self.log_neptune:
             neptune.append_tag([dataset_conf["dataset"], kwargs["model_type"]])
@@ -56,16 +59,25 @@ class Train_novelty(Trainer):
             self.hd_exp.param("class_labels", str(dict(self.dataset.labels())))
 
     def load_model(self, model_conf, **kwargs):
-        nli_model_data = load_encoder_data(self.args.load_nli)
-        encoder = self.load_encoder(nli_model_data).encoder
-        model_conf["encoder_dim"] = nli_model_data["options"]["hidden_size"]
+        if self.args.load_nli != "None":
+            nli_model_data = load_encoder_data(self.args.load_nli)
+            encoder = self.load_encoder(nli_model_data).encoder
+            model_conf["encoder_dim"] = nli_model_data["options"]["hidden_size"]
+        if self.args.load_han != "None":
+            han_model_data = load_encoder_data(self.args.load_han)
+            encoder = self.load_han_encoder(han_model_data).encoder
+            model_conf["encoder_dim"] = han_model_data["options"]["encoder_dim"]
+            model_conf["hidden_size"] = han_model_data["options"]["hidden_size"]
 
         if kwargs["model_type"] == "dan":
             self.model = DAN(model_conf, encoder)
         if kwargs["model_type"] == "adin":
             self.model = ADIN(model_conf, encoder)
         if kwargs["model_type"] == "han":
-            self.model = HAN(model_conf, encoder)
+            if self.args.load_nli != "None":
+                self.model = HAN(model_conf, encoder)
+            elif self.args.load_han != "None":
+                self.model = HAN(model_conf, None, encoder)
         if kwargs["model_type"] == "rdv_cnn":
             self.model = RDV_CNN(model_conf, encoder)
         if kwargs["model_type"] == "diin":
@@ -134,6 +146,17 @@ class Train_novelty(Trainer):
         else:
             enc_data["options"]["use_glove"] = False
             model = struc_attn_snli(enc_data["options"])
+        model.load_state_dict(enc_data["model_dict"])
+        return model
+
+    def load_han_encoder(self,enc_data):
+        sentence_encoder_id = enc_data["options"]["load_nli"]
+        check_model(sentence_encoder_id)
+
+        nli_model_data = load_encoder_data(sentence_encoder_id)
+        sentence_encoder = self.load_encoder(nli_model_data).encoder
+
+        model = HAN_DOC_Classifier(enc_data["options"], sentence_encoder)
         model.load_state_dict(enc_data["model_dict"])
         return model
 

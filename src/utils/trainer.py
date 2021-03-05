@@ -30,6 +30,7 @@ class Trainer(abc.ABC):
         **kwargs,
     ):
         print("program execution start: {}".format(datetime.datetime.now()))
+        self.scheduler_has_args = False
         self.log_neptune = log_neptune
         self.log_hyperdash = log_hyperdash
         if log_neptune:
@@ -71,6 +72,7 @@ class Trainer(abc.ABC):
         self.dataset_conf = dataset_conf
         self.hparams = hparams
         self.load_dataset(dataset_conf, **kwargs)
+        self.scheduler_has_args = False
         if not args.folds:
             self.load_model(model_conf, **kwargs)
             model_size = self.count_parameters(self.model)
@@ -386,7 +388,10 @@ class Trainer(abc.ABC):
                 **kwargs,
             )
             if self.scheduler != None:
-                self.scheduler.step()
+                if self.scheduler_has_args:
+                    self.scheduler.step(val_acc)
+                else:
+                    self.scheduler.step()
 
             took = time.time() - start
             self.result_checkpoint(
