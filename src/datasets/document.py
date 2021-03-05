@@ -25,6 +25,8 @@ from nltk.corpus.reader.wordnet import ADJ, ADJ_SAT, ADV, NOUN, VERB
 from contextlib import contextmanager
 
 from ..utils.download_utils import download_from_url
+from ..utils.topics_reuters import topic_num_map_reuters
+
 
 from torchtext.datasets import IMDB
 
@@ -238,7 +240,7 @@ class DocumentDataset(data.Dataset):
         train="train.jsonl",
         validation="val.jsonl",
         test="test.jsonl",
-        top_n=10,
+        top_n=8,
     ):
         """Create dataset objects for splits of the SNLI dataset.
 
@@ -263,7 +265,15 @@ class DocumentDataset(data.Dataset):
         def binarize_multi_label(label_list):
             mlb = MultiLabelBinarizer()
             mlb.fit(label_list)
-            return mlb.transform(label_list)
+            y = mlb.transform(label_list)
+            y = np.argmax(y, 1)
+            return y, mlb.classes_
+
+        def clean_str(string):
+            string = string.lower()
+            string = re.sub(r"[^A-Za-z0-9(),!?\'`]", " ", string)
+            string = re.sub(r"\s{2,}", " ", string)
+            return string
 
         path = cls.download(root)
         if not os.path.exists(os.path.join(path, train)):
@@ -280,8 +290,19 @@ class DocumentDataset(data.Dataset):
             data = [json.loads(i) for i in f.readlines()]
         df = pd.DataFrame.from_records(data)
 
+        df["text"] = df["text"].apply(clean_str)
+        df = df[
+            df["topics"].apply(
+                lambda x: any([i in topic_num_map_reuters.keys() for i in x])
+            )
+        ]
+
+        # top_n = len(topic_num_map_reuters.keys())
         top_n = 10
-        filter_single_class = False
+        filter_single_class = True
+
+        if filter_single_class:
+            df["topics"] = df["topics"].apply(lambda x: [x[0]])
 
         topic_list = list(itertools.chain(*df["topics"].values))
         unique, counts = np.unique(topic_list, return_counts=True)
@@ -289,11 +310,9 @@ class DocumentDataset(data.Dataset):
         to_select = unique[top_n_idx]
         df["topic"] = df["topics"].apply(lambda x: [i for i in x if i in to_select])
 
-        y = binarize_multi_label(df["topic"])
+        y, classes_ = binarize_multi_label(df["topic"])
+        label_field.classes_ = classes_
         df["label"] = y.tolist()
-
-        if filter_single_class:
-            df = df[df["topic"].apply(lambda x: len(x) == 1)]
 
         train_data, test_data = (
             df[df["topic"].astype(bool)][df["lewissplit"] == "TRAIN"],
@@ -397,7 +416,7 @@ class Document:
         else:
             self.sent_tok = lambda x: nltk.sent_tokenize(x)
 
-        self.TEXT_FIELD = NestedField(
+        self.TEXT = NestedField(
             self.sentence_field,
             tokenize=self.sent_tok,
             fix_length=options["max_num_sent"],
@@ -406,7 +425,7 @@ class Document:
         if options["dataset"] == "imdb":
             dataset = IMDB
             self.LABEL = LabelField(dtype=torch.long)
-            (self.train, self.test) = dataset.splits(self.TEXT_FIELD, self.LABEL)
+            (self.train, self.test) = dataset.splits(self.TEXT, self.LABEL)
             self.LABEL.build_vocab(self.train)
 
         if options["dataset"] == "reuters":
@@ -414,10 +433,10 @@ class Document:
             self.LABEL = LABEL = data.Field(
                 sequential=False, use_vocab=False, dtype=torch.long
             )
-            (self.train, self.test) = dataset.splits(self.TEXT_FIELD, self.LABEL)
+            (self.train, self.test) = dataset.splits(self.TEXT, self.LABEL)
 
         if build_vocab:
-            self.TEXT_FIELD.build_vocab(self.train, self.test)
+            self.TEXT.build_vocab(self.train, self.test)
 
         self.train_iter, self.test_iter = BucketIterator.splits(
             (self.train, self.test),
@@ -427,13 +446,13 @@ class Document:
 
     def vocab_size(self):
         if self.options["use_vocab"]:
-            return len(self.TEXT_FIELD.nesting_field.vocab)
+            return len(self.TEXT.nesting_field.vocab)
         else:
             return self.tokenizer.vocab_size
 
     def padding_idx(self):
         if self.options["use_vocab"]:
-            return self.TEXT_FIELD.nesting_field.vocab.stoi[self.options["pad_token"]]
+            return self.TEXT.nesting_field.vocab.stoi[self.options["pad_token"]]
         else:
             return self.options["pad_token"]
 
@@ -441,7 +460,10 @@ class Document:
         return len(self.LABEL.vocab)
 
     def labels(self):
-        return self.LABEL.vocab.stoi
+        if hasattr(self.LABEL, "vocab"):
+            return self.LABEL.vocab.stoi
+        else:
+            return {self.LABEL.classes_[i]: i for i in range(len(self.LABEL.classes_))}
 
 
 def document_dataset(options, sentence_field=None):
@@ -486,5 +508,6 @@ def document_dataset(options, sentence_field=None):
 
         if options.get("lower", None) == None:
             options["lower"] = True
+        options["use_char_emb"] = False
 
     return Document(options, sentence_field=sentence_field)

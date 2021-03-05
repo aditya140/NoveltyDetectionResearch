@@ -18,6 +18,7 @@ NEPTUNE_API = "eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vdWkubmVwdHVuZS5haSIsImFwaV91cmwiO
 NLI_NEPTUNE_PROJECT = "aparkhi/NLI"
 NOVELTY_NEPTUNE_PROJECT = "aparkhi/Novelty"
 NOVELTY_ENSEMBLE_NEPTUNE_PROJECT = "aparkhi/NoveltyEnsemble"
+DOC_NEPTUNE_PROJECT = "aparkhi/DocClassification"
 
 
 """
@@ -420,6 +421,103 @@ def struc_self_attn_model_parameters(parser_dump):
 
 
 """
+Document-Classification Argument parser
+"""
+
+
+def parse_document_clf_conf():
+    parser = ArgumentParser(
+        description="PyTorch/torchtext Document Classification(Reuters) Training"
+    )
+    parser.add_argument("--dataset", "-d", type=str, default="reuters")
+
+    # language
+    parser.add_argument("--load_nli", type=str, default="None")
+    parser.add_argument("--max_num_sent", type=int, default=50)
+    parser.add_argument("--device", type=str, default="cuda")
+    parser.add_argument("--folds", type=bool, default=False)
+    parser.add_argument("--batch_size", type=int, default=64)
+    parser.add_argument("--tokenizer", type=str, default="None")
+    parser.add_argument("--max_len", type=int, default=0)
+    parser.add_argument("--sent_tokenizer", type=str, default="spacy")
+
+    # optimizer_conf
+    parser.add_argument("--epochs", type=int, default=70)
+    parser.add_argument("--lr", type=float, default=0.001)
+    parser.add_argument("--seed", type=int, default=-1)
+    parser.add_argument("--optim", type=str, default="adamw")
+    parser.add_argument("--loss_agg", type=str, default="mean")
+    parser.add_argument("--scheduler", type=str, default="cosnt")
+    parser.add_argument("--freeze_encoder", type=bool, default=False)
+
+    subparsers = parser.add_subparsers(dest="model_type")
+
+    # model_conf
+    parser_han_doc = subparsers.add_parser("han")
+    han_doc_model_parameters(parser_han_doc)
+
+    parser.add_argument("--results_dir", type=str, default="results")
+    return check_args(parser.parse_args())
+
+
+def get_document_clf_conf(args):
+    # hparams
+    hparams = {}
+    hparams["optimizer"] = {
+        "optim": args.optim,
+        "lr": args.lr,
+        "scheduler": args.scheduler,
+    }
+    hparams["epochs"] = args.epochs
+    hparams["loss_agg"] = args.loss_agg
+
+    # dataset config
+    dataset_conf = {}
+    dataset_conf["dataset"] = args.dataset
+    dataset_conf["max_num_sent"] = args.max_num_sent
+    dataset_conf["sent_tokenizer"] = args.sent_tokenizer
+    dataset_conf["batch_size"] = args.batch_size
+    dataset_conf["device"] = args.device
+
+    if args.load_nli == "None":
+        assert args.tokenizer != "None"
+        assert args.max_len != 0
+
+        dataset_conf["tokenizer"] = args.tokenizer
+        dataset_conf["max_len"] = args.max_len
+        sentence_field = None
+
+    else:
+        check_model(args.load_nli)
+        sentence_field = load_field(args.load_nli)
+
+    used_keys = [
+        "tokenizer",
+        "max_len",
+        "batch_size",
+        "epochs",
+        "lr",
+        "optim",
+        "loss_agg",
+        "scheduler",
+        "model_type",
+    ]
+
+    model_type = args.model_type
+    model_conf = {
+        k: args.__dict__[k] for k in set(list(args.__dict__.keys())) - set(used_keys)
+    }
+    return dataset_conf, hparams, model_type, model_conf, sentence_field
+
+
+def han_doc_model_parameters(parser_dump):
+    parser_dump.add_argument("--hidden_size", type=int, default=400)
+    parser_dump.add_argument("--dropout", type=float, default=0.3)
+    parser_dump.add_argument("--num_layers", type=int, default=1)
+    parser_dump.add_argument("--attention_layer_param", type=int, default=200)
+
+
+"""
 Utils
 """
 
@@ -524,7 +622,7 @@ def makedirs(name):
 
 def get_vocabs(dataset):
     text_field = dataset.TEXT
-    if dataset.options["use_char_emb"]:
+    if dataset.options.get("use_char_emb",False):
         char_field = dataset.CHAR_TEXT
     else:
         char_field = None

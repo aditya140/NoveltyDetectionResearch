@@ -1,4 +1,4 @@
-import sys
+import sys,os
 
 sys.path.append(".")
 
@@ -39,6 +39,7 @@ class Train_nli(Trainer):
         )
 
     def load_dataset(self, dataset_conf, **kwargs):
+        self.label_size = len(self.dataset.labels())
         if dataset_conf["dataset"] == "snli":
             self.dataset = snli_module(dataset_conf)
         elif dataset_conf["dataset"] == "mnli":

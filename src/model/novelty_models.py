@@ -333,6 +333,25 @@ class HAN_DOC(nn.Module):
         return cont
 
 
+
+class HAN_DOC_Classifier(nn.Module):
+    def __init__(self,conf,encoder):
+        super().__init__()
+        self.conf = conf
+        self.encoder = HAN_DOC(conf,encoder)
+        self.act = nn.ReLU()
+        self.dropout = nn.Dropout(conf["dropout"])
+        self.fc = nn.Linear(2 * conf["hidden_size"], 10)
+
+    def forward(self, x0):
+        x0_enc = self.encoder(x0)
+        cont = self.dropout(self.act(x0_enc))
+        cont = self.fc(cont)
+        return cont
+
+
+
+
 class HAN(nn.Module):
     def __init__(self, conf, encoder, doc_enc=None):
         super(HAN, self).__init__()

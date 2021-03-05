@@ -207,7 +207,7 @@ class Trainer(abc.ABC):
             val_iterator.init_epoch()
         n_correct, n_total, n_loss = 0, 0, 0
         all_probs, all_preds, all_labels = (
-            torch.empty((0, 2)),
+            torch.empty((0, self.label_size)),
             torch.empty((0,)),
             torch.empty((0,)),
         )
@@ -235,7 +235,8 @@ class Trainer(abc.ABC):
                 n_correct += (predictions == label).sum().item()
                 n_total += batch_size
                 n_loss += loss.item()
-                all_preds = torch.cat([predictions.cpu(), all_preds], dim=0)
+                
+
                 all_labels = torch.cat([label.cpu(), all_labels], dim=0)
                 all_probs = torch.cat([prob.cpu(), all_probs], dim=0)
                 if log_neptune:
@@ -288,7 +289,7 @@ class Trainer(abc.ABC):
         test_iterator.init_epoch()
         n_correct, n_total, n_loss = 0, 0, 0
         all_probs, all_preds, all_labels = (
-            torch.empty((0, 2)),
+            torch.empty((0, self.label_size)),
             torch.empty((0,)),
             torch.empty((0,)),
         )

@@ -19,16 +19,16 @@ from millify import millify
 
 from src.defaults import *
 from src.model.novelty_models import *
-from src.datasets.novelty import *
+from src.datasets.document import *
 from src.model.nli_models import *
 from src.utils.trainer import *
 
 
-class Train_novelty(Trainer):
+class Train_document(Trainer):
     def __init__(
         self, args, dataset_conf, model_conf, hparams, model_type, sentence_field
     ):
-        super(Train_novelty, self).__init__(
+        super(Train_document, self).__init__(
             args,
             model_conf,
             dataset_conf,
@@ -36,18 +36,18 @@ class Train_novelty(Trainer):
             log_neptune=True,
             **{
                 "sentence_field": sentence_field,
-                "neptune_project": NOVELTY_NEPTUNE_PROJECT,
+                "neptune_project": DOC_NEPTUNE_PROJECT,
                 "model_type": model_type,
             }
         )
 
     def load_dataset(self, dataset_conf, **kwargs):
-        self.label_size = len(self.dataset.labels())
-        self.dataset = novelty_dataset(
+        self.dataset = document_dataset(
             dataset_conf, sentence_field=kwargs["sentence_field"]
         )
+        self.dataset.val_iter = self.dataset.test_iter
 
-        lable_dict = self.dataset.labels()
+        self.label_size = len(self.dataset.labels())
 
         if self.log_neptune:
             neptune.append_tag([dataset_conf["dataset"], kwargs["model_type"]])
@@ -60,20 +60,8 @@ class Train_novelty(Trainer):
         encoder = self.load_encoder(nli_model_data).encoder
         model_conf["encoder_dim"] = nli_model_data["options"]["hidden_size"]
 
-        if kwargs["model_type"] == "dan":
-            self.model = DAN(model_conf, encoder)
-        if kwargs["model_type"] == "adin":
-            self.model = ADIN(model_conf, encoder)
         if kwargs["model_type"] == "han":
-            self.model = HAN(model_conf, encoder)
-        if kwargs["model_type"] == "rdv_cnn":
-            self.model = RDV_CNN(model_conf, encoder)
-        if kwargs["model_type"] == "diin":
-            self.model = DIIN(model_conf, encoder)
-        if kwargs["model_type"] == "mwan":
-            self.model = MwAN(model_conf, encoder)
-        if kwargs["model_type"] == "struc":
-            self.model = StrucSelfAttn(model_conf, encoder)
+            self.model = HAN_DOC_Classifier(model_conf, encoder)
 
         self.model.to(self.device)
 
@@ -123,6 +111,50 @@ class Train_novelty(Trainer):
         else:
             self.scheduler = None
 
+    
+    def save_lang(self):
+        text_field, char_field = get_vocabs(self.dataset)
+        save_field(
+            os.path.join(
+                self.args.results_dir,
+                self.exp_id,
+                "text_field",
+            ),
+            text_field,
+        )
+        if char_field != None:
+            save_field(
+                os.path.join(
+                    self.args.results_dir,
+                    self.exp_id,
+                    "char_field",
+                ),
+                char_field,
+            )
+
+    def save_to_neptune(self):
+        shutil.make_archive(
+            os.path.join(
+                self.args.results_dir,
+                self.exp_id,
+            ),
+            "zip",
+            os.path.join(
+                self.args.results_dir,
+                self.exp_id,
+            ),
+        )
+        neptune.log_artifact(
+            os.path.join(
+                self.args.results_dir,
+                self.exp_id + ".zip",
+            )
+        )
+
+    def save(self):
+        self.save_lang()
+        self.save_to_neptune()
+
     @staticmethod
     def load_encoder(enc_data):
         if enc_data["options"].get("attention_layer_param", 0) == 0:
@@ -139,21 +171,16 @@ class Train_novelty(Trainer):
 
 
 if __name__ == "__main__":
-    args = parse_novelty_conf()
-    dataset_conf, optim_conf, model_type, model_conf, sentence_field = get_novelty_conf(
-        args
-    )
-    trainer = Train_novelty(
+    args = parse_document_clf_conf()
+    (
+        dataset_conf,
+        optim_conf,
+        model_type,
+        model_conf,
+        sentence_field,
+    ) = get_document_clf_conf(args)
+    trainer = Train_document(
         args, dataset_conf, model_conf, optim_conf, model_type, sentence_field
     )
-    if args.folds:
-        test_acc = trainer.test_folds(
-            **{
-                "model_type": model_type,
-                "batch_attr": {"model_inp": ["source", "target"], "label": "label"},
-            }
-        )
-    else:
-        test_acc = trainer.fit(
-            **{"batch_attr": {"model_inp": ["source", "target"], "label": "label"}}
-        )
+
+    test_acc = trainer.fit(**{"batch_attr": {"model_inp": ["text"], "label": "label"}})
