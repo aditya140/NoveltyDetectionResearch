@@ -1,4 +1,4 @@
-import sys
+import sys,copy
 
 sys.path.append(".")
 import warnings
@@ -48,6 +48,12 @@ class Train_novelty(Trainer):
         self.dataset = novelty_dataset(
             dataset_conf, sentence_field=kwargs["sentence_field"]
         )
+        if dataset_conf["secondary_dataset"]!='None':
+            secondary_dataset_conf = copy.deepcopy(dataset_conf)
+            secondary_dataset_conf["dataset"] = secondary_dataset_conf["secondary_dataset"]
+            self.secondary_dataset = novelty_dataset(
+                secondary_dataset_conf, sentence_field=kwargs["sentence_field"]
+            )
 
         lable_dict = self.dataset.labels()
         self.label_size = len(self.dataset.labels())

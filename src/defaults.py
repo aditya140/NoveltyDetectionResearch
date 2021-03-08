@@ -253,6 +253,7 @@ Novelty Argument Parser
 def parse_novelty_conf():
     parser = ArgumentParser(description="PyTorch/torchtext Novelty Training")
     parser.add_argument("--dataset", "-d", type=str, default="dlnd")
+    parser.add_argument("--secondary_dataset", type=str, default="None")
 
     # language
     parser.add_argument("--load_nli", type=str, default="None")
@@ -322,6 +323,7 @@ def get_novelty_conf(args):
     # dataset config
     dataset_conf = {}
     dataset_conf["dataset"] = args.dataset
+    dataset_conf["secondary_dataset"] = args.secondary_dataset
     dataset_conf["max_num_sent"] = args.max_num_sent
     dataset_conf["sent_tokenizer"] = args.sent_tokenizer
     dataset_conf["batch_size"] = args.batch_size

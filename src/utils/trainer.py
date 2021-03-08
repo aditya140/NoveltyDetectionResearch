@@ -262,7 +262,6 @@ class Trainer(abc.ABC):
     def test(
         self,
         model,
-        optimizer,
         criterion,
         test_iterator,
         log_neptune,
@@ -322,6 +321,16 @@ class Trainer(abc.ABC):
             recall = {i: recall[i] for i in range(len(recall))}
             f1_score = {i: f1_score[i] for i in range(len(f1_score))}
             support = {i: support[i] for i in range(len(support))}
+
+
+            if kwargs.get('secondary_dataset',False):
+                if log_neptune:
+                    neptune.log_metric("Secondary Test Avg Loss", test_loss)
+                    neptune.log_metric("Secondary Test Accuracy", test_acc)
+                    neptune.log_text("Secondary Precision", str(prec))
+                    neptune.log_text("Secondary Recall", str(recall))
+                    neptune.log_text("Secondary F1", str(f1_score))
+                return test_loss,test_acc,prec,recall,f1_score
 
             if log_neptune:
                 neptune.log_metric("Test Avg Loss", test_loss)
@@ -407,11 +416,34 @@ class Trainer(abc.ABC):
         if hasattr(self.dataset, "test_iter"):
             test_loss, test_acc, (prob, gold) = self.test(
                 self.model,
-                self.optimizer,
                 self.criterion,
                 self.dataset.test_iter,
                 self.log_neptune,
                 self.log_hyperdash,
+                **kwargs,
+            )
+            print(
+                "| Epoch {:3d} | test loss {:5.2f}  |  test acc {:5.2f} |                |               |               |".format(
+                    0,
+                    test_loss,
+                    test_acc,
+                )
+            )
+            self.logger.info(
+                "| Epoch {:3d} | test loss {:5.2f}  |  test acc {:5.2f} |                |               |               |".format(
+                    0,
+                    test_loss,
+                    test_acc,
+                )
+            )
+        if hasattr(self,'secondary_dataset'):
+            test_loss,test_acc,prec,recall,f1_score = self.test(
+                self.model,
+                self.criterion,
+                self.secondary_dataset.train_iter,
+                self.log_neptune,
+                self.log_hyperdash,
+                secondary_dataset = True,
                 **kwargs,
             )
             print(
