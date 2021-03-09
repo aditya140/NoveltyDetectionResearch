@@ -31,7 +31,7 @@ def parse_nli_conf():
     parser.add_argument("--dataset", "-d", type=str, default="mnli")
 
     # language
-    parser.add_argument("--tokenizer", type=str, default="bert")
+    parser.add_argument("--tokenizer", type=str, default="distil_bert")
     parser.add_argument("--max_len", type=int, default=50)
     parser.add_argument("--batch_size", type=int, default=128)
     parser.add_argument("--use_char_emb", type=bool, default=False)
@@ -64,6 +64,10 @@ def parse_nli_conf():
     # model_conf
     parser_mwan = subparsers.add_parser("mwan")
     mwan_model_params(parser_mwan)
+
+    # model_conf
+    parser_bert = subparsers.add_parser("bert")
+    mwan_model_params(parser_bert)
 
     parser.add_argument("--results_dir", type=str, default="results")
     return check_args(parser.parse_args())
@@ -244,6 +248,11 @@ def mwan_model_params(parser_dump):
     parser_dump.add_argument("--use_glove", type=bool, default=False)
     parser_dump.add_argument("--freeze_emb", type=bool, default=False)
 
+
+
+def mwan_model_params(parser_dump):
+    parser_dump.add_argument("--bert_type", type=str, default='distil_bert')
+    
 
 """
 Novelty Argument Parser

@@ -490,19 +490,39 @@ BERT based SNLI model
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 """
 
+from transformers import DistilBertModel
+
 
 class Bert_Encoder(nn.Module):
     def __init__(self, conf):
         super(Bert_Encoder, self).__init__()
-        self.conf = conf
-        self.bert = conf.encoder
-        self.fc = nn.Linear(conf.encoder_dim, 3)
+        self.bert = DistilBertModel.from_pretrained("distilbert-base-uncased")
 
     def forward(self, x0):
-        enc = self.bert.forward(x0)[0][:, 0, :]
+        (enc,) = self.bert.forward(x0)
+        enc = torch.mean(enc, dim=1)
+        # enc = torch.max(enc,dim=1).values
+        return enc
+
+
+class Bert_snli(nn.Module):
+    def __init__(self, conf):
+        super(Bert_snli, self).__init__()
+        self.bert = Bert_Encoder(conf)
+        self.fc = nn.Linear(4 * 768, 3)
+
+    def forward(self, x0, x1):
+        x0_enc = self.bert(x0)
+        x1_enc = self.bert(x1)
+        enc = torch.cat(
+            [x0_enc, x1_enc, torch.abs(x0_enc - x1_enc), x0_enc * x1_enc], dim=1
+        )
         opt = self.fc(enc)
-        opt = opt.unsqueeze(0)
         return opt
+
+
+def bert_snli(conf):
+    return Bert_snli(conf)
 
 
 """
