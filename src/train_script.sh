@@ -103,3 +103,9 @@ python3 src/ensemble/train_novelty.py -d dlnd --load_nli NLI-93 --epochs 8 struc
 pip3 install -r requirements.txt &&
 python3 -m spacy download en &&
 python3 src/ensemble/train_novelty.py -d dlnd --load_nli NLI-93 --epochs 8 adin
+
+
+python3 src/train/train_nli.py -d mnli --tokenizer spacy bilstm
+python3 src/train/train_nli.py -d mnli --tokenizer spacy attention
+python3 src/train/train_nli.py -d mnli --tokenizer spacy struc_attn
+python3 src/train/train_nli.py -d mnli --tokenizer spacy mwan

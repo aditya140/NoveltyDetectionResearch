@@ -13,6 +13,7 @@ from torchtext.data import (
     NestedField,
 )
 from torchtext import datasets
+from torchtext.datasets.nli import NLIDataset
 from utils.path_utils import makedirs
 import pytorch_lightning as pl
 from pdb import set_trace
@@ -255,6 +256,39 @@ def snli_module(conf):
     return SNLIDataModule(conf)
 
 
+class MultiNLI(NLIDataset):
+    urls = ["https://cims.nyu.edu/~sbowman/multinli/multinli_1.0.zip"]
+    dirname = "multinli_1.0"
+    name = "multinli"
+
+    @classmethod
+    def splits(
+        cls,
+        text_field,
+        label_field,
+        parse_field=None,
+        genre_field=None,
+        root=".data",
+        train="multinli_1.0_train.jsonl",
+        validation="multinli_1.0_dev_matched.jsonl",
+        test="multinli_1.0_dev_mismatched.jsonl",
+    ):
+        extra_fields = {}
+        if genre_field is not None:
+            extra_fields["genre"] = ("genre", genre_field)
+
+        return super(MultiNLI, cls).splits(
+            text_field,
+            label_field,
+            parse_field=parse_field,
+            extra_fields=extra_fields,
+            root=root,
+            train=train,
+            validation=validation,
+            test=test,
+        )
+
+
 class MNLI:
     def __init__(self, options):
         self.options = options
@@ -274,7 +308,7 @@ class MNLI:
         )
         self.LABEL = LabelField(dtype=torch.float)
 
-        self.train, self.dev, self.test = datasets.MNLI.splits(self.TEXT, self.LABEL)
+        self.train, self.dev, self.test = MultiNLI.splits(self.TEXT, self.LABEL)
         if options["use_vocab"]:
             self.TEXT.build_vocab(self.train, self.dev)
         self.LABEL.build_vocab(self.train)
@@ -312,10 +346,26 @@ class MNLI:
     def labels(self):
         return self.LABEL.vocab.stoi
 
+    def get_dataloaders(self):
+        train_dl = DataLoader(
+            NLI_Dataset(self.train), batch_size=self.options["batch_size"]
+        )
+        dev_dl = DataLoader(
+            NLI_Dataset(self.dev), batch_size=self.options["batch_size"]
+        )
+        test_dl = DataLoader(
+            NLI_Dataset(self.test), batch_size=self.options["batch_size"]
+        )
+        return train_dl, dev_dl, test_dl
+
 
 def mnli(options):
-    if options["tokenizer"] == "bert":
-        tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
+    if options["tokenizer"] == "bert" or options["tokenizer"] == "distil_bert":
+
+        if options["tokenizer"] == "bert":
+            tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
+        if options["tokenizer"] == "distil_bert":
+            tokenizer = DistilBertTokenizer.from_pretrained("distilbert-base-uncased")
 
         def tokenize_and_cut(sentence):
             tokens = tokenizer.tokenize(sentence)
@@ -336,9 +386,7 @@ def mnli(options):
             sepcial_tokens["sep_token"]
         )
         options["use_vocab"] = False
-
         options["preprocessing"] = tokenizer.convert_tokens_to_ids
-
         options["tokenize"] = tokenize_and_cut
         options["tokenizer"] = tokenizer
 

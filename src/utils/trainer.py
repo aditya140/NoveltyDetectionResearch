@@ -169,7 +169,7 @@ class Trainer(abc.ABC):
             batch_size = label.shape[0]
 
             answer = model(*model_inp)
-            loss = criterion(answer, label)
+            loss = criterion(answer, label.to(torch.long))
             n_correct += (
                 (torch.max(F.softmax(answer, dim=1), 1)[1].view(label.size()) == label)
                 .sum()
@@ -231,13 +231,12 @@ class Trainer(abc.ABC):
                 batch_size = label.shape[0]
 
                 answer = model(*model_inp)
-                loss = criterion(answer, label)
+                loss = criterion(answer, label.to(torch.long))
                 prob = F.softmax(answer, dim=1)
                 predictions = torch.max(prob, 1)[1].view(label.size())
                 n_correct += (predictions == label).sum().item()
                 n_total += batch_size
                 n_loss += loss.item()
-                
 
                 all_labels = torch.cat([label.cpu(), all_labels], dim=0)
                 all_probs = torch.cat([prob.cpu(), all_probs], dim=0)
@@ -302,7 +301,7 @@ class Trainer(abc.ABC):
                 batch_size = label.shape[0]
 
                 answer = model(*model_inp)
-                loss = criterion(answer, label)
+                loss = criterion(answer, label.to(torch.long))
                 prob = F.softmax(answer, dim=1)
                 predictions = torch.max(prob, 1)[1].view(label.size())
                 n_correct += (predictions == label).sum().item()
@@ -322,15 +321,14 @@ class Trainer(abc.ABC):
             f1_score = {i: f1_score[i] for i in range(len(f1_score))}
             support = {i: support[i] for i in range(len(support))}
 
-
-            if kwargs.get('secondary_dataset',False):
+            if kwargs.get("secondary_dataset", False):
                 if log_neptune:
                     neptune.log_metric("Secondary Test Avg Loss", test_loss)
                     neptune.log_metric("Secondary Test Accuracy", test_acc)
                     neptune.log_text("Secondary Precision", str(prec))
                     neptune.log_text("Secondary Recall", str(recall))
                     neptune.log_text("Secondary F1", str(f1_score))
-                return test_loss,test_acc,prec,recall,f1_score
+                return test_loss, test_acc, prec, recall, f1_score
 
             if log_neptune:
                 neptune.log_metric("Test Avg Loss", test_loss)
@@ -436,14 +434,14 @@ class Trainer(abc.ABC):
                     test_acc,
                 )
             )
-        if hasattr(self,'secondary_dataset'):
-            test_loss,test_acc,prec,recall,f1_score = self.test(
+        if hasattr(self, "secondary_dataset"):
+            test_loss, test_acc, prec, recall, f1_score = self.test(
                 self.model,
                 self.criterion,
                 self.secondary_dataset.train_iter,
                 self.log_neptune,
                 self.log_hyperdash,
-                secondary_dataset = True,
+                secondary_dataset=True,
                 **kwargs,
             )
             print(

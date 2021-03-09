@@ -1,4 +1,4 @@
-import sys,os
+import sys, os
 
 sys.path.append(".")
 
@@ -39,7 +39,6 @@ class Train_nli(Trainer):
         )
 
     def load_dataset(self, dataset_conf, **kwargs):
-        self.label_size = len(self.dataset.labels())
         if dataset_conf["dataset"] == "snli":
             self.dataset = snli_module(dataset_conf)
         elif dataset_conf["dataset"] == "mnli":
@@ -47,6 +46,7 @@ class Train_nli(Trainer):
 
         self.dataset.prepare_data()
         self.dataset = self.dataset.data
+        self.label_size = len(self.dataset.labels())
         if self.log_neptune:
             neptune.append_tag([dataset_conf["dataset"], kwargs["model_type"]])
 
