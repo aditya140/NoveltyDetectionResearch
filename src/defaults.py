@@ -249,10 +249,9 @@ def mwan_model_params(parser_dump):
     parser_dump.add_argument("--freeze_emb", type=bool, default=False)
 
 
-
 def mwan_model_params(parser_dump):
-    parser_dump.add_argument("--bert_type", type=str, default='distil_bert')
-    
+    parser_dump.add_argument("--bert_type", type=str, default="distil_bert")
+
 
 """
 Novelty Argument Parser
@@ -263,14 +262,15 @@ def parse_novelty_conf():
     parser = ArgumentParser(description="PyTorch/torchtext Novelty Training")
     parser.add_argument("--dataset", "-d", type=str, default="dlnd")
     parser.add_argument("--secondary_dataset", type=str, default="None")
+    parser.add_argument("--batch_size", type=int, default=32)
+    parser.add_argument("--device", type=str, default="cuda")
+    parser.add_argument("--folds", type=bool, default=False)
+    parser.add_argument("--labeled", type=int, default=-1)
 
     # language
     parser.add_argument("--load_nli", type=str, default="None")
     parser.add_argument("--load_han", type=str, default="None")
     parser.add_argument("--max_num_sent", type=int, default=50)
-    parser.add_argument("--device", type=str, default="cuda")
-    parser.add_argument("--folds", type=bool, default=False)
-    parser.add_argument("--batch_size", type=int, default=32)
     parser.add_argument("--tokenizer", type=str, default="None")
     parser.add_argument("--max_len", type=int, default=0)
     parser.add_argument("--sent_tokenizer", type=str, default="spacy")
@@ -282,6 +282,8 @@ def parse_novelty_conf():
     parser.add_argument("--optim", type=str, default="adamw")
     parser.add_argument("--loss_agg", type=str, default="sum")
     parser.add_argument("--scheduler", type=str, default="step")
+
+    # model_conf common
     parser.add_argument("--freeze_encoder", type=bool, default=False)
 
     subparsers = parser.add_subparsers(dest="model_type")
@@ -332,6 +334,7 @@ def get_novelty_conf(args):
     # dataset config
     dataset_conf = {}
     dataset_conf["dataset"] = args.dataset
+    dataset_conf["labeled"] = args.labeled
     dataset_conf["secondary_dataset"] = args.secondary_dataset
     dataset_conf["max_num_sent"] = args.max_num_sent
     dataset_conf["sent_tokenizer"] = args.sent_tokenizer

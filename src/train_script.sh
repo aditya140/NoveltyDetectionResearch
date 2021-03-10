@@ -109,3 +109,7 @@ python3 src/train/train_nli.py -d mnli --tokenizer spacy bilstm
 python3 src/train/train_nli.py -d mnli --tokenizer spacy attention
 python3 src/train/train_nli.py -d mnli --tokenizer spacy struc_attn
 python3 src/train/train_nli.py -d mnli --tokenizer spacy mwan
+
+
+
+python3 src/train/train_nli.py -d mnli --tokenizer distil_bert --max_len 80 --epochs 10 --loss_agg mean bert

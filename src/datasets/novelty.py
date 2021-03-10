@@ -720,9 +720,24 @@ class Novelty:
             dataset = Webis
 
         (self.data,) = dataset.splits(self.TEXT_FIELD, self.LABEL)
-        self.train, self.dev, self.test = self.data.split(
-            split_ratio=[0.8, 0.1, 0.1], stratified=True, random_state=random.getstate()
-        )
+
+        if self.options.get("labeled", -1) != -1:
+            num_labeled = self.options.get("labeled", False)
+            self.dataset_labeled, self.test = self.data.split(
+                split_ratio=0.8, stratified=True, random_state=random.getstate()
+            )
+            data_size = len(self.dataset_labeled)
+            percentage = num_labeled / data_size
+            self.train, self.dev = self.dataset_labeled.split(
+                split_ratio=percentage, stratified=True, random_state=random.getstate()
+            )
+
+        else:
+            self.train, self.dev, self.test = self.data.split(
+                split_ratio=[0.8, 0.1, 0.1],
+                stratified=True,
+                random_state=random.getstate(),
+            )
 
         self.LABEL.build_vocab(self.train)
         if build_vocab:
