@@ -69,7 +69,7 @@ if __name__ == "__main__":
                 copy.deepcopy(sentence_field),
             )
 
-            dataset_conf["labeled"] = labeled
+            dataset_conf_c["labeled"] = labeled
             trainer = Train_novelty(
                 args_c,
                 dataset_conf_c,
