@@ -19,6 +19,7 @@ NLI_NEPTUNE_PROJECT = "aparkhi/NLI"
 NOVELTY_NEPTUNE_PROJECT = "aparkhi/Novelty"
 NOVELTY_ENSEMBLE_NEPTUNE_PROJECT = "aparkhi/NoveltyEnsemble"
 DOC_NEPTUNE_PROJECT = "aparkhi/DocClassification"
+VARY_LABELED = "aparkhi/VaryLabeled"
 
 
 """
