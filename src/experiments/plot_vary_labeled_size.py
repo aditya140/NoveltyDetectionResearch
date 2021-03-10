@@ -27,22 +27,21 @@ from src.train.train_novelty import Train_novelty
 labeled_size = [
     2,
     4,
+    10,
+    20,
+    40,
+    60,
+    80,
+    100,
+    200,
+    300,
+    400,
+    500,
+    600,
+    1000,
+    2000,
+    3000,
 ]
-#     10,
-#     20,
-#     40,
-#     60,
-#     80,
-#     100,
-#     200,
-#     300,
-#     400,
-#     500,
-#     600,
-#     1000,
-#     2000,
-#     3000,
-# ]
 
 
 if __name__ == "__main__":
@@ -54,7 +53,14 @@ if __name__ == "__main__":
     labeled_list = []
     for labeled in labeled_size:
         try:
-            args_c, dataset_conf_c, model_conf_c, optim_conf_c, model_type_c, sentence_field_c = (
+            (
+                args_c,
+                dataset_conf_c,
+                model_conf_c,
+                optim_conf_c,
+                model_type_c,
+                sentence_field_c,
+            ) = (
                 copy.deepcopy(args),
                 copy.deepcopy(dataset_conf),
                 copy.deepcopy(model_conf),
@@ -62,10 +68,15 @@ if __name__ == "__main__":
                 copy.deepcopy(model_type),
                 copy.deepcopy(sentence_field),
             )
-            
+
             dataset_conf["labeled"] = labeled
             trainer = Train_novelty(
-                args_c, dataset_conf_c, model_conf_c, optim_conf_c, model_type_c, sentence_field_c
+                args_c,
+                dataset_conf_c,
+                model_conf_c,
+                optim_conf_c,
+                model_type_c,
+                sentence_field_c,
             )
             test_acc = trainer.fit(
                 **{"batch_attr": {"model_inp": ["source", "target"], "label": "label"}}
