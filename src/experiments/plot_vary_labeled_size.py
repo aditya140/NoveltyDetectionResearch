@@ -108,9 +108,12 @@ if __name__ == "__main__":
     ver = 0
     if not os.path.exists("plots"):
         os.makedirs("plots")
-    while not os.path.exists(new_path):
+    while os.path.exists(new_path):
         ver += 1
-        new_path = os.path.join("plots", f"vary_labeled_{model_type}{ver}.png")
-    neptune.log_artifact(new_path)
+        new_path = os.path.join("plots", f"vary_labeled_{model_type}{str(ver)}.png")
+
     neptune.log_image("vary_labeled_size", fig, image_name="vary_labeled_size")
+    neptune.log_test("labeled_list", ",".join([str(i) for i in labeled_list]))
+    neptune.log_test("test_acc_list", ",".join([str(i) for i in test_acc_list]))
     fig.savefig(new_path)
+    neptune.log_artifact(new_path)
