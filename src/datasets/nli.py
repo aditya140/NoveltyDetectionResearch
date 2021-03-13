@@ -21,6 +21,38 @@ from pdb import set_trace
 __all__ = ["snli_module", "mnli_module"]
 
 
+class MultiNLI(NLIDataset):
+    urls = ["https://cims.nyu.edu/~sbowman/multinli/multinli_1.0.zip"]
+    dirname = "multinli_1.0"
+    name = "multinli"
+
+    @classmethod
+    def splits(
+        cls,
+        text_field,
+        label_field,
+        parse_field=None,
+        genre_field=None,
+        root=".data",
+        train="multinli_1.0_train.jsonl",
+        validation="multinli_1.0_dev_matched.jsonl",
+        test="multinli_1.0_dev_mismatched.jsonl",
+    ):
+        extra_fields = {}
+        if genre_field is not None:
+            extra_fields["genre"] = ("genre", genre_field)
+
+        return super(MultiNLI, cls).splits(
+            text_field,
+            label_field,
+            parse_field=parse_field,
+            extra_fields=extra_fields,
+            root=root,
+            train=train,
+            validation=validation,
+            test=test,
+        )
+
 class NLI_Dataset(Dataset):
     def __init__(self, data):
         self.data = data
@@ -55,6 +87,11 @@ class NLI_Dataset(Dataset):
         return [premise, hypothesis, premise_char, hypothesis_char], label
 
 
+
+
+"""
+SNLI
+"""
 class SNLI:
     def __init__(self, options):
         self.options = options
@@ -172,8 +209,13 @@ class SNLI:
 
 
 def snli(options):
-    if options["tokenizer"] == "bert":
-        tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
+    if options["tokenizer"] == "bert" or options["tokenizer"] == "distil_bert":
+        
+        
+        if options["tokenizer"] == "bert":
+            tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
+        if options["tokenizer"] == "distil_bert":
+            tokenizer = DistilBertTokenizer.from_pretrained("distilbert-base-uncased")
 
         def tokenize_and_cut(sentence):
             tokens = tokenizer.tokenize(sentence)
@@ -196,7 +238,6 @@ def snli(options):
         options["use_vocab"] = False
 
         options["preprocessing"] = tokenizer.convert_tokens_to_ids
-
         options["tokenize"] = tokenize_and_cut
         options["tokenizer"] = tokenizer
 
@@ -256,38 +297,11 @@ def snli_module(conf):
     return SNLIDataModule(conf)
 
 
-class MultiNLI(NLIDataset):
-    urls = ["https://cims.nyu.edu/~sbowman/multinli/multinli_1.0.zip"]
-    dirname = "multinli_1.0"
-    name = "multinli"
 
-    @classmethod
-    def splits(
-        cls,
-        text_field,
-        label_field,
-        parse_field=None,
-        genre_field=None,
-        root=".data",
-        train="multinli_1.0_train.jsonl",
-        validation="multinli_1.0_dev_matched.jsonl",
-        test="multinli_1.0_dev_mismatched.jsonl",
-    ):
-        extra_fields = {}
-        if genre_field is not None:
-            extra_fields["genre"] = ("genre", genre_field)
 
-        return super(MultiNLI, cls).splits(
-            text_field,
-            label_field,
-            parse_field=parse_field,
-            extra_fields=extra_fields,
-            root=root,
-            train=train,
-            validation=validation,
-            test=test,
-        )
-
+"""
+MNLI
+"""
 
 class MNLI:
     def __init__(self, options):
