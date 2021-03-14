@@ -43,6 +43,8 @@ class Train_nli(Trainer):
             self.dataset = snli_module(dataset_conf)
         elif dataset_conf["dataset"] == "mnli":
             self.dataset = mnli_module(dataset_conf)
+        elif dataset_conf["dataset"] == "anli":
+            self.dataset = anli_module(dataset_conf)
 
         self.dataset.prepare_data()
         self.dataset = self.dataset.data
