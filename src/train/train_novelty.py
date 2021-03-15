@@ -1,4 +1,4 @@
-import sys,copy
+import sys, copy
 
 sys.path.append(".")
 import warnings
@@ -42,15 +42,17 @@ class Train_novelty(Trainer):
         )
 
     def load_dataset(self, dataset_conf, **kwargs):
-        dataset_conf["doc_field"]=False
-        if self.args.load_nli=="None":
-            dataset_conf["doc_field"]=True
+        dataset_conf["doc_field"] = False
+        if self.args.load_nli == "None":
+            dataset_conf["doc_field"] = True
         self.dataset = novelty_dataset(
             dataset_conf, sentence_field=kwargs["sentence_field"]
         )
-        if dataset_conf["secondary_dataset"]!='None':
+        if dataset_conf["secondary_dataset"] != "None":
             secondary_dataset_conf = copy.deepcopy(dataset_conf)
-            secondary_dataset_conf["dataset"] = secondary_dataset_conf["secondary_dataset"]
+            secondary_dataset_conf["dataset"] = secondary_dataset_conf[
+                "secondary_dataset"
+            ]
             self.secondary_dataset = novelty_dataset(
                 secondary_dataset_conf, sentence_field=kwargs["sentence_field"]
             )
@@ -93,7 +95,9 @@ class Train_novelty(Trainer):
         if kwargs["model_type"] == "struc":
             self.model = StrucSelfAttn(model_conf, encoder)
         if kwargs["model_type"] == "matt":
-            self.model = MultiAtt(model_conf,encoder)
+            self.model = MultiAtt(model_conf, encoder)
+        if kwargs["model_type"] == "ein":
+            self.model = EIN(model_conf, encoder)
 
         self.model.to(self.device)
 
@@ -157,7 +161,7 @@ class Train_novelty(Trainer):
         model.load_state_dict(enc_data["model_dict"])
         return model
 
-    def load_han_encoder(self,enc_data):
+    def load_han_encoder(self, enc_data):
         sentence_encoder_id = enc_data["options"]["load_nli"]
         check_model(sentence_encoder_id)
 

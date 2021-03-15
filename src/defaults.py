@@ -334,6 +334,10 @@ def parse_novelty_conf():
     parser_matt = subparsers.add_parser("matt")
     matt_nov_model_parameters(parser_matt)
 
+    # model_conf
+    parser_ein = subparsers.add_parser("ein")
+    ein_nov_model_parameters(parser_ein)
+
     parser.add_argument("--results_dir", type=str, default="results")
     return check_args(parser.parse_args())
 
@@ -463,7 +467,12 @@ def matt_nov_model_parameters(parser_dump):
     parser_dump.add_argument("--attention_type", type=str, default="dot")
 
 
-matt_nov_model_parameters
+def ein_nov_model_parameters(parser_dump):
+    parser_dump.add_argument("--dropout", type=float, default=0.3)
+    parser_dump.add_argument("--hidden_size", type=int, default=300)
+    parser_dump.add_argument("--num_layers", type=int, default=1)
+
+
 
 """
 Document-Classification Argument parser

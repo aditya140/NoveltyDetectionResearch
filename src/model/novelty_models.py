@@ -1124,7 +1124,7 @@ class StrucSelfAttn(nn.Module):
 
 """
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-Multi Attention Attention Model 
+Multi Attention Model 
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 """
 
@@ -1272,33 +1272,15 @@ class MultiAtt(nn.Module):
 ESIM
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 """
+# Uses the doc_encoder from Multi attention model
 
 
-class ESIM(nn.Module):
-    def __init__(self, conf):
-        super(ESIM, self).__init__()
+class EIN(nn.Module):
+    def __init__(self, conf, encoder):
+        super(EIN, self).__init__()
         self.conf = conf
-        self.embedding = nn.Embedding(
-            num_embeddings=conf["vocab_size"],
-            embedding_dim=conf["embedding_dim"],
-            padding_idx=conf["padding_idx"],
-        )
-        self.translate = nn.Linear(conf["embedding_dim"], conf["hidden_size"])
-        self.relu = nn.ReLU()
-        self.dropout = nn.Dropout(p=conf["dropout"])
-
-        if conf["use_glove"]:
-            self.embedding = nn.Embedding.from_pretrained(
-                torch.load(".vector_cache/{}_vectors.pt".format(conf["dataset"]))
-            )
-        self.lstm_layer = nn.LSTM(
-            input_size=conf["hidden_size"],
-            hidden_size=conf["hidden_size"],
-            num_layers=conf["num_layers"],
-            dropout=conf["dropout"],
-            bidirectional=True,
-            batch_first=True,
-        )
+        self.encoder = doc_encoder(conf, encoder)
+        self.dropout = nn.Dropout(conf["dropout"])
 
         self.projection = nn.Sequential(
             nn.Linear(4 * 2 * conf["hidden_size"], conf["hidden_size"]), nn.ReLU()
@@ -1316,12 +1298,12 @@ class ESIM(nn.Module):
             nn.Linear(2 * 4 * conf["hidden_size"], conf["hidden_size"]),
             nn.Tanh(),
             nn.Dropout(p=conf["dropout"]),
-            nn.Linear(conf["hidden_size"], 3),
+            nn.Linear(conf["hidden_size"], 2),
         )
 
     def forward(self, x0, x1):
-        x0_enc = self.encode(x0)
-        x1_enc = self.encode(x1)
+        x0_enc = self.encoder(x0)
+        x1_enc = self.encoder(x1)
 
         x0_att, x1_att = self.softmax_attention(x0_enc, x1_enc)
 
@@ -1356,35 +1338,3 @@ class ESIM(nn.Module):
         embedded = self.relu(self.translate(embedded))
         all_, (_, _) = self.lstm_layer(embedded)
         return all_
-
-    def __init__(
-        self,
-        input_dim,
-        hidden_dim,
-        kernel_dim,
-        sent_maxlen,
-        dropout_rate,
-        num_emb,
-        pretrained_weight,
-    ):
-        super(Proto_CNN, self).__init__(num_emb, input_dim, pretrained_weight)
-
-        self.positions = nn.Parameter(torch.randn(sent_maxlen, input_dim))
-        stdv = 1.0 / self.positions.size(1) ** 0.5
-        self.positions.data.uniform_(-stdv, stdv)
-        self.cmsa = ConvolutionalMultiheadSelfAttention(input_dim, kernel_dim[0])
-        self.cmta = ConvolutionalMultiheadTargetAttention(input_dim, kernel_dim[1])
-        self.dropout = nn.Dropout(dropout_rate)
-        self.cls = nn.Linear(input_dim, hidden_dim[-1])
-        nn.init.xavier_normal_(self.cls.weight)
-
-    def predict(self, x):
-        input = self.id2vec(x)
-        input = self.dropout(input + self.positions)
-
-        hidden = self.cmsa(input.permute(0, 2, 1))
-        hidden = self.cmta(hidden)
-
-        logits = self.cls(hidden.squeeze(-1))
-
-        return logits
