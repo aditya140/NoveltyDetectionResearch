@@ -726,3 +726,100 @@ class MwAN_snli(nn.Module):
 
 def mwan_snli(options):
     return MwAN_snli(options)
+
+
+"""
+ESIM
+"""
+
+
+class softmax_attention(nn.Module):
+    def __init__(self, hidden_size):
+        pass
+
+    def forward(self, x, y):
+        similarity_matrix = x.bmm(y.transpose(2, 1).contiguous())
+        x_att = F.softmax(similarity_matrix, dim=1)
+        y_att = F.softmax(similarity_matrix.transpose(1, 2).contiguous(), dim=1)
+        x_att_emb = x_att.bmm(y)
+        y_att_emb = y_att.bmm(x)
+        return x_att_emb, y_att_emb
+
+
+class ESIM(nn.Module):
+    def __init__(self, conf):
+        self.conf = conf
+        self.embedding = nn.Embedding(
+            num_embeddings=conf["vocab_size"],
+            embedding_dim=conf["embedding_dim"],
+            padding_idx=conf["padding_idx"],
+        )
+        self.translate = nn.Linear(conf["embedding_dim"], conf["hidden_size"])
+        self.relu = nn.ReLU()
+        self.dropout = nn.Dropout(p=conf["dropout"])
+
+        if conf["use_glove"]:
+            self.embedding = nn.Embedding.from_pretrained(
+                torch.load(".vector_cache/{}_vectors.pt".format(conf["dataset"]))
+            )
+        self.lstm_layer = nn.LSTM(
+            input_size=conf["hidden_size"],
+            hidden_size=conf["hidden_size"],
+            num_layers=conf["num_layers"],
+            dropout=conf["dropout"],
+            bidirectional=True,
+            batch_first=True,
+        )
+        self.attention = softmax_attention()
+        self.projection = nn.Sequential(
+            nn.Linear(4 * 2 * conf["hidden_size"], conf["hidden_size"]), nn.ReLU()
+        )
+        self.composition = nn.LSTM(
+            input_size=conf["hidden_size"],
+            hidden_size=conf["hidden_size"],
+            num_layers=conf["num_layers"],
+            dropout=conf["dropout"],
+            bidirectional=True,
+            batch_first=True,
+        )
+        self.classification = nn.Sequential(
+            nn.Dropout(p=conf["dropout"]),
+            nn.Linear(2 * 4 * conf["hidden_size"], conf["hidden_size"]),
+            nn.Tanh(),
+            nn.Dropout(p=conf["dropout"]),
+            nn.Linear(conf["hidden_size"], 2),
+        )
+
+    def forward(self, x0, x1):
+        x0_enc = self.encode(x0)
+        x1_enc = self.encode(x1)
+
+        x0_att, x1_att = self.attention(x0_enc, x1_enc)
+
+        enh_x0 = torch.cat([x0_enc, x0_att, x0_enc - x0_att, x0_enc * x0_att], dim=-1)
+        enh_x1 = torch.cat([x1_enc, x1_att, x1_enc - x1_att, x1_enc * x1_att], dim=-1)
+
+        proj_x0 = self.dropout(self._projection(enh_x0))
+        proj_x1 = self.dropout(self._projection(enh_x1))
+
+        comp_x0, (_, _) = self.composition(proj_x0)
+        comp_x1, (_, _) = self.composition(proj_x1)
+
+        avg_x0 = torch.mean(comp_x0, dim=2)
+        avg_x1 = torch.mean(comp_x1, dim=2)
+
+        max_x0 = torch.max(comp_x0, dim=2).values
+        max_x1 = torch.max(comp_x1, dim=2).values
+
+        v = torch.cat([avg_x0, avg_x1, max_x0, max_x1], dim=2)
+        return self.classification(v)
+
+    def encode(self, x):
+        embedded = self.embedding(x)
+        embedded = self.relu(self.translate(embedded))
+        all_, (_, _) = self.lstm_layer(embedded)
+        return all_
+
+
+def esim_snli(options):
+    return ESIM(options)

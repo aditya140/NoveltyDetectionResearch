@@ -92,6 +92,8 @@ class Train_novelty(Trainer):
             self.model = MwAN(model_conf, encoder)
         if kwargs["model_type"] == "struc":
             self.model = StrucSelfAttn(model_conf, encoder)
+        if kwargs["model_type"] == "matt":
+            self.model = MultiAtt(model_conf,encoder)
 
         self.model.to(self.device)
 
