@@ -1269,7 +1269,7 @@ class MultiAtt(nn.Module):
 
 """
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-ESIM
+EIN
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 """
 # Uses the doc_encoder from Multi attention model
@@ -1332,6 +1332,86 @@ class EIN(nn.Module):
         x_att_emb = x_att.bmm(y)
         y_att_emb = y_att.bmm(x)
         return x_att_emb, y_att_emb
+
+    def encode(self, x):
+        embedded = self.embedding(x)
+        embedded = self.relu(self.translate(embedded))
+        all_, (_, _) = self.lstm_layer(embedded)
+        return all_
+
+
+"""
+EIN + self attention
+"""
+
+
+class EAtIn(nn.Module):
+    def __init__(self, conf, encoder):
+        super(EAtIn, self).__init__()
+        self.conf = conf
+        self.encoder = doc_encoder(conf, encoder)
+        self.dropout = nn.Dropout(conf["dropout"])
+
+        self.attention = Attention(conf)
+        self.projection = nn.Sequential(
+            nn.Linear(4 * 2 * conf["hidden_size"], conf["hidden_size"]), nn.ReLU()
+        )
+        self.composition = nn.LSTM(
+            input_size=conf["hidden_size"],
+            hidden_size=conf["hidden_size"],
+            num_layers=conf["num_layers"],
+            dropout=conf["dropout"],
+            bidirectional=True,
+            batch_first=True,
+        )
+        self.classification = nn.Sequential(
+            nn.Dropout(p=conf["dropout"]),
+            nn.Linear(2 * 6 * conf["hidden_size"], conf["hidden_size"]),
+            nn.Tanh(),
+            nn.Dropout(p=conf["dropout"]),
+            nn.Linear(conf["hidden_size"], 2),
+        )
+
+    def forward(self, x0, x1):
+        x0_enc = self.encoder(x0)
+        x1_enc = self.encoder(x1)
+
+        x0_self = self.self_attention(x0_enc)
+        x1_self = self.self_attention(x1_enc)
+
+        x0_att, x1_att = self.softmax_attention(x0_enc, x1_enc)
+
+        enh_x0 = torch.cat([x0_enc, x0_att, x0_enc - x0_att, x0_enc * x0_att], dim=-1)
+        enh_x1 = torch.cat([x1_enc, x1_att, x1_enc - x1_att, x1_enc * x1_att], dim=-1)
+
+        proj_x0 = self.dropout(self.projection(enh_x0))
+        proj_x1 = self.dropout(self.projection(enh_x1))
+
+        comp_x0, (_, _) = self.composition(proj_x0)
+        comp_x1, (_, _) = self.composition(proj_x1)
+
+        avg_x0 = torch.mean(comp_x0, dim=1)
+        avg_x1 = torch.mean(comp_x1, dim=1)
+
+        max_x0 = torch.max(comp_x0, dim=1).values
+        max_x1 = torch.max(comp_x1, dim=1).values
+
+        i = torch.cat([x0_self, avg_x0, avg_x1, max_x0, max_x1, x1_self], dim=1)
+        return self.classification(i)
+
+    def softmax_attention(self, x, y):
+        similarity_matrix = x.bmm(y.transpose(2, 1).contiguous())
+        x_att = F.softmax(similarity_matrix, dim=1)
+        y_att = F.softmax(similarity_matrix.transpose(1, 2).contiguous(), dim=1)
+        x_att_emb = x_att.bmm(y)
+        y_att_emb = y_att.bmm(x)
+        return x_att_emb, y_att_emb
+
+    def self_attention(self, x):
+        attn = self.attention(x)
+        cont = torch.bmm(attn.permute(0, 2, 1), x)
+        cont = cont.squeeze(1)
+        return cont
 
     def encode(self, x):
         embedded = self.embedding(x)

@@ -98,6 +98,8 @@ class Train_novelty(Trainer):
             self.model = MultiAtt(model_conf, encoder)
         if kwargs["model_type"] == "ein":
             self.model = EIN(model_conf, encoder)
+        if kwargs["model_type"] == "eain":
+            self.model = EAtIn(model_conf, encoder)
 
         self.model.to(self.device)
 
