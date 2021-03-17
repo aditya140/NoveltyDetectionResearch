@@ -67,8 +67,10 @@ class Train_nli(Trainer):
             self.model = struc_attn_snli(model_conf)
         elif model_type == "mwan":
             self.model = mwan_snli(model_conf)
-        elif model_type == 'bert':
+        elif model_type == "bert":
             self.model = bert_snli(model_conf)
+        elif model_type == "esim":
+            self.model = esim_snli(model_conf)
 
         self.model.to(self.device)
         model_size = self.count_parameters(self.model)

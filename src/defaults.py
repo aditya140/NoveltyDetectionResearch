@@ -70,6 +70,10 @@ def parse_nli_conf():
     parser_bert = subparsers.add_parser("bert")
     mwan_model_params(parser_bert)
 
+    # model_conf
+    parser_esim = subparsers.add_parser("esim")
+    esim_model_params(parser_esim)
+
     parser.add_argument("--results_dir", type=str, default="results")
     return check_args(parser.parse_args())
 
@@ -254,6 +258,15 @@ def mwan_model_params(parser_dump):
     parser_dump.add_argument("--bert_type", type=str, default="distil_bert")
 
 
+def esim_model_params(parser_dump):
+    parser_dump.add_argument("--embedding_dim", type=int, default=300)
+    parser_dump.add_argument("--num_layers", type=int, default=1)
+    parser_dump.add_argument("--dropout", type=float, default=0.2)
+    parser_dump.add_argument("--freeze_emb", type=bool, default=False)
+    parser_dump.add_argument("--hidden_size", type=int, default=300)
+    parser_dump.add_argument("--use_glove", type=bool, default=False)
+
+
 """
 Novelty Argument Parser
 """
@@ -277,11 +290,11 @@ def parse_novelty_conf():
     parser.add_argument("--sent_tokenizer", type=str, default="spacy")
 
     # optimizer_conf
-    parser.add_argument("--epochs", type=int, default=20)
+    parser.add_argument("--epochs", type=int, default=10)
     parser.add_argument("--lr", type=float, default=0.001)
     parser.add_argument("--seed", type=int, default=-1)
     parser.add_argument("--optim", type=str, default="adamw")
-    parser.add_argument("--loss_agg", type=str, default="sum")
+    parser.add_argument("--loss_agg", type=str, default="mean")
     parser.add_argument("--scheduler", type=str, default="step")
 
     # model_conf common
@@ -316,6 +329,18 @@ def parse_novelty_conf():
     # model_conf
     parser_stru = subparsers.add_parser("struc")
     struc_self_attn_model_parameters(parser_stru)
+
+    # model_conf
+    parser_matt = subparsers.add_parser("matt")
+    matt_nov_model_parameters(parser_matt)
+
+    # model_conf
+    parser_ein = subparsers.add_parser("ein")
+    ein_nov_model_parameters(parser_ein)
+
+    # model_conf
+    parser_eain = subparsers.add_parser("eain")
+    eain_nov_model_parameters(parser_eain)
 
     parser.add_argument("--results_dir", type=str, default="results")
     return check_args(parser.parse_args())
@@ -437,6 +462,26 @@ def struc_self_attn_model_parameters(parser_dump):
     parser_dump.add_argument("--num_layers", type=int, default=1)
     parser_dump.add_argument("--prune_p", type=int, default=20)
     parser_dump.add_argument("--prune_q", type=int, default=10)
+
+
+def matt_nov_model_parameters(parser_dump):
+    parser_dump.add_argument("--dropout", type=float, default=0.3)
+    parser_dump.add_argument("--hidden_size", type=int, default=300)
+    parser_dump.add_argument("--num_layers", type=int, default=1)
+    parser_dump.add_argument("--attention_type", type=str, default="dot")
+
+
+def ein_nov_model_parameters(parser_dump):
+    parser_dump.add_argument("--dropout", type=float, default=0.3)
+    parser_dump.add_argument("--hidden_size", type=int, default=300)
+    parser_dump.add_argument("--num_layers", type=int, default=1)
+
+def eain_nov_model_parameters(parser_dump):
+    parser_dump.add_argument("--dropout", type=float, default=0.3)
+    parser_dump.add_argument("--hidden_size", type=int, default=300)
+    parser_dump.add_argument("--num_layers", type=int, default=1)
+    parser_dump.add_argument("--attention_layer_param", type=int, default=150)
+
 
 
 """

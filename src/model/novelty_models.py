@@ -333,12 +333,11 @@ class HAN_DOC(nn.Module):
         return cont
 
 
-
 class HAN_DOC_Classifier(nn.Module):
-    def __init__(self,conf,encoder):
+    def __init__(self, conf, encoder):
         super().__init__()
         self.conf = conf
-        self.encoder = HAN_DOC(conf,encoder)
+        self.encoder = HAN_DOC(conf, encoder)
         self.act = nn.ReLU()
         self.dropout = nn.Dropout(conf["dropout"])
         self.fc = nn.Linear(2 * conf["hidden_size"], 10)
@@ -348,8 +347,6 @@ class HAN_DOC_Classifier(nn.Module):
         cont = self.dropout(self.act(x0_enc))
         cont = self.fc(cont)
         return cont
-
-
 
 
 class HAN(nn.Module):
@@ -991,6 +988,7 @@ class MwAN(nn.Module):
             ),
             2,
         )
+
         rp = sj.bmm(aggregation_representation)
         encoder_output = self.dropout(F.relu(self.prediction(rp)))
         encoder_output = encoder_output.squeeze(1)
@@ -1126,114 +1124,297 @@ class StrucSelfAttn(nn.Module):
 
 """
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-MultiHead Attention 
+Multi Attention Model 
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 """
 
+### Attention Functions copied from MwAN
+
+
+class doc_encoder(nn.Module):
+    def __init__(self, conf, encoder):
+        super(doc_encoder, self).__init__()
+        self.conf = conf
+        self.encoder = encoder
+        if self.conf["freeze_encoder"]:
+            self.encoder.requires_grad_(False)
+
+        self.translate = nn.Linear(
+            2 * self.conf["encoder_dim"], self.conf["hidden_size"]
+        )
+        self.act = nn.ReLU()
+        self.dropout = nn.Dropout(conf["dropout"])
+        self.template = nn.Parameter(torch.zeros((1)), requires_grad=True)
+        self.lstm_layer = nn.LSTM(
+            input_size=self.conf["hidden_size"],
+            hidden_size=self.conf["hidden_size"],
+            num_layers=self.conf["num_layers"],
+            bidirectional=True,
+        )
+
+    def forward(self, inp):
+        batch_size, num_sent, max_len = inp.shape
+        x = inp.view(-1, max_len)
+
+        x_padded_idx = x.sum(dim=1) != 0
+        x_enc = []
+        for sub_batch in x[x_padded_idx].split(64):
+            x_enc.append(self.encoder(sub_batch, None))
+        x_enc = torch.cat(x_enc, dim=0)
+
+        x_enc_t = torch.zeros((batch_size * num_sent, x_enc.size(1))).to(
+            self.template.device
+        )
+
+        x_enc_t[x_padded_idx] = x_enc
+        x_enc_t = x_enc_t.view(batch_size, num_sent, -1)
+
+        embedded = self.dropout(self.translate(x_enc_t))
+        embedded = self.act(embedded)
+
+        all_, (_, _) = self.lstm_layer(embedded)
+
+        return all_
+
+
+class aggregation_layer(nn.Module):
+    def __init__(self, hidden_size):
+        super().__init__()
+        self.Wq = nn.Linear(2 * hidden_size, hidden_size, bias=False)
+        self.vq = nn.Linear(hidden_size, 1, bias=False)
+
+        self.Wp1 = nn.Linear(4 * hidden_size, hidden_size, bias=False)
+        self.Wp2 = nn.Linear(2 * hidden_size, hidden_size, bias=False)
+        self.vp = nn.Linear(hidden_size, 1, bias=False)
+
+        self.prediction = nn.Linear(4 * hidden_size, 2, bias=True)
+
+    def forward(self, x0_enc, agg_rep):
+        # print(self.Wq(x0_enc).shape)
+        self.dropout = nn.Dropout(0.2)
+        sj = self.vq(torch.tanh(self.Wq(x0_enc))).transpose(2, 1)
+        rq = F.softmax(sj, 2).bmm(x0_enc)
+        sj = F.softmax(
+            self.vp(self.Wp1(agg_rep) + self.Wp2(rq)).transpose(2, 1),
+            2,
+        )
+        rp = sj.bmm(agg_rep)
+        encoder_output = self.dropout(F.relu(self.prediction(rp)))
+        encoder_output = encoder_output.squeeze(1)
+        return encoder_output
+
+
+class attention_fx(nn.Module):
+    def __init__(self, conf):
+        super().__init__()
+        self.att_type = conf["attention_type"]
+
+        if conf["attention_type"] == "dot":
+            self.attention = dot_attention(conf["hidden_size"])
+        elif conf["attention_type"] == "minus":
+            self.attention = minus_attention(conf["hidden_size"])
+        elif conf["attention_type"] == "concat":
+            self.attention = concat_attention(conf["hidden_size"])
+        elif conf["attention_type"] == "bilinear_attention":
+            self.attention = bilinear_attention(conf["hidden_size"])
+        elif conf["attention_type"] == "all":
+            self.concat_attn = concat_attention(conf["hidden_size"])
+            self.bilinear_attn = bilinear_attention(conf["hidden_size"])
+            self.dot_attn_1 = dot_attention(conf["hidden_size"])
+            self.dot_attn_2 = dot_attention(conf["hidden_size"])
+            self.minus_attn = minus_attention(conf["hidden_size"])
+
+    def forward(self, x0_enc, x1_enc):
+        if self.att_type == "all":
+            qtc = self.concat_attn(x0_enc, x1_enc)
+            qtb = self.bilinear_attn(x0_enc, x1_enc)
+            qts = self.dot_attn_1(x0_enc, x1_enc)
+            qtd = self.dot_attn_2(x1_enc, x0_enc)
+            qtm = self.minus_attn(x0_enc, x1_enc)
+            cont = torch.cat([x1_enc, qts, qtc, qtd, qtb, qtm], 2)
+
+            # maxpool agg
+            agg_res = torch.max(
+                torch.cat(
+                    [i.unsqueeze(0) for i in [x1_enc, qts, qtc, qtd, qtb, qtm]], dim=0
+                ),
+                dim=0,
+            ).values
+            return agg_res
+        else:
+            att_res = self.attention(x0_enc, x1_enc)
+            return att_res
+
+
+class MultiAtt(nn.Module):
+    def __init__(self, conf, encoder):
+        super(MultiAtt, self).__init__()
+        self.conf = conf
+        self.act = nn.ReLU()
+        self.dropout = nn.Dropout(conf["dropout"])
+        self.encoder = doc_encoder(conf, encoder)
+        self.attention_fx = attention_fx(conf)
+        self.aggregate = aggregation_layer(conf["hidden_size"])
+
+    def forward(self, x0, x1):
+        x0_enc = self.encoder(x0)
+        x1_enc = self.encoder(x1)
+
+        att_enc = self.attention_fx(x0_enc, x1_enc)
+        att_agg = self.dropout(att_enc)
+        agg_rep = torch.cat([x1_enc, att_agg], dim=2)
+        opt = self.aggregate(x0_enc, agg_rep)
+        return opt
+
+
 """
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-HCAN
+EIN
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+"""
+# Uses the doc_encoder from Multi attention model
+
+
+class EIN(nn.Module):
+    def __init__(self, conf, encoder):
+        super(EIN, self).__init__()
+        self.conf = conf
+        self.encoder = doc_encoder(conf, encoder)
+        self.dropout = nn.Dropout(conf["dropout"])
+
+        self.projection = nn.Sequential(
+            nn.Linear(4 * 2 * conf["hidden_size"], conf["hidden_size"]), nn.ReLU()
+        )
+        self.composition = nn.LSTM(
+            input_size=conf["hidden_size"],
+            hidden_size=conf["hidden_size"],
+            num_layers=conf["num_layers"],
+            dropout=conf["dropout"],
+            bidirectional=True,
+            batch_first=True,
+        )
+        self.classification = nn.Sequential(
+            nn.Dropout(p=conf["dropout"]),
+            nn.Linear(2 * 4 * conf["hidden_size"], conf["hidden_size"]),
+            nn.Tanh(),
+            nn.Dropout(p=conf["dropout"]),
+            nn.Linear(conf["hidden_size"], 2),
+        )
+
+    def forward(self, x0, x1):
+        x0_enc = self.encoder(x0)
+        x1_enc = self.encoder(x1)
+
+        x0_att, x1_att = self.softmax_attention(x0_enc, x1_enc)
+
+        enh_x0 = torch.cat([x0_enc, x0_att, x0_enc - x0_att, x0_enc * x0_att], dim=-1)
+        enh_x1 = torch.cat([x1_enc, x1_att, x1_enc - x1_att, x1_enc * x1_att], dim=-1)
+
+        proj_x0 = self.dropout(self.projection(enh_x0))
+        proj_x1 = self.dropout(self.projection(enh_x1))
+
+        comp_x0, (_, _) = self.composition(proj_x0)
+        comp_x1, (_, _) = self.composition(proj_x1)
+
+        avg_x0 = torch.mean(comp_x0, dim=1)
+        avg_x1 = torch.mean(comp_x1, dim=1)
+
+        max_x0 = torch.max(comp_x0, dim=1).values
+        max_x1 = torch.max(comp_x1, dim=1).values
+
+        v = torch.cat([avg_x0, avg_x1, max_x0, max_x1], dim=1)
+        return self.classification(v)
+
+    def softmax_attention(self, x, y):
+        similarity_matrix = x.bmm(y.transpose(2, 1).contiguous())
+        x_att = F.softmax(similarity_matrix, dim=1)
+        y_att = F.softmax(similarity_matrix.transpose(1, 2).contiguous(), dim=1)
+        x_att_emb = x_att.bmm(y)
+        y_att_emb = y_att.bmm(x)
+        return x_att_emb, y_att_emb
+
+    def encode(self, x):
+        embedded = self.embedding(x)
+        embedded = self.relu(self.translate(embedded))
+        all_, (_, _) = self.lstm_layer(embedded)
+        return all_
+
+
+"""
+EIN + self attention
 """
 
 
+class EAtIn(nn.Module):
+    def __init__(self, conf, encoder):
+        super(EAtIn, self).__init__()
+        self.conf = conf
+        self.encoder = doc_encoder(conf, encoder)
+        self.dropout = nn.Dropout(conf["dropout"])
 
-class ConvolutionalMultiheadAttention(nn.Module):
-    def __init__(self, input_dim, kernel_dim, multihead_cnt, conv_cnt):
-        super(ConvolutionalMultiheadAttention, self).__init__()
-        self.input_dim = input_dim
-        self.multihead_cnt = multihead_cnt
+        self.attention = Attention(conf)
+        self.projection = nn.Sequential(
+            nn.Linear(4 * 2 * conf["hidden_size"], conf["hidden_size"]), nn.ReLU()
+        )
+        self.composition = nn.LSTM(
+            input_size=conf["hidden_size"],
+            hidden_size=conf["hidden_size"],
+            num_layers=conf["num_layers"],
+            dropout=conf["dropout"],
+            bidirectional=True,
+            batch_first=True,
+        )
+        self.classification = nn.Sequential(
+            nn.Dropout(p=conf["dropout"]),
+            nn.Linear(2 * 6 * conf["hidden_size"], conf["hidden_size"]),
+            nn.Tanh(),
+            nn.Dropout(p=conf["dropout"]),
+            nn.Linear(conf["hidden_size"], 2),
+        )
 
-        self.convs = nn.ModuleList([nn.Conv1d(input_dim, input_dim, kernel_dim)
-                                    for _ in range(conv_cnt)])
-        for w in self.convs:
-            nn.init.xavier_normal_(w.weight)
+    def forward(self, x0, x1):
+        x0_enc = self.encoder(x0)
+        x1_enc = self.encoder(x1)
 
-    def attention(self, q, k, v):
-        return torch.softmax(torch.div(torch.bmm(q.permute(0,2,1), k),
-               np.sqrt(self.input_dim)), 2).bmm(v.permute(0,2,1)).permute(0,2,1)
+        x0_self = self.self_attention(x0_enc)
+        x1_self = self.self_attention(x1_enc)
 
-    def multihead(self, hiddens):
-        hiddens = [torch.chunk(hidden, self.multihead_cnt, 1) for hidden in hiddens]
-        hiddens = torch.cat([self.attention(hiddens[0][i], hiddens[1][i], hiddens[2][i])
-                             for i in range(self.multihead_cnt)], 1)
+        x0_att, x1_att = self.softmax_attention(x0_enc, x1_enc)
 
-        return hiddens
+        enh_x0 = torch.cat([x0_enc, x0_att, x0_enc - x0_att, x0_enc * x0_att], dim=-1)
+        enh_x1 = torch.cat([x1_enc, x1_att, x1_enc - x1_att, x1_enc * x1_att], dim=-1)
 
-class ConvolutionalMultiheadSelfAttention(ConvolutionalMultiheadAttention):
-    def __init__(self, input_dim, kernel_dim, multihead_cnt=10, conv_cnt=6):
-        super(ConvolutionalMultiheadSelfAttention, self).\
-              __init__(input_dim, kernel_dim, multihead_cnt, conv_cnt)
+        proj_x0 = self.dropout(self.projection(enh_x0))
+        proj_x1 = self.dropout(self.projection(enh_x1))
 
-    def forward(self, input):
-        hiddens = [F.elu(conv(input)) for conv in self.convs[:-1]]
-        hiddens.append(torch.tanh(self.convs[-1](input)))
+        comp_x0, (_, _) = self.composition(proj_x0)
+        comp_x1, (_, _) = self.composition(proj_x1)
 
-        elu_hid = self.multihead(hiddens[:3])
-        tanh_hid= self.multihead(hiddens[3:])
-        output = F.layer_norm(torch.mul(elu_hid, tanh_hid), elu_hid.size()[1:])
+        avg_x0 = torch.mean(comp_x0, dim=1)
+        avg_x1 = torch.mean(comp_x1, dim=1)
 
-        return output
+        max_x0 = torch.max(comp_x0, dim=1).values
+        max_x1 = torch.max(comp_x1, dim=1).values
 
-class ConvolutionalMultiheadTargetAttention(ConvolutionalMultiheadAttention):
-    def __init__(self, input_dim, kernel_dim, multihead_cnt=10, conv_cnt=2):
-        super(ConvolutionalMultiheadTargetAttention, self).\
-              __init__(input_dim, kernel_dim, multihead_cnt, conv_cnt)
-        self.target = nn.Parameter(torch.randn(input_dim, 1))
-        stdv = 1. / math.sqrt(self.target.size(1))
-        self.target.data.uniform_(-stdv, stdv)
+        i = torch.cat([x0_self, avg_x0, avg_x1, max_x0, max_x1, x1_self], dim=1)
+        return self.classification(i)
 
-    def forward(self, input):
-        batch_size = input.size(0)
-        hiddens = [F.elu(conv(input)) for conv in self.convs]
-        output = self.multihead([self.target.expand(batch_size, self.input_dim, 1)]+hiddens)
+    def softmax_attention(self, x, y):
+        similarity_matrix = x.bmm(y.transpose(2, 1).contiguous())
+        x_att = F.softmax(similarity_matrix, dim=1)
+        y_att = F.softmax(similarity_matrix.transpose(1, 2).contiguous(), dim=1)
+        x_att_emb = x_att.bmm(y)
+        y_att_emb = y_att.bmm(x)
+        return x_att_emb, y_att_emb
 
-        return output
+    def self_attention(self, x):
+        attn = self.attention(x)
+        cont = torch.bmm(attn.permute(0, 2, 1), x)
+        cont = cont.squeeze(1)
+        return cont
 
-
-class Proto(nn.Module):
-    def __init__(self, num_emb, input_dim, pretrained_weight):
-        super(Proto, self).__init__()
-        self.id2vec = nn.Embedding(num_emb, input_dim, padding_idx=1)
-        # unk, pad, ..., keywords
-        self.id2vec.weight.data[3:].copy_(torch.from_numpy(pretrained_weight))
-        self.id2vec.requires_grad = True
-
-    def predict(self, x, l):
-        input = self.id2vec(x)
-        input = torch.div(torch.sum(input, 1), l)
-        return self.model(input)
-
-    def forward(self, data, sent_maxlen):
-        x, l, y = torch.split(data, [sent_maxlen,1,1], 1)
-        logits = self.predict(x, l.float())
-        loss = self.loss(logits, y.squeeze())
-        accuracy = self.accuracy(logits, y.squeeze())
-
-        return loss, accuracy
-
-
-class Proto_CNN(Proto):
-    def __init__(self, input_dim, hidden_dim, kernel_dim,
-                 sent_maxlen, dropout_rate, num_emb, pretrained_weight):
-        super(Proto_CNN, self).__init__(num_emb, input_dim, pretrained_weight)
-
-        self.positions = nn.Parameter(torch.randn(sent_maxlen,input_dim))
-        stdv = 1. / self.positions.size(1) ** 0.5
-        self.positions.data.uniform_(-stdv, stdv)
-        self.cmsa = ConvolutionalMultiheadSelfAttention(input_dim, kernel_dim[0])
-        self.cmta = ConvolutionalMultiheadTargetAttention(input_dim, kernel_dim[1])
-        self.dropout = nn.Dropout(dropout_rate)
-        self.cls = nn.Linear(input_dim, hidden_dim[-1])
-        nn.init.xavier_normal_(self.cls.weight)
-
-    def predict(self, x):
-        input = self.id2vec(x)
-        input = self.dropout(input + self.positions)
-
-        hidden = self.cmsa(input.permute(0,2,1))
-        hidden = self.cmta(hidden)
-
-        logits = self.cls(hidden.squeeze(-1))
-
-        return logits
+    def encode(self, x):
+        embedded = self.embedding(x)
+        embedded = self.relu(self.translate(embedded))
+        all_, (_, _) = self.lstm_layer(embedded)
+        return all_

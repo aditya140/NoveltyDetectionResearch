@@ -14,7 +14,15 @@ from tabulate import tabulate
 from sklearn.metrics import accuracy_score, confusion_matrix
 from sklearn.metrics import precision_recall_fscore_support
 
-dlnd_models_to_compare = ["NOV-452", "NOV-450", "NOV-446", "NOV-445","NOV-790","NOV-757","NOV-764"]
+dlnd_models_to_compare = [
+    "NOV-452",
+    "NOV-450",
+    "NOV-446",
+    "NOV-445",
+    "NOV-790",
+    "NOV-757",
+    "NOV-764",
+]
 apwsj_models_to_compare = ["NOV-455", "NOV-456", "NOV-459"]
 webis_models_to_compare = []
 
