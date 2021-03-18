@@ -800,6 +800,27 @@ class Novelty:
         )
         return train_dl, dev_dl, test_dl
 
+    def get_numpy_data(self):
+        def get_numpy(data_iter):
+            np_data = {}
+            attr_list = ["source", "target", "label"]
+            for attr in attr_list:
+                data = np.concatenate(
+                    [getattr(i, attr).detach().cpu().numpy() for i in data_iter]
+                )
+                np_data[attr] = data
+            src = np.expand_dims(np_data["source"], 1)
+            trg = np.expand_dims(np_data["target"], 1)
+            inp = np.concatenate([src, trg], axis=1)
+            lab = np_data["label"]
+            return [inp,lab]
+
+        return (
+            get_numpy(self.train_iter),
+            get_numpy(self.val_iter),
+            get_numpy(self.test_iter),
+        )
+
 
 def novelty_dataset(options, sentence_field=None):
     options["use_vocab"] = True
