@@ -343,6 +343,10 @@ def parse_novelty_conf():
     parser_eain = subparsers.add_parser("eain")
     eain_nov_model_parameters(parser_eain)
 
+    # model_conf
+    parser_han_ablate = subparsers.add_parser("han_ablate")
+    han_ablate_model_parameters(parser_han_ablate)
+
     parser.add_argument("--results_dir", type=str, default="results")
     return check_args(parser.parse_args())
 
@@ -417,6 +421,19 @@ def han_model_parameters(parser_dump):
     parser_dump.add_argument("--dropout", type=float, default=0.3)
     parser_dump.add_argument("--num_layers", type=int, default=1)
     parser_dump.add_argument("--attention_layer_param", type=int, default=200)
+
+
+def han_ablate_model_parameters(parser_dump):
+    parser_dump.add_argument("--hidden_size", type=int, default=400)
+    parser_dump.add_argument("--dropout", type=float, default=0.3)
+    parser_dump.add_argument("--num_layers", type=int, default=1)
+    parser_dump.add_argument("--attention_layer_param", type=int, default=200)
+    parser_dump.add_argument("--attention_hops", type=int, default=10)
+    parser_dump.add_argument("--attention_type", type=str, default="struc")
+    parser_dump.add_argument("--flatten", type=bool, default=True)
+    parser_dump.add_argument("--interaction_type", type=str, default="concat")
+    parser_dump.add_argument("--use_bilstm", type=bool, default=True)
+
 
 
 def adin_model_parameters(parser_dump):
