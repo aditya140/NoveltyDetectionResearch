@@ -70,12 +70,14 @@ class Train_novelty(Trainer):
         if self.args.load_nli != "None":
             nli_model_data = load_encoder_data(self.args.load_nli)
             encoder = self.load_encoder(nli_model_data).encoder
+            if model_conf["reset_enc"]:
+                self.reset_encoder(encoder)
+                print("Encoder Reset")
             model_conf["encoder_dim"] = nli_model_data["options"]["hidden_size"]
         if self.args.load_han != "None":
             han_model_data = load_encoder_data(self.args.load_han)
             encoder = self.load_han_encoder(han_model_data).encoder
-            if model_conf["reset_enc"]:
-                encoder = self.reset_encoder(encoder)
+
             model_conf["encoder_dim"] = han_model_data["options"]["encoder_dim"]
             model_conf["hidden_size"] = han_model_data["options"]["hidden_size"]
 
@@ -173,11 +175,11 @@ class Train_novelty(Trainer):
             print(m.__get_name)
             if callable(reset_parameters):
                 m.reset_parameters()
-
-        for name, module in enc.named_modules():
-            if name not in ["embedding", "projection"]:
-                module.apply(weight_reset)
-        return enc
+        enc.apply(weight_reset)
+        # for name, module in enc.named_modules():
+        #     if name not in ["embedding", "projection"]:
+        #         module.apply(weight_reset)
+        # return enc
 
     @staticmethod
     def reset_encoder(encoder):
