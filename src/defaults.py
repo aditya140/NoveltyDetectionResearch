@@ -283,6 +283,7 @@ def parse_novelty_conf():
 
     # language
     parser.add_argument("--load_nli", type=str, default="None")
+    parser.add_argument("--reset_enc", type=bool, default=False)
     parser.add_argument("--load_han", type=str, default="None")
     parser.add_argument("--max_num_sent", type=int, default=50)
     parser.add_argument("--tokenizer", type=str, default="None")

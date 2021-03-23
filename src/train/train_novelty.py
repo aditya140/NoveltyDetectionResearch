@@ -74,6 +74,8 @@ class Train_novelty(Trainer):
         if self.args.load_han != "None":
             han_model_data = load_encoder_data(self.args.load_han)
             encoder = self.load_han_encoder(han_model_data).encoder
+            if model_conf["reset_enc"]:
+                encoder = self.reset_encoder(encoder)
             model_conf["encoder_dim"] = han_model_data["options"]["encoder_dim"]
             model_conf["hidden_size"] = han_model_data["options"]["hidden_size"]
 
@@ -162,6 +164,24 @@ class Train_novelty(Trainer):
             model = struc_attn_snli(enc_data["options"])
         model.load_state_dict(enc_data["model_dict"])
         return model
+
+    @staticmethod
+    @staticmethod
+    def reset_encoder(enc):
+        def weight_reset(m):
+            reset_parameters = getattr(m, "reset_parameters", None)
+            print(m.__get_name)
+            if callable(reset_parameters):
+                m.reset_parameters()
+
+        for name, module in enc.named_modules():
+            if name not in ["embedding", "projection"]:
+                module.apply(weight_reset)
+        return enc
+
+    @staticmethod
+    def reset_encoder(encoder):
+        pass
 
     def load_han_encoder(self, enc_data):
         sentence_encoder_id = enc_data["options"]["load_nli"]
