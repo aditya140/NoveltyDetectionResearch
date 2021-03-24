@@ -721,6 +721,8 @@ def download_models_from_neptune(_id):
         download_model(NLI_NEPTUNE_PROJECT, _id)
     if _id.split("-")[0] == "NOV":
         download_model(NOVELTY_NEPTUNE_PROJECT, _id)
+    if _id.split("-")[0] == "DOC":
+        download_model(DOC_NEPTUNE_PROJECT, _id)
 
 
 def download_model(project, _id):
@@ -739,6 +741,14 @@ def download_model(project, _id):
             os.path.join(model_folder_path, _id + ".zip"),
             extract_dir=model_path,
         )
+    if prj == DOC_NEPTUNE_PROJECT:
+        experiment.download_artifact(_id + ".zip", model_folder_path)
+
+        shutil.unpack_archive(
+            os.path.join(model_folder_path, _id + ".zip"),
+            extract_dir=model_path,
+        )
+
     if prj == NOVELTY_NEPTUNE_PROJECT:
         experiment.download_artifact("probs.p", model_path)
 
