@@ -58,6 +58,10 @@ class Train_document(Trainer):
     def load_model(self, model_conf, **kwargs):
         nli_model_data = load_encoder_data(self.args.load_nli)
         encoder = self.load_encoder(nli_model_data).encoder
+        if model_conf["reset_enc"]:
+            neptune.append_tag("encoder_reset")
+            self.reset_encoder(encoder)
+            print("Encoder Reset")
         model_conf["encoder_dim"] = nli_model_data["options"]["hidden_size"]
 
         if kwargs["model_type"] == "han":
@@ -174,6 +178,17 @@ class Train_document(Trainer):
             model = struc_attn_snli(enc_data["options"])
         model.load_state_dict(enc_data["model_dict"])
         return model
+
+    @staticmethod
+    def reset_encoder(enc):
+        def weight_reset(m):
+            reset_parameters = getattr(m, "reset_parameters", None)
+            if callable(reset_parameters):
+                m.reset_parameters()
+
+        for name, module in enc.named_modules():
+            if name not in ["embedding", "translate"]:
+                module.apply(weight_reset)
 
 
 if __name__ == "__main__":

@@ -435,7 +435,6 @@ def han_ablate_model_parameters(parser_dump):
     parser_dump.add_argument("--use_bilstm", type=bool, default=True)
 
 
-
 def adin_model_parameters(parser_dump):
     parser_dump.add_argument("--hidden_size", type=int, default=400)
     parser_dump.add_argument("--dropout", type=float, default=0.3)
@@ -494,12 +493,12 @@ def ein_nov_model_parameters(parser_dump):
     parser_dump.add_argument("--hidden_size", type=int, default=300)
     parser_dump.add_argument("--num_layers", type=int, default=1)
 
+
 def eain_nov_model_parameters(parser_dump):
     parser_dump.add_argument("--dropout", type=float, default=0.3)
     parser_dump.add_argument("--hidden_size", type=int, default=300)
     parser_dump.add_argument("--num_layers", type=int, default=1)
     parser_dump.add_argument("--attention_layer_param", type=int, default=150)
-
 
 
 """
@@ -515,6 +514,7 @@ def parse_document_clf_conf():
 
     # language
     parser.add_argument("--load_nli", type=str, default="None")
+    parser.add_argument("--reset_enc", type=bool, default=False)
     parser.add_argument("--max_num_sent", type=int, default=50)
     parser.add_argument("--device", type=str, default="cuda")
     parser.add_argument("--folds", type=bool, default=False)

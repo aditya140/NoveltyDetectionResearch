@@ -176,7 +176,6 @@ class Train_novelty(Trainer):
             reset_parameters = getattr(m, "reset_parameters", None)
             if callable(reset_parameters):
                 m.reset_parameters()
-
         enc.apply(weight_reset)
 
     def load_han_encoder(self, enc_data):
