@@ -101,7 +101,7 @@ class Attn_Encoder(nn.Module):
         attn = self.attention(all_)
         cont = torch.bmm(attn.permute(0, 2, 1), all_)
         cont = cont.squeeze(1)
-        return cont
+        return cont, attn
 
 
 class AttnBiLSTM_snli(nn.Module):
@@ -819,5 +819,3 @@ class ESIM(nn.Module):
 
 def esim_snli(options):
     return ESIM(options)
-
-

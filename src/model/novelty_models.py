@@ -311,16 +311,29 @@ class HAN_DOC(nn.Module):
 
         x_padded_idx = x.sum(dim=1) != 0
         x_enc = []
+        x_attn = []
         for sub_batch in x[x_padded_idx].split(64):
-            x_enc.append(self.encoder(sub_batch, None))
+            # x_enc.append(self.encoder(sub_batch, None))
+            x, att = self.encoder(sub_batch, None)
+            x_enc.append(x)
+            x_attn.append(att)
         x_enc = torch.cat(x_enc, dim=0)
+        x_attn = torch.cat(x_attn, dim=0)
 
         x_enc_t = torch.zeros((batch_size * num_sent, x_enc.size(1))).to(
             self.template.device
         )
 
+        x_attn_t = torch.zeros((batch_size * num_sent, x_attn.size(1), 1)).to(
+            self.template.device
+        )
+
         x_enc_t[x_padded_idx] = x_enc
+        x_attn_t[x_padded_idx] = x_attn
+
         x_enc_t = x_enc_t.view(batch_size, num_sent, -1)
+        x_attn_t = x_attn_t.view(batch_size, num_sent, -1)
+        word_attn = x_attn_t
 
         embedded = self.dropout(self.translate(x_enc_t))
         embedded = self.act(embedded)
@@ -330,7 +343,7 @@ class HAN_DOC(nn.Module):
 
         cont = torch.bmm(attn.permute(0, 2, 1), all_)
         cont = cont.squeeze(1)
-        return cont
+        return cont, attn, word_attn
 
 
 class HAN_DOC_Classifier(nn.Module):
@@ -343,7 +356,7 @@ class HAN_DOC_Classifier(nn.Module):
         self.fc = nn.Linear(2 * conf["hidden_size"], 10)
 
     def forward(self, x0):
-        x0_enc = self.encoder(x0)
+        x0_enc, _, _ = self.encoder(x0)
         cont = self.dropout(self.act(x0_enc))
         cont = self.fc(cont)
         return cont
@@ -362,8 +375,8 @@ class HAN(nn.Module):
         self.fc = nn.Linear(8 * conf["hidden_size"], 2)
 
     def forward(self, x0, x1):
-        x0_enc = self.encoder(x0)
-        x1_enc = self.encoder(x1)
+        x0_enc, _, _ = self.encoder(x0)
+        x1_enc, _, _ = self.encoder(x1)
         cont = torch.cat(
             [
                 x0_enc,
@@ -376,6 +389,22 @@ class HAN(nn.Module):
         cont = self.dropout(self.act(cont))
         cont = self.fc(cont)
         return cont
+
+    def forward_with_attn(self, x0, x1):
+        x0_enc, x0_attn, x0_word_attn = self.encoder(x0)
+        x1_enc, x1_attn, x1_word_attn = self.encoder(x1)
+        cont = torch.cat(
+            [
+                x0_enc,
+                x1_enc,
+                torch.abs(x0_enc - x1_enc),
+                x0_enc * x1_enc,
+            ],
+            dim=1,
+        )
+        cont = self.dropout(self.act(cont))
+        cont = self.fc(cont)
+        return cont, (x0_attn, x0_word_attn), (x1_attn, x1_word_attn)
 
 
 """
@@ -484,7 +513,7 @@ class RDV_CNN(nn.Module):
         opt = self.act(opt)
         opt = self.linear(opt)
         return opt
- 
+
 
 """
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -1312,8 +1341,12 @@ class EIN(nn.Module):
 
         x0_att, x1_att = self.softmax_attention(x0_enc, x1_enc)
 
-        enh_x0 = torch.cat([x0_enc, x0_att, torch.abs(x0_enc - x0_att), x0_enc * x0_att], dim=-1)
-        enh_x1 = torch.cat([x1_enc, x1_att, torch.abs(x1_enc - x1_att), x1_enc * x1_att], dim=-1)
+        enh_x0 = torch.cat(
+            [x0_enc, x0_att, torch.abs(x0_enc - x0_att), x0_enc * x0_att], dim=-1
+        )
+        enh_x1 = torch.cat(
+            [x1_enc, x1_att, torch.abs(x1_enc - x1_att), x1_enc * x1_att], dim=-1
+        )
 
         proj_x0 = self.dropout(self.projection(enh_x0))
         proj_x1 = self.dropout(self.projection(enh_x1))
