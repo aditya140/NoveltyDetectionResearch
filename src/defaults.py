@@ -703,7 +703,10 @@ def makedirs(name):
 
 
 def get_vocabs(dataset):
-    text_field = dataset.TEXT
+    if hasattr(dataset,'TEXT'):
+        text_field = dataset.TEXT
+    elif hasattr(dataset,"TEXT_FIELD"):
+        text_field = dataset.TEXT_FIELD
     if dataset.options.get("use_char_emb", False):
         char_field = dataset.CHAR_TEXT
     else:

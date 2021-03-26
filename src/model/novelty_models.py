@@ -395,7 +395,7 @@ class Accumulator(nn.Module):
 
         self.template = nn.Parameter(torch.zeros((1)), requires_grad=True)
 
-    def forward(self, src, trg):
+    def forward(self, trg, src):
         batch_size, num_sent, max_len = src.shape
 
         x = src.view(-1, max_len)
@@ -459,6 +459,9 @@ class RDV_CNN(nn.Module):
     def __init__(self, conf, encoder):
         super(RDV_CNN, self).__init__()
         self.accumulator = Accumulator(conf, encoder)
+        if conf["freeze_encoder"]:
+            print("Encoder Freezed")
+            self.accumulator.requires_grad_(False)
         self.linear = nn.Linear(conf["num_filters"] * len(conf["filter_sizes"]), 2)
         self.convs1 = nn.ModuleList(
             [
@@ -481,7 +484,7 @@ class RDV_CNN(nn.Module):
         opt = self.act(opt)
         opt = self.linear(opt)
         return opt
-
+ 
 
 """
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -1309,8 +1312,8 @@ class EIN(nn.Module):
 
         x0_att, x1_att = self.softmax_attention(x0_enc, x1_enc)
 
-        enh_x0 = torch.cat([x0_enc, x0_att, x0_enc - x0_att, x0_enc * x0_att], dim=-1)
-        enh_x1 = torch.cat([x1_enc, x1_att, x1_enc - x1_att, x1_enc * x1_att], dim=-1)
+        enh_x0 = torch.cat([x0_enc, x0_att, torch.abs(x0_enc - x0_att), x0_enc * x0_att], dim=-1)
+        enh_x1 = torch.cat([x1_enc, x1_att, torch.abs(x1_enc - x1_att), x1_enc * x1_att], dim=-1)
 
         proj_x0 = self.dropout(self.projection(enh_x0))
         proj_x1 = self.dropout(self.projection(enh_x1))

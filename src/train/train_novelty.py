@@ -189,6 +189,48 @@ class Train_novelty(Trainer):
         model.load_state_dict(enc_data["model_dict"])
         return model
 
+    def save_lang(self):
+        text_field, char_field = get_vocabs(self.dataset)
+        save_field(
+            os.path.join(
+                self.args.results_dir,
+                self.exp_id,
+                "text_field",
+            ),
+            text_field,
+        )
+        if char_field != None:
+            save_field(
+                os.path.join(
+                    self.args.results_dir,
+                    self.exp_id,
+                    "char_field",
+                ),
+                char_field,
+            )
+
+    def save_to_neptune(self):
+        shutil.make_archive(
+            os.path.join(
+                self.args.results_dir,
+                self.exp_id,
+            ),
+            "zip",
+            os.path.join(
+                self.args.results_dir,
+                self.exp_id,
+            ),
+        )
+        neptune.log_artifact(
+            os.path.join(
+                self.args.results_dir,
+                self.exp_id + ".zip",
+            )
+        )
+
+    def save(self):
+        self.save_lang()
+        self.save_to_neptune()
 
 if __name__ == "__main__":
     args = parse_novelty_conf()

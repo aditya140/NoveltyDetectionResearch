@@ -528,7 +528,7 @@ class DLND(NoveltyDataset):
         dataset = []
         for i in data:
             dataset.append(
-                {"source": i[0], "target_text": "\n".join(i[1:-1]), "DLA": i[-1]}
+                {"source":"\n".join(i[1:-1]), "target_text":  i[0], "DLA": i[-1]}
             )
 
         if not os.path.exists(path):
