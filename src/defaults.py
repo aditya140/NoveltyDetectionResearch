@@ -703,9 +703,9 @@ def makedirs(name):
 
 
 def get_vocabs(dataset):
-    if hasattr(dataset,'TEXT'):
+    if hasattr(dataset, "TEXT"):
         text_field = dataset.TEXT
-    elif hasattr(dataset,"TEXT_FIELD"):
+    elif hasattr(dataset, "TEXT_FIELD"):
         text_field = dataset.TEXT_FIELD
     if dataset.options.get("use_char_emb", False):
         char_field = dataset.CHAR_TEXT
@@ -751,9 +751,19 @@ def download_model(project, _id):
             os.path.join(model_folder_path, _id + ".zip"),
             extract_dir=model_path,
         )
-
     if prj == NOVELTY_NEPTUNE_PROJECT:
-        experiment.download_artifact("probs.p", model_path)
+        try:
+            experiment.download_artifact("probs.p", model_path)
+        except:
+            print("No Probs.p file")
+        try:
+            experiment.download_artifact(_id + ".zip", model_folder_path)
+        except:
+            print("No model file")
+        shutil.unpack_archive(
+            os.path.join(model_folder_path, _id + ".zip"),
+            extract_dir=model_path,
+        )
 
 
 def load_encoder_data(_id):
