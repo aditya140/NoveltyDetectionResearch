@@ -21,6 +21,8 @@ import nltk, spacy
 
 from ..utils.download_utils import download_from_url
 
+with open("/root/keys.json",'r') as f:
+    apikeys = json.load(f)
 
 """
 Novelty Dataset Base class (torchtext TabularDataset)
@@ -147,7 +149,7 @@ class NoveltyDataset(data.TabularDataset):
 class APWSJ(NoveltyDataset):
     urls = [
         (
-            "https://drive.google.com/file/d/1h7bS3zdP-6bPDuvJ_JXq8YzR6a3OEmRg/view?usp=sharing",
+            apikeys['APWSJ_URL'],
             "dataset_aw.zip",
         )
     ]
@@ -458,7 +460,7 @@ class APWSJ(NoveltyDataset):
 class DLND(NoveltyDataset):
     urls = [
         (
-            "https://drive.google.com/file/d/1q-P3ReGf-yWnKrhb6XQAuMGo39hXlhYG/view?usp=sharing",
+            apikeys['DLND_URL'],
             "TAP-DLND-1.0_LREC2018_modified.zip",
         )
     ]
