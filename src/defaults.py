@@ -430,7 +430,7 @@ def han_ablate_model_parameters(parser_dump):
     parser_dump.add_argument("--attention_layer_param", type=int, default=200)
     parser_dump.add_argument("--attention_hops", type=int, default=10)
     parser_dump.add_argument("--attention_type", type=str, default="struc")
-    parser_dump.add_argument("--flatten", type=bool, default=True)
+    parser_dump.add_argument("--agg", type=str, default='flatten')
     parser_dump.add_argument("--interaction_type", type=str, default="concat")
     parser_dump.add_argument("--use_bilstm", type=bool, default=True)
 

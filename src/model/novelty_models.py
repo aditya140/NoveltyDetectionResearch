@@ -117,8 +117,8 @@ class DAN(nn.Module):
         return embedded, word_attn
 
     def forward(self, x0, x1):
-        x0_enc,x0_att = self.encode_sent(x0)
-        x1_enc,x1_att = self.encode_sent(x1)
+        x0_enc, x0_att = self.encode_sent(x0)
+        x1_enc, x1_att = self.encode_sent(x1)
 
         f1 = self.act(self.dropout(self.mlp_f(x0_enc)))
         f2 = self.act(self.dropout(self.mlp_f(x1_enc)))
@@ -234,24 +234,37 @@ class ADIN(nn.Module):
 
         x_padded_idx = x.sum(dim=1) != 0
         x_enc = []
+        x_attn = []
         for sub_batch in x[x_padded_idx].split(64):
-            x_enc.append(self.encoder(sub_batch, None))
+            # x_enc.append(self.encoder(sub_batch, None))
+            x, att = self.encoder(sub_batch, None)
+            x_enc.append(x)
+            x_attn.append(att)
         x_enc = torch.cat(x_enc, dim=0)
+        x_attn = torch.cat(x_attn, dim=0)
 
         x_enc_t = torch.zeros((batch_size * num_sent, x_enc.size(1))).to(
             self.template.device
         )
 
+        x_attn_t = torch.zeros((batch_size * num_sent, x_attn.size(1), 1)).to(
+            self.template.device
+        )
+
         x_enc_t[x_padded_idx] = x_enc
+        x_attn_t[x_padded_idx] = x_attn
+
         x_enc_t = x_enc_t.view(batch_size, num_sent, -1)
+        x_attn_t = x_attn_t.view(batch_size, num_sent, -1)
+        word_attn = x_attn_t
 
         embedded = self.dropout(self.translate(x_enc_t))
         embedded = self.act(embedded)
-        return embedded
+        return embedded, word_attn
 
     def forward(self, x0, x1, x0_char_vec=None, x1_char_vec=None):
-        x0_enc = self.encode_sent(x0)
-        x1_enc = self.encode_sent(x1)
+        x0_enc, x0_att = self.encode_sent(x0)
+        x1_enc, x1_att = self.encode_sent(x1)
 
         for inf_module in self.inference_modules:
             x0_enc, x1_enc = inf_module(x0_enc, x1_enc)
@@ -449,12 +462,12 @@ class Accumulator(nn.Module):
         x_enc = []
 
         for sub_batch in x[x_padded_idx].split(64):
-            x_enc.append(self.encoder(sub_batch, None))
+            x_enc.append(self.encoder(sub_batch, None)[0])
         x_enc = torch.cat(x_enc, dim=0)
         y_enc = []
 
         for sub_batch in y[y_padded_idx].split(64):
-            y_enc.append(self.encoder(sub_batch, None))
+            y_enc.append(self.encoder(sub_batch, None)[0])
         y_enc = torch.cat(y_enc, dim=0)
 
         x_enc_t = torch.zeros((batch_size * num_sent, x_enc.size(1))).to(
@@ -818,16 +831,29 @@ class DIIN(nn.Module):
 
         x_padded_idx = x.sum(dim=1) != 0
         x_enc = []
+        x_attn = []
         for sub_batch in x[x_padded_idx].split(64):
-            x_enc.append(self.encoder(sub_batch, None))
+            # x_enc.append(self.encoder(sub_batch, None))
+            x, att = self.encoder(sub_batch, None)
+            x_enc.append(x)
+            x_attn.append(att)
         x_enc = torch.cat(x_enc, dim=0)
+        x_attn = torch.cat(x_attn, dim=0)
 
         x_enc_t = torch.zeros((batch_size * num_sent, x_enc.size(1))).to(
             self.template.device
         )
 
+        x_attn_t = torch.zeros((batch_size * num_sent, x_attn.size(1), 1)).to(
+            self.template.device
+        )
+
         x_enc_t[x_padded_idx] = x_enc
+        x_attn_t[x_padded_idx] = x_attn
+
         x_enc_t = x_enc_t.view(batch_size, num_sent, -1)
+        x_attn_t = x_attn_t.view(batch_size, num_sent, -1)
+        word_attn = x_attn_t
 
         embedded = self.dropout(self.translate(x_enc_t))
         embedded = self.act(embedded)
@@ -994,16 +1020,28 @@ class MwAN(nn.Module):
 
         x_padded_idx = x.sum(dim=1) != 0
         x_enc = []
+        x_attn = []
         for sub_batch in x[x_padded_idx].split(64):
-            x_enc.append(self.encoder(sub_batch, None))
+            # x_enc.append(self.encoder(sub_batch, None))
+            x, att = self.encoder(sub_batch, None)
+            x_enc.append(x)
+            x_attn.append(att)
         x_enc = torch.cat(x_enc, dim=0)
+        x_attn = torch.cat(x_attn, dim=0)
 
         x_enc_t = torch.zeros((batch_size * num_sent, x_enc.size(1))).to(
             self.template.device
         )
 
+        x_attn_t = torch.zeros((batch_size * num_sent, x_attn.size(1), 1)).to(
+            self.template.device
+        )
+
         x_enc_t[x_padded_idx] = x_enc
+        x_attn_t[x_padded_idx] = x_attn
+
         x_enc_t = x_enc_t.view(batch_size, num_sent, -1)
+        x_attn_t = x_attn_t.view(batch_size, num_sent, -1)
         # embedded = self.dropout(self.translate(x_enc_t))
 
         return x_enc_t
@@ -1105,16 +1143,29 @@ class Struc_DOC(nn.Module):
 
         x_padded_idx = x.sum(dim=1) != 0
         x_enc = []
+        x_attn = []
         for sub_batch in x[x_padded_idx].split(64):
-            x_enc.append(self.encoder(sub_batch, None))
+            # x_enc.append(self.encoder(sub_batch, None))
+            x, att = self.encoder(sub_batch, None)
+            x_enc.append(x)
+            x_attn.append(att)
         x_enc = torch.cat(x_enc, dim=0)
+        x_attn = torch.cat(x_attn, dim=0)
 
         x_enc_t = torch.zeros((batch_size * num_sent, x_enc.size(1))).to(
             self.template.device
         )
 
+        x_attn_t = torch.zeros((batch_size * num_sent, x_attn.size(1), 1)).to(
+            self.template.device
+        )
+
         x_enc_t[x_padded_idx] = x_enc
+        x_attn_t[x_padded_idx] = x_attn
+
         x_enc_t = x_enc_t.view(batch_size, num_sent, -1)
+        x_attn_t = x_attn_t.view(batch_size, num_sent, -1)
+        word_attn = x_attn_t
 
         embedded = self.dropout(self.translate(x_enc_t))
         embedded = self.act(embedded)
@@ -1176,53 +1227,6 @@ Multi Attention Model
 """
 
 ### Attention Functions copied from MwAN
-
-
-class doc_encoder(nn.Module):
-    def __init__(self, conf, encoder):
-        super(doc_encoder, self).__init__()
-        self.conf = conf
-        self.encoder = encoder
-        if self.conf["freeze_encoder"]:
-            self.encoder.requires_grad_(False)
-
-        self.translate = nn.Linear(
-            2 * self.conf["encoder_dim"], self.conf["hidden_size"]
-        )
-        self.act = nn.ReLU()
-        self.dropout = nn.Dropout(conf["dropout"])
-        self.template = nn.Parameter(torch.zeros((1)), requires_grad=True)
-        self.lstm_layer = nn.LSTM(
-            input_size=self.conf["hidden_size"],
-            hidden_size=self.conf["hidden_size"],
-            num_layers=self.conf["num_layers"],
-            bidirectional=True,
-        )
-
-    def forward(self, inp):
-        batch_size, num_sent, max_len = inp.shape
-        x = inp.view(-1, max_len)
-
-        x_padded_idx = x.sum(dim=1) != 0
-        x_enc = []
-        for sub_batch in x[x_padded_idx].split(64):
-            x_enc.append(self.encoder(sub_batch, None))
-        x_enc = torch.cat(x_enc, dim=0)
-
-        x_enc_t = torch.zeros((batch_size * num_sent, x_enc.size(1))).to(
-            self.template.device
-        )
-
-        x_enc_t[x_padded_idx] = x_enc
-        x_enc_t = x_enc_t.view(batch_size, num_sent, -1)
-
-        embedded = self.dropout(self.translate(x_enc_t))
-        embedded = self.act(embedded)
-
-        all_, (_, _) = self.lstm_layer(embedded)
-
-        return all_
-
 
 class aggregation_layer(nn.Module):
     def __init__(self, hidden_size):
@@ -1319,7 +1323,63 @@ class MultiAtt(nn.Module):
 EIN
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 """
-# Uses the doc_encoder from Multi attention model
+class doc_encoder(nn.Module):
+    def __init__(self, conf, encoder):
+        super(doc_encoder, self).__init__()
+        self.conf = conf
+        self.encoder = encoder
+        if self.conf["freeze_encoder"]:
+            self.encoder.requires_grad_(False)
+
+        self.translate = nn.Linear(
+            2 * self.conf["encoder_dim"], self.conf["hidden_size"]
+        )
+        self.act = nn.ReLU()
+        self.dropout = nn.Dropout(conf["dropout"])
+        self.template = nn.Parameter(torch.zeros((1)), requires_grad=True)
+        self.lstm_layer = nn.LSTM(
+            input_size=self.conf["hidden_size"],
+            hidden_size=self.conf["hidden_size"],
+            num_layers=self.conf["num_layers"],
+            bidirectional=True,
+        )
+
+    def forward(self, inp):
+        batch_size, num_sent, max_len = inp.shape
+        x = inp.view(-1, max_len)
+
+        x_padded_idx = x.sum(dim=1) != 0
+        x_enc = []
+        x_attn = []
+        for sub_batch in x[x_padded_idx].split(64):
+            # x_enc.append(self.encoder(sub_batch, None))
+            x, att = self.encoder(sub_batch, None)
+            x_enc.append(x)
+            x_attn.append(att)
+        x_enc = torch.cat(x_enc, dim=0)
+        x_attn = torch.cat(x_attn, dim=0)
+
+        x_enc_t = torch.zeros((batch_size * num_sent, x_enc.size(1))).to(
+            self.template.device
+        )
+
+        x_attn_t = torch.zeros((batch_size * num_sent, x_attn.size(1), 1)).to(
+            self.template.device
+        )
+
+        x_enc_t[x_padded_idx] = x_enc
+        x_attn_t[x_padded_idx] = x_attn
+
+        x_enc_t = x_enc_t.view(batch_size, num_sent, -1)
+        x_attn_t = x_attn_t.view(batch_size, num_sent, -1)
+        word_attn = x_attn_t
+
+        embedded = self.dropout(self.translate(x_enc_t))
+        embedded = self.act(embedded)
+
+        all_, (_, _) = self.lstm_layer(embedded)
+
+        return all_
 
 
 class EIN(nn.Module):
@@ -1512,16 +1572,29 @@ class HAN_DOC_ablate(nn.Module):
 
         x_padded_idx = x.sum(dim=1) != 0
         x_enc = []
+        x_attn = []
         for sub_batch in x[x_padded_idx].split(64):
-            x_enc.append(self.encoder(sub_batch, None))
+            # x_enc.append(self.encoder(sub_batch, None))
+            x, att = self.encoder(sub_batch, None)
+            x_enc.append(x)
+            x_attn.append(att)
         x_enc = torch.cat(x_enc, dim=0)
+        x_attn = torch.cat(x_attn, dim=0)
 
         x_enc_t = torch.zeros((batch_size * num_sent, x_enc.size(1))).to(
             self.template.device
         )
 
+        x_attn_t = torch.zeros((batch_size * num_sent, x_attn.size(1), 1)).to(
+            self.template.device
+        )
+
         x_enc_t[x_padded_idx] = x_enc
+        x_attn_t[x_padded_idx] = x_attn
+
         x_enc_t = x_enc_t.view(batch_size, num_sent, -1)
+        x_attn_t = x_attn_t.view(batch_size, num_sent, -1)
+        word_attn = x_attn_t
 
         embedded = self.dropout(self.translate(x_enc_t))
         embedded = self.act(embedded)
@@ -1547,7 +1620,7 @@ class HAN_ablate(nn.Module):
 
         if conf["attention_type"] == "struc":
             fc_in_dim = (
-                (conf["attention_hops"] if conf["flatten"] else 1)
+                (conf["attention_hops"] if conf["agg"]=="flatten" else 2 if conf['agg']=="avgmax" else 1)
                 * (2 if conf["use_bilstm"] else 1)
                 * conf["hidden_size"]
             )
@@ -1582,10 +1655,16 @@ class HAN_ablate(nn.Module):
                 dim=2,
             )
 
-        if self.conf["flatten"]:
+        if self.conf["agg"]=="flatten":
             cont = cont.flatten(start_dim=1)
-        else:
-            cont = torch.max(cont, dim=1).values
+        elif self.conf['agg']=='avgmax':
+            cont_avg = torch.max(cont, dim=1).values
+            cont_max = torch.mean(cont, dim=1)
+            cont = torch.cat([cont_avg,cont_max],dim=1)
+        elif self.conf["agg"]=='avg':
+            cont = torch.mean(cont, dim=1)
+        elif self.conf["agg"]=='max':
+            cont = torch.mean(cont, dim=1)
 
         cont = self.dropout(self.act(cont))
         cont = self.fc(cont)
