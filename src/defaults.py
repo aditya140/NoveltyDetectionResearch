@@ -8,13 +8,17 @@ import time
 import dill
 import neptune
 import hyperdash
-import shutil
+import shutil, json
 import dill
 import pickle
 from sklearn.metrics import precision_recall_curve
 import matplotlib.pyplot as plt
 
-NEPTUNE_API = "eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vdWkubmVwdHVuZS5haSIsImFwaV91cmwiOiJodHRwczovL3VpLm5lcHR1bmUuYWkiLCJhcGlfa2V5IjoiMTg3MzU5NjQtMmIxZC00Njg0LTgzYzMtN2UwYjVlYzVhNDg5In0="
+
+with open("/root/keys.json", "r") as f:
+    apikeys = json.load(f)
+
+NEPTUNE_API = apikeys["NEPTUNE_API"]
 NLI_NEPTUNE_PROJECT = "aparkhi/NLI"
 NOVELTY_NEPTUNE_PROJECT = "aparkhi/Novelty"
 NOVELTY_ENSEMBLE_NEPTUNE_PROJECT = "aparkhi/NoveltyEnsemble"
@@ -430,7 +434,7 @@ def han_ablate_model_parameters(parser_dump):
     parser_dump.add_argument("--attention_layer_param", type=int, default=200)
     parser_dump.add_argument("--attention_hops", type=int, default=10)
     parser_dump.add_argument("--attention_type", type=str, default="struc")
-    parser_dump.add_argument("--agg", type=str, default='flatten')
+    parser_dump.add_argument("--agg", type=str, default="flatten")
     parser_dump.add_argument("--interaction_type", type=str, default="concat")
     parser_dump.add_argument("--use_bilstm", type=bool, default=True)
 
