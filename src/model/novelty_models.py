@@ -88,24 +88,37 @@ class DAN(nn.Module):
 
         x_padded_idx = x.sum(dim=1) != 0
         x_enc = []
+        x_attn = []
         for sub_batch in x[x_padded_idx].split(64):
-            x_enc.append(self.encoder(sub_batch, None))
+            # x_enc.append(self.encoder(sub_batch, None))
+            x, att = self.encoder(sub_batch, None)
+            x_enc.append(x)
+            x_attn.append(att)
         x_enc = torch.cat(x_enc, dim=0)
+        x_attn = torch.cat(x_attn, dim=0)
 
         x_enc_t = torch.zeros((batch_size * num_sent, x_enc.size(1))).to(
             self.template.device
         )
 
+        x_attn_t = torch.zeros((batch_size * num_sent, x_attn.size(1), 1)).to(
+            self.template.device
+        )
+
         x_enc_t[x_padded_idx] = x_enc
+        x_attn_t[x_padded_idx] = x_attn
+
         x_enc_t = x_enc_t.view(batch_size, num_sent, -1)
+        x_attn_t = x_attn_t.view(batch_size, num_sent, -1)
+        word_attn = x_attn_t
 
         embedded = self.dropout(self.translate(x_enc_t))
         embedded = self.act(embedded)
-        return embedded
+        return embedded, word_attn
 
     def forward(self, x0, x1):
-        x0_enc = self.encode_sent(x0)
-        x1_enc = self.encode_sent(x1)
+        x0_enc,x0_att = self.encode_sent(x0)
+        x1_enc,x1_att = self.encode_sent(x1)
 
         f1 = self.act(self.dropout(self.mlp_f(x0_enc)))
         f2 = self.act(self.dropout(self.mlp_f(x1_enc)))
