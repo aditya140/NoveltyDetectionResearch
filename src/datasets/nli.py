@@ -14,7 +14,6 @@ from torchtext.data import (
 )
 from torchtext import datasets
 from torchtext.datasets.nli import NLIDataset
-from utils.path_utils import makedirs
 import pytorch_lightning as pl
 from pdb import set_trace
 
@@ -141,7 +140,7 @@ class SNLI:
                 self.TEXT.vocab.vectors = torch.load(vector_cache_loc)
             else:
                 self.TEXT.vocab.load_vectors("glove.840B.300d")
-                makedirs(os.path.dirname(vector_cache_loc))
+                os.makedirs(os.path.dirname(vector_cache_loc))
                 torch.save(self.TEXT.vocab.vectors, vector_cache_loc)
 
         if options["use_char_emb"]:
@@ -332,7 +331,7 @@ class MNLI:
                 self.TEXT.vocab.vectors = torch.load(vector_cache_loc)
             else:
                 self.TEXT.vocab.load_vectors("glove.840B.300d")
-                makedirs(os.path.dirname(vector_cache_loc))
+                os.makedirs(os.path.dirname(vector_cache_loc))
                 torch.save(self.TEXT.vocab.vectors, vector_cache_loc)
 
         self.train_iter, self.val_iter, self.test_iter = BucketIterator.splits(
@@ -506,7 +505,7 @@ class ANLI:
                 self.TEXT.vocab.vectors = torch.load(vector_cache_loc)
             else:
                 self.TEXT.vocab.load_vectors("glove.840B.300d")
-                makedirs(os.path.dirname(vector_cache_loc))
+                os.makedirs(os.path.dirname(vector_cache_loc))
                 torch.save(self.TEXT.vocab.vectors, vector_cache_loc)
 
         self.train_iter, self.val_iter, self.test_iter = BucketIterator.splits(

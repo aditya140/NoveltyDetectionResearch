@@ -329,7 +329,8 @@ class HAN_DOC(nn.Module):
             num_layers=self.conf["num_layers"],
             bidirectional=True,
         )
-        self.attention = Attention(conf)
+        conf["attention_input"] = conf["hidden_size"]
+        self.attention = StrucSelfAttention(conf)
 
     def forward(self, inp):
         batch_size, num_sent, max_len = inp.shape
@@ -365,10 +366,7 @@ class HAN_DOC(nn.Module):
         embedded = self.act(embedded)
 
         all_, (_, _) = self.lstm_layer(embedded)
-        attn = self.attention(all_)
-
-        cont = torch.bmm(attn.permute(0, 2, 1), all_)
-        cont = cont.squeeze(1)
+        cont,attn = self.attention(all_,return_attention=True)
         return cont, attn, word_attn
 
 
@@ -379,10 +377,11 @@ class HAN_DOC_Classifier(nn.Module):
         self.encoder = HAN_DOC(conf, encoder)
         self.act = nn.ReLU()
         self.dropout = nn.Dropout(conf["dropout"])
-        self.fc = nn.Linear(2 * conf["hidden_size"], 10)
+        self.fc = nn.Linear(2 * conf["hidden_size"]* conf["attention_hops"], 10)
 
     def forward(self, x0):
         x0_enc, _, _ = self.encoder(x0)
+        x0_enc = x0_enc.flatten(start_dim=1)
         cont = self.dropout(self.act(x0_enc))
         cont = self.fc(cont)
         return cont
@@ -398,11 +397,12 @@ class HAN(nn.Module):
             self.encoder = doc_enc
         self.act = nn.ReLU()
         self.dropout = nn.Dropout(conf["dropout"])
-        self.fc = nn.Linear(8 * conf["hidden_size"], 2)
+        self.fc = nn.Linear(8 * conf["attention_hops"] * conf["hidden_size"], 2)
 
     def forward(self, x0, x1):
         x0_enc, _, _ = self.encoder(x0)
         x1_enc, _, _ = self.encoder(x1)
+        
         cont = torch.cat(
             [
                 x0_enc,
@@ -410,8 +410,9 @@ class HAN(nn.Module):
                 torch.abs(x0_enc - x1_enc),
                 x0_enc * x1_enc,
             ],
-            dim=1,
+            dim=2,
         )
+        cont = cont.flatten(start_dim=1)
         cont = self.dropout(self.act(cont))
         cont = self.fc(cont)
         return cont
@@ -426,8 +427,9 @@ class HAN(nn.Module):
                 torch.abs(x0_enc - x1_enc),
                 x0_enc * x1_enc,
             ],
-            dim=1,
+            dim=2,
         )
+        cont = cont.flatten(start_dim=1)
         cont = self.dropout(self.act(cont))
         cont = self.fc(cont)
         return cont, (x0_attn, x0_word_attn), (x1_attn, x1_word_attn)
