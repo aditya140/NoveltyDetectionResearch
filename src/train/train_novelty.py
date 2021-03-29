@@ -106,7 +106,10 @@ class Train_novelty(Trainer):
         if kwargs["model_type"] == "eain":
             self.model = EAtIn(model_conf, encoder)
         if kwargs["model_type"] == "han_ablate":
-            self.model = HAN_ablate(model_conf, encoder)
+            if self.args.load_nli != "None":
+                self.model = HAN_ablate(model_conf, encoder)
+            elif self.args.load_han != "None":
+                self.model = HAN_ablate(model_conf, None, encoder)
 
         self.model.to(self.device)
 

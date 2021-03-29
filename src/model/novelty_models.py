@@ -366,7 +366,7 @@ class HAN_DOC(nn.Module):
         embedded = self.act(embedded)
 
         all_, (_, _) = self.lstm_layer(embedded)
-        cont,attn = self.attention(all_,return_attention=True)
+        cont, attn = self.attention(all_, return_attention=True)
         return cont, attn, word_attn
 
 
@@ -377,7 +377,7 @@ class HAN_DOC_Classifier(nn.Module):
         self.encoder = HAN_DOC(conf, encoder)
         self.act = nn.ReLU()
         self.dropout = nn.Dropout(conf["dropout"])
-        self.fc = nn.Linear(2 * conf["hidden_size"]* conf["attention_hops"], 10)
+        self.fc = nn.Linear(2 * conf["hidden_size"] * conf["attention_hops"], 10)
 
     def forward(self, x0):
         x0_enc, _, _ = self.encoder(x0)
@@ -402,7 +402,7 @@ class HAN(nn.Module):
     def forward(self, x0, x1):
         x0_enc, _, _ = self.encoder(x0)
         x1_enc, _, _ = self.encoder(x1)
-        
+
         cont = torch.cat(
             [
                 x0_enc,
@@ -1230,6 +1230,7 @@ Multi Attention Model
 
 ### Attention Functions copied from MwAN
 
+
 class aggregation_layer(nn.Module):
     def __init__(self, hidden_size):
         super().__init__()
@@ -1325,6 +1326,8 @@ class MultiAtt(nn.Module):
 EIN
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 """
+
+
 class doc_encoder(nn.Module):
     def __init__(self, conf, encoder):
         super(doc_encoder, self).__init__()
@@ -1614,15 +1617,23 @@ class HAN_ablate(nn.Module):
         super(HAN_ablate, self).__init__()
         self.conf = conf
         if doc_enc == None:
+            print("----- no doc encoder-------")
             self.encoder = HAN_DOC_ablate(conf, encoder)
         elif encoder == None:
+            print("-----doc encoder-------")
             self.encoder = doc_enc
         self.act = nn.ReLU()
         self.dropout = nn.Dropout(conf["dropout"])
 
         if conf["attention_type"] == "struc":
             fc_in_dim = (
-                (conf["attention_hops"] if conf["agg"]=="flatten" else 2 if conf['agg']=="avgmax" else 1)
+                (
+                    conf["attention_hops"]
+                    if conf["agg"] == "flatten"
+                    else 2
+                    if conf["agg"] == "avgmax"
+                    else 1
+                )
                 * (2 if conf["use_bilstm"] else 1)
                 * conf["hidden_size"]
             )
@@ -1657,15 +1668,15 @@ class HAN_ablate(nn.Module):
                 dim=2,
             )
 
-        if self.conf["agg"]=="flatten":
+        if self.conf["agg"] == "flatten":
             cont = cont.flatten(start_dim=1)
-        elif self.conf['agg']=='avgmax':
+        elif self.conf["agg"] == "avgmax":
             cont_avg = torch.max(cont, dim=1).values
             cont_max = torch.mean(cont, dim=1)
-            cont = torch.cat([cont_avg,cont_max],dim=1)
-        elif self.conf["agg"]=='avg':
+            cont = torch.cat([cont_avg, cont_max], dim=1)
+        elif self.conf["agg"] == "avg":
             cont = torch.mean(cont, dim=1)
-        elif self.conf["agg"]=='max':
+        elif self.conf["agg"] == "max":
             cont = torch.mean(cont, dim=1)
 
         cont = self.dropout(self.act(cont))

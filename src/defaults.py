@@ -425,6 +425,7 @@ def han_model_parameters(parser_dump):
     parser_dump.add_argument("--dropout", type=float, default=0.3)
     parser_dump.add_argument("--num_layers", type=int, default=1)
     parser_dump.add_argument("--attention_layer_param", type=int, default=200)
+    parser_dump.add_argument("--attention_hops", type=int, default=10)
 
 
 def han_ablate_model_parameters(parser_dump):
