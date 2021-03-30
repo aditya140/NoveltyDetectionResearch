@@ -1105,7 +1105,7 @@ class StrucSelfAttention(nn.Module):
         # et shape: [batch_size, num_sent, att_hops]
         et = self.et_dense(ut)
         # att shape: [batch_size,  att_hops, seq_len]
-        att = F.softmax(et)
+        att = F.softmax(et,dim=1)
         # output shape [batch_size, att_hops, embedding_width]
         output = torch.bmm(att.permute(0, 2, 1), x).squeeze(1)
         if return_attention:
