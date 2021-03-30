@@ -367,6 +367,7 @@ class HAN_DOC(nn.Module):
 
         all_, (_, _) = self.lstm_layer(embedded)
         cont, attn = self.attention(all_, return_attention=True)
+        attn = torch.mean(attn,2)
         return cont, attn, word_attn
 
 
