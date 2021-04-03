@@ -363,6 +363,7 @@ class APWSJ(NoveltyDataset):
         novel_doc_list = filter(lambda x: len(x) > 0, novel_doc_list)
 
         missing_file_log = os.path.join(cmunrf, "missing_log.txt")
+        missing_doc_ids = []
         dataset = []
         s_not_found = 0
         t_not_found = 0
@@ -376,10 +377,12 @@ class APWSJ(NoveltyDataset):
                 for source_id in source_ids:
                     if source_id in docs_json.keys():
                         data_inst["source"] += docs_json[source_id] + ". \n"
+                    else:
+                        missing_doc_ids.append(str(source_id))
                 data_inst["DLA"] = "Novel"
             else:
-                with open(missing_file_log, "w+") as f:
-                    f.write(str(target_id) + "")
+                missing_doc_ids.append(str(target_id))
+                # 
             if data_inst["source"] != "":
                 dataset.append(data_inst)
 
@@ -393,12 +396,16 @@ class APWSJ(NoveltyDataset):
                 for source_id in source_ids:
                     if source_id in docs_json.keys():
                         data_inst["source"] += docs_json[source_id] + ". \n"
+                    else:
+                        missing_doc_ids.append(str(source_id))
                 data_inst["DLA"] = "Non-Novel"
             else:
-                with open(missing_file_log, "w+") as f:
-                    f.write(str(target_id) + "")
+                missing_doc_ids.append(str(target_id))
             if data_inst["source"] != "":
                 dataset.append(data_inst)
+        
+        with open(missing_file_log, "w") as f:
+            f.write("\n".join(missing_doc_ids))
 
         dataset_json = {}
         for i in range(len(dataset)):
