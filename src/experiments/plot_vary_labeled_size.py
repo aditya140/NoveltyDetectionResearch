@@ -16,6 +16,7 @@ import shutil
 import neptune
 from millify import millify
 import matplotlib.pyplot as plt
+import pickle
 
 from src.defaults import *
 from src.model.novelty_models import *
@@ -27,18 +28,19 @@ from src.train.train_novelty import Train_novelty
 labeled_size = [
     2,
     4,
-    10,
+    6,
+    8,
     20,
     40,
-    60,
     80,
     100,
     200,
-    300,
     400,
-    500,
     600,
     1000,
+    1200,
+    1400,
+    1600,
     2000,
     3000,
 ]
@@ -98,6 +100,16 @@ if __name__ == "__main__":
     neptune.log_text("Hparams", str(optim_conf))
     neptune.append_tag([dataset_conf["dataset"], model_type])
 
+    print(labeled_list)
+    print(test_acc_list)
+    print(model_type)
+
+    acc_vals = {
+        "labeled_list": labeled_list,
+        "test_acc_list": test_acc_list,
+        "model_type": model_type,
+    }
+
     fig = plt.figure()
     plt.plot(labeled_list, test_acc_list)
     plt.title("Varying Labeled Set Size")
@@ -111,9 +123,16 @@ if __name__ == "__main__":
     while os.path.exists(new_path):
         ver += 1
         new_path = os.path.join("plots", f"vary_labeled_{model_type}{str(ver)}.png")
+        new_path_pickle = os.path.join(
+            "plots", f"vary_labeled_{model_type}{str(ver)}.p"
+        )
+
+    with open(new_path_pickle, "wb") as handle:
+        pickle.dump(acc_vals, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
     neptune.log_image("vary_labeled_size", fig, image_name="vary_labeled_size")
     neptune.log_test("labeled_list", ",".join([str(i) for i in labeled_list]))
     neptune.log_test("test_acc_list", ",".join([str(i) for i in test_acc_list]))
     fig.savefig(new_path)
+
     neptune.log_artifact(new_path)

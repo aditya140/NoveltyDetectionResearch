@@ -7,7 +7,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 from scipy.stats import entropy
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.feature_extraction.text import CountVectorizer
-
+import matplotlib.pyplot as plt
 
 nltk.download("stopwords")
 nltk.download("punkt")
@@ -107,7 +107,54 @@ def make_cv_10_fold(labels):
 
 
 def vary_labeled(features):
-    global labels
+    global labels, labeled_sizes
+    class_order = np.unique(labels)
+    index_per_class = []
+    for i in class_order:
+        index_per_class.append(np.argwhere(np.array(labels) == i).reshape(1, -1)[0])
+
+    vary_acc = []
+    train_ids = []
+    for labeled_size in labeled_sizes:
+        classes_ = len(class_order)
+        per_class = labeled_size // classes_
+        for class_no in index_per_class:
+            train_ids += random.choices(class_no, k=per_class)
+
+        lr = LogisticRegression(verbose=0, n_jobs=-1)
+        predictions = [None] * len(labels)
+        probs = [None] * len(labels)
+        trainX = []
+        trainY = []
+        testX = []
+        testY = []
+
+        for i, e in enumerate(labels):
+            if i in train_ids:
+                trainX.append(features[i])
+                trainY.append(labels[i])
+            else:
+                testX.append(features[i])
+                testY.append(labels[i])
+
+        trainX = np.array(trainX)
+        if len(trainX.shape) == 1:
+            trainX = trainX.reshape(-1, 1)
+        testX = np.array(testX)
+        if len(testX.shape) == 1:
+            testX = testX.reshape(-1, 1)
+        lr.fit(trainX, trainY)
+        prob = lr.predict_proba(testX)
+        preds = [class_order[i] for i in np.argmax(prob, axis=1)]
+        prob = prob.tolist()
+
+        gold = np.array(testY)
+        predictions = np.array(preds)
+        cf = confusion_matrix(gold, predictions, labels=[0, 1])
+        acc = accuracy_score(gold, predictions)
+        p, r, f, _ = precision_recall_fscore_support(gold, predictions, labels=[0, 1])
+        vary_acc.append(acc)
+    return vary_acc
 
 
 def train_lr(features):
@@ -280,6 +327,27 @@ def read_dataset(dataset):
     return data, optpath
 
 
+def plot(labeled_list, acc_vals):
+
+    fig = plt.figure(figsize=(8, 6))
+    for model_type, test_acc_list in acc_vals.items():
+        plt.plot(labeled_list, test_acc_list)
+        plt.title("Varying Labeled Set Size")
+        plt.xlabel("Labeled Set Size")
+        plt.xscale("log")
+        plt.ylabel("Test Accuracy")
+    plt.legend(list(acc_vals.keys()))
+    new_path = os.path.join("plots", f"vary_labeled.png")
+    ver = 0
+    if not os.path.exists("plots"):
+        os.makedirs("plots")
+    while os.path.exists(new_path):
+        ver += 1
+        new_path = os.path.join("plots", f"vary_labeled{str(ver)}.png")
+
+    fig.savefig(new_path)
+
+
 # if __name__ == "__main__":
 # %%
 data, optpath = read_dataset("dlnd")
@@ -287,25 +355,102 @@ n_cases = len(data)
 labels = [data[i][-1] for i in range(n_cases)]
 class_order = np.unique(labels)
 
-cv = make_cv_10_fold(labels)
+
+labeled_sizes = [
+    2,
+    4,
+    6,
+    8,
+    20,
+    40,
+    80,
+    100,
+    200,
+    400,
+    600,
+    1000,
+    1200,
+    1400,
+    1600,
+    2000,
+    3000,
+]
+acc_vals = {}
+
 print("\nSET DIFFERENCE METRIC\n")
 logger.info("\nSET DIFFERENCE METRIC\n")
 set_diff = [calc_set_diff(data[i][:-1]) for i in range(n_cases)]
-probs_set_diff = train_lr(set_diff)
-# print("\nGEO DIFFERENCE METRIC\n")
-# logger.info("\nGEO DIFFERENCE METRIC\n")
-# geo_diff = [calc_geo_diff(data[i][:-1]) for i in range(n_cases)]
-# probs_geo_diff = train_lr(geo_diff)
+vary_acc_set_diff = [100 * i for i in vary_labeled(set_diff)]
+acc_vals["Set Difference"] = vary_acc_set_diff
+
+
+print("\nGEO DIFFERENCE METRIC\n")
+logger.info("\nGEO DIFFERENCE METRIC\n")
+geo_diff = [calc_geo_diff(data[i][:-1]) for i in range(n_cases)]
+vary_acc_geo_diff = [100 * i for i in vary_labeled(geo_diff)]
+acc_vals["Geo Difference"] = vary_acc_geo_diff
+
+
 # print("\nTFIDF NOVELTY SCORE METRIC\n")
 # logger.info("\nTFIDF NOVELTY SCORE METRIC\n")
-# tfidf_novelty_score = [
-#     calc_tfidf_novelty_score(data[i][:-1]) for i in range(n_cases)
-# ]
-# probs_tfidf_novelty_score = train_lr(tfidf_novelty_score)
-# print("\nKL DIVERGENCE METRIC\n")
-# logger.info("\nKL DIVERGENCE METRIC\n")
-# kl_div = [calc_kl_div(data[i][:-1]) for i in range(n_cases)]
-# probs_kl_div = train_lr(kl_div)
+# tfidf_novelty_score = [calc_tfidf_novelty_score(data[i][:-1]) for i in range(n_cases)]
+# vary_acc_tfidf_novelty_score = [100 * i for i in vary_labeled(tfidf_novelty_score)]
+# acc_vals["TF-IDF"] = vary_acc_tfidf_novelty_score
+
+print("\nKL DIVERGENCE METRIC\n")
+logger.info("\nKL DIVERGENCE METRIC\n")
+kl_div = [calc_kl_div(data[i][:-1]) for i in range(n_cases)]
+vary_acc_kl_div = [100 * i for i in vary_labeled(kl_div)]
+acc_vals["KL Div"] = vary_acc_kl_div
+
+
+# %%
+han_acc_vals = [
+    50.87396504139834,
+    48.02207911683533,
+    49.770009199632014,
+    52.897884084636615,
+    51.057957681692734,
+    51.79392824287029,
+    57.8656853725851,
+    60.71757129714811,
+    63.66145354185833,
+    75.06899724011039,
+    74.60901563937442,
+    77.36890524379025,
+    81.78472861085557,
+    84.360625574977,
+    84.4526218951242,
+    82.8886844526219,
+    86.56853725850966,
+]
+dan_acc_vals = [
+    57.7736890524379,
+    56.39374425022999,
+    55.38178472861085,
+    55.289788408463664,
+    50.78196872125115,
+    58.233670653173874,
+    59.889604415823364,
+    57.31370745170193,
+    62.83348666053358,
+    68.26126954921803,
+    73.04507819687213,
+    77.46090156393744,
+    79.7608095676173,
+    81.60073597056117,
+    80.86476540938362,
+    80.22079116835327,
+    85.00459981600736,
+]
+
+
+acc_vals["HAN"] = han_acc_vals
+acc_vals["DAN"] = dan_acc_vals
+
+plot(labeled_sizes, acc_vals)
+
+
 # print("\nPARAGRAPH VECTOR + LR\n")
 # logger.info("\nPARAGRAPH VECTOR + LR\n")
 # pv = [calc_pv(data[i][:-1]) for i in range(n_cases)]
@@ -327,5 +472,32 @@ probs_set_diff = train_lr(set_diff)
 # logger.info(
 #     f"predictions saved at ./results/novelty_baseline/{optpath}.p"
 # )
+
+# %%
+# %%
+
+
+def plot(labeled_list, acc_vals):
+
+    fig = plt.figure(figsize=(8, 6))
+    for model_type, test_acc_list in acc_vals.items():
+        plt.plot(labeled_list, test_acc_list)
+        plt.title("Varying Labeled Set Size")
+        plt.xscale("log")
+        plt.xlabel("Labeled Set Size")
+        plt.ylabel("Test Accuracy")
+    plt.legend(list(acc_vals.keys()))
+    new_path = os.path.join("plots", f"vary_labeled.png")
+    ver = 0
+    if not os.path.exists("plots"):
+        os.makedirs("plots")
+    while os.path.exists(new_path):
+        ver += 1
+        new_path = os.path.join("plots", f"vary_labeled{str(ver)}.png")
+
+    fig.savefig(new_path)
+
+
+plot(labeled_sizes, acc_vals)
 
 # %%
