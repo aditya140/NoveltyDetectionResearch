@@ -63,11 +63,10 @@ class Trainer(abc.ABC):
                 raise ValueError(
                     "Please pass the nepune project name as a keyword argument"
                 )
-            neptune.init(
+            self.exp = neptune.init(
                 project_qualified_name=kwargs["neptune_project"],
                 api_token=NEPTUNE_API,
             )
-            self.exp = neptune.create_experiment()
             self.exp_id = self.exp.id
             neptune.log_text("Dataset Conf", str(dataset_conf))
             neptune.log_text("Model Conf", str(model_conf))
