@@ -4,7 +4,7 @@ import argparse
 
 # %%
 import matplotlib.pyplot as plt
-import neptune
+import neptune.new as neptune
 
 NEPTUNE_API = "eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vdWkubmVwdHVuZS5haSIsImFwaV91cmwiOiJodHRwczovL3VpLm5lcHR1bmUuYWkiLCJhcGlfa2V5IjoiMTg3MzU5NjQtMmIxZC00Njg0LTgzYzMtN2UwYjVlYzVhNDg5In0="
 NLI_NEPTUNE_PROJECT = "aparkhi/NLI"

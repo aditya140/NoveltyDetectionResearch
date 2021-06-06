@@ -8,7 +8,7 @@ warnings.filterwarnings("ignore")
 import datetime
 import time
 import shutil
-import neptune
+import neptune.new as neptune
 from millify import millify
 import pprint
 import copy

@@ -9,7 +9,7 @@ import torch.optim as optim
 import datetime
 import time
 import shutil
-import neptune
+import neptune.new as neptune
 
 from src.defaults import *
 from src.model.nli_models import *

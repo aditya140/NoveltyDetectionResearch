@@ -1,6 +1,6 @@
 import sys
 import pytorch_lightning as pl
-from pytorch_lightning.loggers import NeptuneLogger, TensorBoardLogger
+from pytorch_lightning.loggers import neptune.new as neptuneLogger, TensorBoardLogger
 from pytorch_lightning.callbacks import LearningRateLogger
 from pytorch_lightning.profiler import AdvancedProfiler
 

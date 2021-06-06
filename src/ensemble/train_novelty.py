@@ -23,7 +23,7 @@ from sklearn.ensemble import BaggingClassifier, VotingClassifier
 
 
 from hyperdash import Experiment
-import neptune
+import neptune.new as neptune
 
 
 class TorchEnsemble(sklearn.base.BaseEstimator):

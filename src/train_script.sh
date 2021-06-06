@@ -113,3 +113,5 @@ python3 src/train/train_nli.py -d mnli --tokenizer spacy mwan
 
 
 python3 src/train/train_nli.py -d mnli --tokenizer distil_bert --max_len 80 --epochs 10 --loss_agg mean bert
+
+

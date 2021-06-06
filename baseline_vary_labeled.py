@@ -19,7 +19,7 @@ from sklearn.metrics import accuracy_score, confusion_matrix
 from sklearn.metrics import precision_recall_fscore_support
 from nltk import word_tokenize
 
-import neptune
+import neptune.new as neptune
 
 
 if not os.path.exists("./results/novelty_baseline/"):

@@ -6,7 +6,7 @@ import torch
 import logging
 import time
 import dill
-import neptune
+import neptune.new as neptune
 import hyperdash
 import shutil, json
 import dill

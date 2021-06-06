@@ -3,7 +3,6 @@ import dill
 
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import LearningRateLogger
-from pytorch_lightning.loggers import NeptuneLogger, TensorBoardLogger
 from pytorch_lightning.profiler import AdvancedProfiler
 from pytorch_lightning.metrics import Accuracy
 from pytorch_lightning import Callback

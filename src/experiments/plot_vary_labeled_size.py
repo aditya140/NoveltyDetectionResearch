@@ -13,7 +13,7 @@ from torch.autograd import Variable
 import datetime
 import time
 import shutil
-import neptune
+import neptune.new as neptune
 from millify import millify
 import matplotlib.pyplot as plt
 import pickle

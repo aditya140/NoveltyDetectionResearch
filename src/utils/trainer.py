@@ -1,5 +1,5 @@
 import abc
-import neptune
+import neptune.new as neptune
 import datetime
 from hyperdash import Experiment
 import time
@@ -19,6 +19,12 @@ from src.defaults import *
 
 
 class Trainer(abc.ABC):
+    """[summary]
+
+    Trainer object to train log and save the model file.
+    Can be used as a base class to create trainers for specific dataset and saving and loading methods.
+    """
+
     def __init__(
         self,
         args,
@@ -29,6 +35,25 @@ class Trainer(abc.ABC):
         log_hyperdash=True,
         **kwargs,
     ):
+        """[summary]
+
+        Args:
+            args ([type]): args for model
+            model_conf (dict): model configuration
+            dataset_conf (dict): datset configuration
+            hparams (dict): model hyperparamters
+            log_neptune (bool, optional): Log to neptune. Defaults to True.
+            log_hyperdash (bool, optional): Log to hyperdash. Defaults to True.
+
+        Raises:
+            ValueError: [description]
+
+        Trainer object to train log and save the model file.
+        Can be used as a base class to create trainers for specific dataset and saving and loading methods.
+
+        Need to implement custom methods load_dataset,load_model,set_optimizers,set_schedulers,save
+
+        """
         print("program execution start: {}".format(datetime.datetime.now()))
         self.scheduler_has_args = False
         self.log_neptune = log_neptune
@@ -126,6 +151,9 @@ class Trainer(abc.ABC):
         pass
 
     def finish(self):
+        """
+        Finish Training
+        """
         self.logger.info("[*] Training finished!\n\n")
         print("-" * 99)
         print(" [*] Training finished!")
@@ -144,6 +172,24 @@ class Trainer(abc.ABC):
         log_hyperdash,
         **kwargs,
     ):
+        """
+        Main function to train model.
+        Can be called only if load_dataset,load_model,set_optimizers,set_schedulers,save are implemented.
+
+        Args:
+            model ([type]): Pytorch model
+            optimizer ([type]): Pytorch optimizer
+            criterion ([type]): Loss criterion
+            train_iterator ([type]): Train Dataset iterator
+            log_neptune ([type]): Log to Neptune
+            log_hyperdash ([type]): Log to hyperdash
+
+        Raises:
+            ValueError: [description]
+
+        Returns:
+            train_loss, train_acc: Train Loss, Train accuracy
+        """
         model.train()
 
         if hasattr(train_iterator, "init_epoch") and callable(

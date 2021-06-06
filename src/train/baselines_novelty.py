@@ -17,7 +17,7 @@ from sklearn.metrics import accuracy_score, confusion_matrix
 from sklearn.metrics import precision_recall_fscore_support
 from nltk import word_tokenize
 
-import neptune
+import neptune.new as neptune
 
 
 if not os.path.exists("./results/novelty_baseline/"):
@@ -313,6 +313,4 @@ if __name__ == "__main__":
             },
             f,
         )
-    logger.info(
-        f"predictions saved at ./results/novelty_baseline/{optpath}.p"
-    )
+    logger.info(f"predictions saved at ./results/novelty_baseline/{optpath}.p")
