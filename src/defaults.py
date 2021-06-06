@@ -741,17 +741,16 @@ def download_model(project, _id):
     if not os.path.exists(model_path):
         os.makedirs(model_path)
 
-    project = neptune.init(project, api_token=NEPTUNE_API)
-    experiment = project.get_experiments(id=_id)[0]
+    run = neptune.init(project, api_token=NEPTUNE_API,run = _id)
     if prj == NLI_NEPTUNE_PROJECT:
-        experiment.download_artifact(_id + ".zip", model_folder_path)
+        run["model_file"].download(model_folder_path)
 
         shutil.unpack_archive(
             os.path.join(model_folder_path, _id + ".zip"),
             extract_dir=model_path,
         )
     if prj == DOC_NEPTUNE_PROJECT:
-        experiment.download_artifact(_id + ".zip", model_folder_path)
+        run["model_file"].download(model_folder_path)
 
         shutil.unpack_archive(
             os.path.join(model_folder_path, _id + ".zip"),
@@ -759,17 +758,18 @@ def download_model(project, _id):
         )
     if prj == NOVELTY_NEPTUNE_PROJECT:
         try:
-            experiment.download_artifact("probs.p", model_path)
+            run["probs"].download(model_path)
         except:
             print("No Probs.p file")
         try:
-            experiment.download_artifact(_id + ".zip", model_folder_path)
+            run["model_file"].download(model_folder_path)
+            shutil.unpack_archive(
+                os.path.join(model_folder_path, _id + ".zip"),
+                extract_dir=model_path,
+            )
         except:
             print("No model file")
-        shutil.unpack_archive(
-            os.path.join(model_folder_path, _id + ".zip"),
-            extract_dir=model_path,
-        )
+        
 
 
 def load_encoder_data(_id):

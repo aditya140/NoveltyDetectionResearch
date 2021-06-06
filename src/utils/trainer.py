@@ -67,10 +67,11 @@ class Trainer(abc.ABC):
                 project_qualified_name=kwargs["neptune_project"],
                 api_token=NEPTUNE_API,
             )
-            self.exp_id = self.exp.id
-            neptune.log_text("Dataset Conf", str(dataset_conf))
-            neptune.log_text("Model Conf", str(model_conf))
-            neptune.log_text("Hparams", str(hparams))
+            self.exp_id = self.exp["sys/id"].fetch()
+            self.exp["Dataset Conf"].log(dataset_conf)
+            self.exp["Model Conf"].log(model_conf)
+            self.exp["Hparams"].log(hparams)
+
         if log_hyperdash:
             self.hd_exp = Experiment(
                 kwargs["neptune_project"], api_key_getter=get_hyperdash_api
@@ -109,10 +110,8 @@ class Trainer(abc.ABC):
                 " [*] Model size (approx) : {}".format(millify(model_size, precision=2))
             )
             if self.log_neptune:
-                neptune.log_text("Model size", str(model_size))
-                neptune.log_text(
-                    "Model size (approx)", millify(model_size, precision=2)
-                )
+                self.exp["Model size"].log(model_size)
+                self.exp["Model size (approx)"].log(millify(model_size, precision=2))
 
             self.set_optimizers(hparams, **kwargs)
             self.set_schedulers(hparams, **kwargs)
@@ -223,7 +222,7 @@ class Trainer(abc.ABC):
             n_total += batch_size
             n_loss += loss.item()
             if log_neptune:
-                neptune.log_metric("Train Loss", loss.item())
+                self.exp["Train Loss"].log(loss.item())
             if log_hyperdash:
                 self.hd_exp.metric("Train Loss", loss.item(), log=False)
             loss.backward()
@@ -232,8 +231,8 @@ class Trainer(abc.ABC):
         train_loss = n_loss / n_total
         train_acc = 100.0 * n_correct / n_total
         if log_neptune:
-            neptune.log_metric("Train Avg Loss", train_loss)
-            neptune.log_metric("Train accuracy", train_acc)
+            self.exp["Train Avg Loss"].log(train_loss)
+            self.exp["Train accuracy"].log(train_acc)
         if log_hyperdash:
             self.hd_exp.metric("Train Avg Loss", train_loss, log=False)
             self.hd_exp.metric("Train accuracy", train_acc, log=False)
@@ -286,7 +285,7 @@ class Trainer(abc.ABC):
                 all_labels = torch.cat([label.cpu(), all_labels], dim=0)
                 all_probs = torch.cat([prob.cpu(), all_probs], dim=0)
                 if log_neptune:
-                    neptune.log_metric("Val Loss", loss.item())
+                    self.exp["Val Loss"].log(loss.item())
                 if log_hyperdash:
                     self.hd_exp.metric("Val Loss", loss.item(), log=False)
             val_loss = n_loss / n_total
