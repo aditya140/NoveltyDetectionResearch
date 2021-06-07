@@ -342,6 +342,10 @@ class HAN_DOC(nn.Module):
         for sub_batch in x[x_padded_idx].split(64):
             # x_enc.append(self.encoder(sub_batch, None))
             x, att = self.encoder(sub_batch, None)
+            # print(att)
+            if att == None:
+                sub_batch_size = x.shape[0]
+                att = torch.zeros((sub_batch_size, max_len, 1)).to(self.template.device)
             x_enc.append(x)
             x_attn.append(att)
         x_enc = torch.cat(x_enc, dim=0)
@@ -367,7 +371,7 @@ class HAN_DOC(nn.Module):
 
         all_, (_, _) = self.lstm_layer(embedded)
         cont, attn = self.attention(all_, return_attention=True)
-        attn = torch.mean(attn,2)
+        attn = torch.mean(attn, 2)
         return cont, attn, word_attn
 
 
@@ -1106,7 +1110,7 @@ class StrucSelfAttention(nn.Module):
         # et shape: [batch_size, num_sent, att_hops]
         et = self.et_dense(ut)
         # att shape: [batch_size,  att_hops, seq_len]
-        att = F.softmax(et,dim=1)
+        att = F.softmax(et, dim=1)
         # output shape [batch_size, att_hops, embedding_width]
         output = torch.bmm(att.permute(0, 2, 1), x).squeeze(1)
         if return_attention:

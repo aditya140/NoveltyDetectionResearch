@@ -35,7 +35,7 @@ class Trainer(abc.ABC):
         dataset_conf,
         hparams,
         log_neptune=True,
-        log_hyperdash=True,
+        log_hyperdash=False,
         **kwargs,
     ):
         """[summary]
