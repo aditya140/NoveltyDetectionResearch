@@ -116,3 +116,5 @@ python3 src/train/train_nli.py -d mnli --tokenizer distil_bert --max_len 80 --ep
 python3 src/train/train_nli.py -d snli --tokenizer spacy bilstm --epochs 10
 
 
+python3 src/train/train_novelty.py --load_nli NLI-190 --folds True --epochs 10 han
+python3 src/train/train_novelty.py --load_nli NLI-190 --folds True --epochs 10 rdv_cnn

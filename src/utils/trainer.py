@@ -605,7 +605,6 @@ class Trainer(abc.ABC):
             )
         )
         if self.log_neptune:
-            neptune.log_metric("mertics/Final Accuracy", sum(fold_acc) / len(fold_acc))
             self.exp["mertics/Final Accuracy"].log(sum(fold_acc) / len(fold_acc))
             self.exp["mertics/Final Precision"].log(str(prec))
             self.exp["mertics/Final Recall"].log(str(recall))
