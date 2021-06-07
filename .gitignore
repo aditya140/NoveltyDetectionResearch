@@ -139,3 +139,4 @@ Evaluation_default
 .vector_cache/
 results/
 default_Training/
+.neptune

@@ -50,7 +50,7 @@ class Train_nli(Trainer):
         self.dataset = self.dataset.data
         self.label_size = len(self.dataset.labels())
         if self.log_neptune:
-            neptune.append_tag([dataset_conf["dataset"], kwargs["model_type"]])
+            self.exp["sys/tags"].add([dataset_conf["dataset"], kwargs["model_type"]])
 
     def load_model(self, model_conf, **kwargs):
         model_conf["vocab_size"] = self.dataset.vocab_size()
@@ -78,7 +78,7 @@ class Train_nli(Trainer):
 
         self.logger.info(" [*] Model size : {}".format(model_size))
         if self.log_neptune:
-            neptune.log_text("Model size", str(model_size))
+            self.exp["Model Size"].log(str(model_size))
 
     def set_optimizers(self, hparams, **kwargs):
         self.criterion = nn.CrossEntropyLoss(reduction=hparams["loss_agg"])
@@ -147,7 +147,7 @@ class Train_nli(Trainer):
                 self.exp_id,
             ),
         )
-        neptune.log_artifact(
+        self.exp["model_file"].upload(
             os.path.join(
                 self.args.results_dir,
                 self.exp_id + ".zip",

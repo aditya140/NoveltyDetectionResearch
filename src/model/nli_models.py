@@ -217,7 +217,7 @@ class BiLSTM_encoder(nn.Module):
         proj = self.relu(self.projection(embedded))
         _, (hid, _) = self.lstm(proj)
         hid = hid[-2:].transpose(0, 1).contiguous().view(batch_size, -1)
-        return hid
+        return hid, None
 
 
 class BiLSTM_snli(nn.Module):

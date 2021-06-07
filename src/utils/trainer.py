@@ -1,4 +1,4 @@
-import abc
+import abc, os
 import neptune.new as neptune
 import datetime
 from hyperdash import Experiment
@@ -16,6 +16,9 @@ from sklearn.metrics import f1_score, precision_recall_fscore_support
 # from torch_lr_finder import LRFinder
 
 from src.defaults import *
+
+
+### Migrated to new neptune
 
 
 class Trainer(abc.ABC):
@@ -64,13 +67,12 @@ class Trainer(abc.ABC):
                     "Please pass the nepune project name as a keyword argument"
                 )
             self.exp = neptune.init(
-                project_qualified_name=kwargs["neptune_project"],
-                api_token=NEPTUNE_API,
+                project=kwargs["neptune_project"], api_token=NEPTUNE_API, tags=["NEW"]
             )
             self.exp_id = self.exp["sys/id"].fetch()
-            self.exp["Dataset Conf"].log(dataset_conf)
-            self.exp["Model Conf"].log(model_conf)
-            self.exp["Hparams"].log(hparams)
+            self.exp["params/Dataset Conf"].log(dataset_conf)
+            self.exp["params/Model Conf"].log(model_conf)
+            self.exp["params/Hparams"].log(hparams)
 
         if log_hyperdash:
             self.hd_exp = Experiment(
@@ -222,7 +224,7 @@ class Trainer(abc.ABC):
             n_total += batch_size
             n_loss += loss.item()
             if log_neptune:
-                self.exp["Train Loss"].log(loss.item())
+                self.exp["mertics/Train Loss"].log(loss.item())
             if log_hyperdash:
                 self.hd_exp.metric("Train Loss", loss.item(), log=False)
             loss.backward()
@@ -231,8 +233,8 @@ class Trainer(abc.ABC):
         train_loss = n_loss / n_total
         train_acc = 100.0 * n_correct / n_total
         if log_neptune:
-            self.exp["Train Avg Loss"].log(train_loss)
-            self.exp["Train accuracy"].log(train_acc)
+            self.exp["mertics/Train Avg Loss"].log(train_loss)
+            self.exp["metrics/Train accuracy"].log(train_acc)
         if log_hyperdash:
             self.hd_exp.metric("Train Avg Loss", train_loss, log=False)
             self.hd_exp.metric("Train accuracy", train_acc, log=False)
@@ -291,8 +293,8 @@ class Trainer(abc.ABC):
             val_loss = n_loss / n_total
             val_acc = 100.0 * n_correct / n_total
             if log_neptune:
-                neptune.log_metric("Val Avg Loss", val_loss)
-                neptune.log_metric("Val Accuracy", val_acc)
+                self.exp["mertics/Val Avg Loss"].log(val_loss)
+                self.exp["mertics/Val Accuracy"].log(val_acc)
             if log_hyperdash:
                 self.hd_exp.metric("Val Avg Loss", val_loss, log=False)
                 self.hd_exp.metric("Val accuracy", val_acc, log=False)
@@ -367,19 +369,19 @@ class Trainer(abc.ABC):
 
             if kwargs.get("secondary_dataset", False):
                 if log_neptune:
-                    neptune.log_metric("Secondary Test Avg Loss", test_loss)
-                    neptune.log_metric("Secondary Test Accuracy", test_acc)
-                    neptune.log_text("Secondary Precision", str(prec))
-                    neptune.log_text("Secondary Recall", str(recall))
-                    neptune.log_text("Secondary F1", str(f1_score))
+                    self.exp["mertics/Secondary Test Avg Loss"].log(test_loss)
+                    self.exp["mertics/Secondary Test Accuracy"].log(test_acc)
+                    self.exp["mertics/Secondary Precision"].log(str(prec))
+                    self.exp["mertics/Secondary Recall"].log(str(recall))
+                    self.exp["mertics/Secondary F1"].log(str(f1_score))
                 return test_loss, test_acc, prec, recall, f1_score
 
             if log_neptune:
-                neptune.log_metric("Test Avg Loss", test_loss)
-                neptune.log_metric("Test Accuracy", test_acc)
-                neptune.log_text("Precision", str(prec))
-                neptune.log_text("Recall", str(recall))
-                neptune.log_text("F1", str(f1_score))
+                self.exp["mertics/Test Avg Loss"].log(test_loss)
+                self.exp["mertics/Test Accuracy"].log(test_acc)
+                self.exp["mertics/Precision"].log(str(prec))
+                self.exp["mertics/Recall"].log(str(recall))
+                self.exp["mertics/F1"].log(str(f1_score))
 
             return (
                 test_loss,
@@ -554,7 +556,7 @@ class Trainer(abc.ABC):
                     self.scheduler.step()
 
                 if self.log_neptune:
-                    neptune.log_metric("train acc", train_acc)
+                    self.exp["mertics/train acc"].log(train_acc)
                 if self.log_hyperdash:
                     self.hd_exp.metric("train acc", train_acc, log=False)
 
@@ -576,7 +578,7 @@ class Trainer(abc.ABC):
             )
 
             if self.log_neptune:
-                neptune.log_metric("Fold Accuracy", test_acc)
+                self.exp["mertics/Fold Accuracy"].log(test_acc)
             if self.log_hyperdash:
                 self.hd_exp.metric("Fold Accuracy", test_acc, log=False)
 
@@ -603,13 +605,15 @@ class Trainer(abc.ABC):
             )
         )
         if self.log_neptune:
-            neptune.log_metric("Final Accuracy", sum(fold_acc) / len(fold_acc))
-            neptune.log_text("Final Precision", str(prec))
-            neptune.log_text("Final Recall", str(recall))
-            neptune.log_text("Final F1", str(f1_score))
-            neptune.log_artifact(
+            neptune.log_metric("mertics/Final Accuracy", sum(fold_acc) / len(fold_acc))
+            self.exp["mertics/Final Accuracy"].log(sum(fold_acc) / len(fold_acc))
+            self.exp["mertics/Final Precision"].log(str(prec))
+            self.exp["mertics/Final Recall"].log(str(recall))
+            self.exp["mertics/Final F1"].log(str(f1_score))
+            self.exp["probs"].upload(
                 os.path.join(self.args.results_dir, self.exp_id, "probs.p")
             )
+
         if self.log_hyperdash:
             self.hd_exp.metric(
                 "Final Accuracy", sum(fold_acc) / len(fold_acc), log=False

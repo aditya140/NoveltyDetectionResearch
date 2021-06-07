@@ -1,4 +1,4 @@
-import sys, copy
+import sys, copy, os
 
 sys.path.append(".")
 import warnings
@@ -61,8 +61,8 @@ class Train_novelty(Trainer):
         self.label_size = len(self.dataset.labels())
 
         if self.log_neptune:
-            neptune.append_tag([dataset_conf["dataset"], kwargs["model_type"]])
-            neptune.log_text("class_labels", str(dict(self.dataset.labels())))
+            self.exp["sys/tags"].add([dataset_conf["dataset"], kwargs["model_type"]])
+            self.exp["class_labels"].log(dict(self.dataset.labels()))
         if self.log_hyperdash:
             self.hd_exp.param("class_labels", str(dict(self.dataset.labels())))
 
@@ -225,7 +225,7 @@ class Train_novelty(Trainer):
                 self.exp_id,
             ),
         )
-        neptune.log_artifact(
+        self.exp["model_file"].upload(
             os.path.join(
                 self.args.results_dir,
                 self.exp_id + ".zip",
