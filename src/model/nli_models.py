@@ -127,8 +127,8 @@ class AttnBiLSTM_snli(nn.Module):
     def forward(self, x0, x1, **kwargs):
         char_vec_x0 = kwargs.get("char_premise", None)
         char_vec_x1 = kwargs.get("char_hypothesis", None)
-        x0_enc = self.encoder(x0, char_vec_x0)
-        x1_enc = self.encoder(x1, char_vec_x1)
+        x0_enc, x0_attn = self.encoder(x0, char_vec_x0)
+        x1_enc, x0_attn = self.encoder(x1, char_vec_x1)
         cont = torch.cat(
             [x0_enc, x1_enc, torch.abs(x0_enc - x1_enc), x0_enc * x1_enc], dim=1
         )
@@ -246,11 +246,10 @@ class BiLSTM_snli(nn.Module):
         )
 
     def forward(self, x0, x1, **kwargs):
-
         char_vec_x0 = kwargs.get("char_premise", None)
         char_vec_x1 = kwargs.get("char_hypothesis", None)
-        x0_enc = self.encoder(x0, char_vec_x0)
-        x1_enc = self.encoder(x1, char_vec_x1)
+        x0_enc,_ = self.encoder(x0, char_vec_x0)
+        x1_enc,_ = self.encoder(x1, char_vec_x1)
 
         combined = torch.cat(
             (
